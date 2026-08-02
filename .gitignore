@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+
+# PyInstaller
+build/
+dist/
+*.manifest
+
+# Datos de ejecucion (no versionar)
+data/
+_reference/
+.sdimport_session.json
+*.sdimport_session_*.json
+
+# Sistema
+Thumbs.db
+Desktop.ini
+.DS_Store
