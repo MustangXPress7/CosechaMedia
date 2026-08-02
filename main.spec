@@ -1,8 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import sys
 
 ROOT = os.path.abspath(SPECPATH)
+
+if sys.platform == "win32":
+    _icon = os.path.join(ROOT, "app", "ui", "logo.ico")
+elif sys.platform == "darwin":
+    _icon = os.path.join(ROOT, "app", "ui", "logo.icns")
+else:
+    _icon = None
 
 a = Analysis(
     ['main.py'],
@@ -43,4 +51,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=_icon,
 )
