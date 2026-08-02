@@ -2111,8 +2111,12 @@ class MainWindow(QMainWindow):
         self._theme_group = QActionGroup(self)
         self._theme_group.setExclusive(True)
         current_theme = theme.get_theme()
-        for key, palette in theme.THEMES.items():
-            act = QAction(self.tr(palette["name"]), self)
+        theme_names = {
+            "dark": self.tr("Oscuro"),
+            "light": self.tr("Claro"),
+        }
+        for key in theme.THEMES:
+            act = QAction(theme_names.get(key, key), self)
             act.setCheckable(True)
             act.setChecked(key == current_theme)
             act.triggered.connect(lambda checked=False, k=key: self._switch_theme(k))
@@ -2123,8 +2127,16 @@ class MainWindow(QMainWindow):
         self._accent_group = QActionGroup(self)
         self._accent_group.setExclusive(True)
         current_accent = theme.get_accent()
-        for key, acc in theme.ACCENTS.items():
-            act = QAction(self.tr(acc["name"]), self)
+        accent_names = {
+            "default": self.tr("Neutro"),
+            "green": self.tr("Verde"),
+            "blue": self.tr("Azul"),
+            "pink": self.tr("Rosa"),
+            "purple": self.tr("Morado"),
+            "amber": self.tr("Ámbar"),
+        }
+        for key in theme.ACCENTS:
+            act = QAction(accent_names.get(key, key), self)
             act.setCheckable(True)
             act.setChecked(key == current_accent)
             act.triggered.connect(lambda checked=False, k=key: self._switch_accent(k))
