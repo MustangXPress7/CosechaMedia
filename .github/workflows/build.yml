@@ -1,0 +1,67 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build binary with PyInstaller
+        run: pyinstaller --noconfirm --clean main.spec
+
+      - name: Prepare assets (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p release
+          cp dist/CosechaMedia.exe release/CosechaMedia-windows-x86_64.exe
+          cd release
+          sha256sum CosechaMedia-windows-x86_64.exe | awk '{print $1}' > CosechaMedia-windows-x86_64.exe.sha256
+
+      - name: Prepare assets (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p release
+          ditto -c -k --keepParent dist/CosechaMedia.app release/CosechaMedia-macos.app.zip
+          cd release
+          sha256sum CosechaMedia-macos.app.zip | awk '{print $1}' > CosechaMedia-macos.app.zip.sha256
+
+      - name: Prepare assets (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release
+          cp dist/CosechaMedia release/CosechaMedia-linux-x86_64
+          cd release
+          sha256sum CosechaMedia-linux-x86_64 | awk '{print $1}' > CosechaMedia-linux-x86_64.sha256
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          generate_release_notes: true

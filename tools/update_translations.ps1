@@ -9,8 +9,10 @@ $i18n = Join-Path $root "app\i18n"
 $sources = @(
     (Join-Path $root "main.py"),
     (Join-Path $root "app\ui\main_window.py"),
+    (Join-Path $root "app\ui\about_dialog.py"),
     (Join-Path $root "app\ui\project_wizard.py"),
-    (Join-Path $root "app\core\notifications.py")
+    (Join-Path $root "app\core\notifications.py"),
+    (Join-Path $root "app\core\updater.py")
 )
 
 New-Item -ItemType Directory -Force -Path $i18n | Out-Null

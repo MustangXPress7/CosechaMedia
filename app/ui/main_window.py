@@ -19,8 +19,10 @@ from app.core.ffmpeg_utils import ffmpeg
 from app.core.utils import create_folder_structure, get_mounted_drives, is_removable_drive, resource_path
 from app.core.metadata_engine import metadata_engine
 from app.core import translator
+from app.core import updater
 from app.core.translator import QtString
 from app.ui import theme
+from app.ui.about_dialog import AboutDialog
 from app.ui.wheat_field import paint_wheat_field
 import app.ui.wheat_field as wheat_field
 
@@ -161,6 +163,9 @@ class MainWindow(QMainWindow):
         state = settings.value("windowState", type=QByteArray)
         if state:
             self.restoreState(state)
+
+        if getattr(sys, "frozen", False) and settings.value("checkUpdatesOnStart", True, type=bool):
+            QTimer.singleShot(3000, self._run_startup_update_check)
 
     def setup_views(self):
         self.dashboard_view = DashboardBackground()
@@ -2352,19 +2357,7 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, self.tr("Error"), self.tr("Error al eliminar los proyectos: %1").arg(str(e)))
 
     def show_about(self):
-        QMessageBox.about(
-            self,
-            self.tr("Acerca de CosechaMedia"),
-            "<h2 style='color: {accent};'>CosechaMedia</h2>"
-            "<p style='color: {text};'>{desc}</p>"
-            "<p style='color: {secondary};'>Versión 2.0 - Tech Innovation Edition</p>"
-            "<p style='color: {secondary};'>PySide6 + SQLite + FFmpeg</p>".format(
-                accent=theme.color("accent"),
-                text=theme.color("text"),
-                secondary=theme.color("text_secondary"),
-                desc=self.tr("Herramienta de ingesta de tarjetas SD para producción audiovisual."),
-            )
-        )
+        AboutDialog(self).exec()
 
     def _show_guided_mode_stub(self):
         QMessageBox.information(
@@ -2373,10 +2366,22 @@ class MainWindow(QMainWindow):
         )
 
     def _check_for_updates(self):
-        QMessageBox.information(
-            self, self.tr("Búsqueda de actualizaciones"),
-            self.tr("La búsqueda de actualizaciones estará disponible próximamente.")
+        AboutDialog(self, check_updates=True).exec()
+
+    def _run_startup_update_check(self):
+        self._run_background(lambda progress: updater.check_for_updates(), self._on_startup_update_check)
+
+    def _on_startup_update_check(self, success, payload):
+        if not success or not payload.get("update_available"):
+            return
+        reply = QMessageBox.question(
+            self, self.tr("Actualización disponible"),
+            self.tr("Hay una nueva versión de CosechaMedia disponible: %1. ¿Quieres ver los detalles?")
+            .arg(payload["latest_version"]),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
         )
+        if reply == QMessageBox.Yes:
+            self._check_for_updates()
 
     def _detect_sd_card(self):
         if not self._source_paths and not self.source_input.currentText().strip():
