@@ -330,6 +330,7 @@ TRANSLATIONS = {
     "Actualizaciones": "Updates",
     "Versión: %1": "Version: %1",
     "Versión instalada: %1": "Installed version: %1",
+    "Desarrollado por %1": "Developed by %1",
     "Comprobar ahora": "Check now",
     "Descargar e instalar": "Download and install",
     "Buscar actualizaciones al inicio": "Check for updates at startup",

@@ -110,6 +110,11 @@ class AboutDialog(QDialog):
         stack.setStyleSheet("color: {0}; font-size: 11px;".format(theme.color("text_secondary")))
         layout.addWidget(stack)
 
+        credit = QLabel(self.tr("Desarrollado por %1").arg("JMW Studio / Joan Ramon Viñas"))
+        credit.setAlignment(Qt.AlignCenter)
+        credit.setStyleSheet("color: {0}; font-size: 11px;".format(theme.color("text_secondary")))
+        layout.addWidget(credit)
+
         link = QLabel(
             '<a href="{url}" style="color: {accent};">{url}</a>'.format(
                 url=updater.HTML_URL, accent=theme.color("accent")

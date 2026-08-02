@@ -78,82 +78,87 @@
         <translation>SD card ingest tool for audiovisual production.</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="132"/>
+        <location filename="../ui/about_dialog.py" line="113"/>
+        <source>Desarrollado por %1</source>
+        <translation>Developed by %1</translation>
+    </message>
+    <message>
+        <location filename="../ui/about_dialog.py" line="137"/>
         <source>Versión instalada: %1</source>
         <translation>Installed version: %1</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="141"/>
+        <location filename="../ui/about_dialog.py" line="146"/>
         <source>Comprobar ahora</source>
         <translation>Check now</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="145"/>
+        <location filename="../ui/about_dialog.py" line="150"/>
         <source>Descargar e instalar</source>
         <translation>Download and install</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="156"/>
+        <location filename="../ui/about_dialog.py" line="161"/>
         <source>Buscar actualizaciones al inicio</source>
         <translation>Check for updates at startup</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="180"/>
+        <location filename="../ui/about_dialog.py" line="185"/>
         <source>Comprobando actualizaciones...</source>
         <translation>Checking for updates...</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="191"/>
+        <location filename="../ui/about_dialog.py" line="196"/>
         <source>Tienes la última versión instalada (%1).</source>
         <translation>You have the latest version installed (%1).</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="196"/>
+        <location filename="../ui/about_dialog.py" line="201"/>
         <source>No hay un paquete de actualización para tu sistema.</source>
         <translation>There is no update package for your system.</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="200"/>
+        <location filename="../ui/about_dialog.py" line="205"/>
         <source>Nueva versión disponible: %1 (actual: %2).</source>
         <translation>New version available: %1 (current: %2).</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="209"/>
+        <location filename="../ui/about_dialog.py" line="214"/>
         <source>No se pudo comprobar las actualizaciones: %1</source>
         <translation>Could not check for updates: %1</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="215"/>
+        <location filename="../ui/about_dialog.py" line="220"/>
         <source>Descargando %1...</source>
         <translation>Downloading %1...</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="233"/>
+        <location filename="../ui/about_dialog.py" line="238"/>
         <source>Descarga completada y verificada. La actualización se instalará al reiniciar.</source>
         <translation>Download complete and verified. The update will be installed on restart.</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="242"/>
+        <location filename="../ui/about_dialog.py" line="247"/>
         <source>No se pudo descargar la actualización: %1</source>
         <translation>Could not download the update: %1</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="248"/>
+        <location filename="../ui/about_dialog.py" line="253"/>
         <source>Instalar actualización</source>
         <translation>Install update</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="249"/>
+        <location filename="../ui/about_dialog.py" line="254"/>
         <source>La aplicación se cerrará para instalar la nueva versión. ¿Continuar?</source>
         <translation>The app will close to install the new version. Continue?</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="259"/>
+        <location filename="../ui/about_dialog.py" line="264"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../ui/about_dialog.py" line="260"/>
+        <location filename="../ui/about_dialog.py" line="265"/>
         <source>No se pudo instalar la actualización: %1</source>
         <translation>Could not install the update: %1</translation>
     </message>
