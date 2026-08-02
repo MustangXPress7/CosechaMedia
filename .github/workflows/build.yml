@@ -46,6 +46,24 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
+          mkdir -p "dist/CosechaMedia.app/Contents/MacOS"
+          mv dist/CosechaMedia "dist/CosechaMedia.app/Contents/MacOS/CosechaMedia"
+          cat > "dist/CosechaMedia.app/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>CosechaMedia</string>
+            <key>CFBundleIdentifier</key><string>com.jmwstudio.CosechaMedia</string>
+            <key>CFBundleName</key><string>CosechaMedia</string>
+            <key>CFBundleVersion</key><string>1.0.0</string>
+            <key>CFBundleShortVersionString</key><string>1.0.0</string>
+            <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>NSHighResolutionCapable</key><true/>
+          </dict>
+          </plist>
+          PLIST
           mkdir -p release
           ditto -c -k --keepParent dist/CosechaMedia.app release/CosechaMedia-macos.app.zip
           cd release
