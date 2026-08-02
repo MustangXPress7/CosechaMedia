@@ -20,7 +20,7 @@ from PySide6.QtCore import QCoreApplication
 
 from app.core.translator import tr
 
-REPO = "MustangXPress7/CosehaMedia"
+REPO = "MustangXPress7/CosechaMedia"
 API_URL = "https://api.github.com/repos/{0}".format(REPO)
 RELEASES_URL = API_URL + "/releases"
 HTML_URL = "https://github.com/{0}".format(REPO)
