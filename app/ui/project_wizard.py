@@ -5,13 +5,17 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 from PySide6.QtCore import Qt
 from app.core.db import db
 from app.ui import theme
+from app.core.translator import QtString
  
 class ProjectWizard(QWidget):
+    def tr(self, text, *args, **kwargs):
+        return QtString(super().tr(text, *args, **kwargs))
+
     def __init__(self, on_finished_callback, on_cancel_callback=None):
         super().__init__()
         self.on_finished_callback = on_finished_callback
         self.on_cancel_callback = on_cancel_callback
-        self.setWindowTitle("Nuevo Proyecto")
+        self.setWindowTitle(self.tr("Nuevo Proyecto"))
         self.setMinimumWidth(600)
         self.setMinimumHeight(520)
         
@@ -22,50 +26,50 @@ class ProjectWizard(QWidget):
         self._build_ui()
         
     def _build_ui(self):
-        title = QLabel("Nuevo Proyecto")
+        title = QLabel(self.tr("Nuevo Proyecto"))
         title.setStyleSheet(f"font-size: 22px; font-weight: bold; color: {theme.color('accent')}; margin-bottom: 4px;")
         self.layout.addWidget(title)
 
-        name_group = QGroupBox("Nombre del Proyecto")
+        name_group = QGroupBox(self.tr("Nombre del Proyecto"))
         name_layout = QVBoxLayout(name_group)
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Ej: Rodaje_Cine_01")
+        self.name_input.setPlaceholderText(self.tr("Ej: Rodaje_Cine_01"))
         self.name_input.setMinimumHeight(36)
         name_layout.addWidget(self.name_input)
         self.layout.addWidget(name_group)
         
-        desc_group = QGroupBox("Descripción (Opcional)")
+        desc_group = QGroupBox(self.tr("Descripción (Opcional)"))
         desc_layout = QVBoxLayout(desc_group)
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Breve descripción del proyecto...")
+        self.desc_input.setPlaceholderText(self.tr("Breve descripción del proyecto..."))
         self.desc_input.setMinimumHeight(36)
         desc_layout.addWidget(self.desc_input)
         self.layout.addWidget(desc_group)
 
-        dest_group = QGroupBox("Ruta de Destino")
+        dest_group = QGroupBox(self.tr("Ruta de Destino"))
         dest_layout = QVBoxLayout(dest_group)
         self.dest_input = QLineEdit()
-        self.dest_input.setPlaceholderText("Ej: H:/Produccion/Proyectos")
+        self.dest_input.setPlaceholderText(self.tr("Ej: H:/Produccion/Proyectos"))
         self.dest_input.setMinimumHeight(36)
         dest_layout.addWidget(self.dest_input)
         self.layout.addWidget(dest_group)
         
         config_row = QHBoxLayout()
 
-        duration_group = QGroupBox("Duración")
+        duration_group = QGroupBox(self.tr("Duración"))
         duration_layout = QVBoxLayout(duration_group)
         
         self.duration_group = QButtonGroup()
         
-        self.radio_one_day = QRadioButton("Un solo día")
+        self.radio_one_day = QRadioButton(self.tr("Un solo día"))
         self.radio_one_day.setChecked(True)
-        self.radio_one_day.setToolTip("Todos los archivos pertenecen al mismo día")
+        self.radio_one_day.setToolTip(self.tr("Todos los archivos pertenecen al mismo día"))
         
-        self.radio_multiple_days = QRadioButton("Múltiples días")
-        self.radio_multiple_days.setToolTip("Los archivos se organizarán por fecha de rodaje")
+        self.radio_multiple_days = QRadioButton(self.tr("Múltiples días"))
+        self.radio_multiple_days.setToolTip(self.tr("Los archivos se organizarán por fecha de rodaje"))
         
-        self.radio_no_date = QRadioButton("Sin fecha")
-        self.radio_no_date.setToolTip("No se usará fecha para organizar los archivos")
+        self.radio_no_date = QRadioButton(self.tr("Sin fecha"))
+        self.radio_no_date.setToolTip(self.tr("No se usará fecha para organizar los archivos"))
         
         self.duration_group.addButton(self.radio_one_day, 1)
         self.duration_group.addButton(self.radio_multiple_days, 2)
@@ -76,22 +80,22 @@ class ProjectWizard(QWidget):
         duration_layout.addWidget(self.radio_no_date)
         config_row.addWidget(duration_group, 1)
         
-        org_group = QGroupBox("Organización")
+        org_group = QGroupBox(self.tr("Organización"))
         org_layout = QVBoxLayout(org_group)
         
         self.org_combo = QComboBox()
         self.org_combo.addItems([
-            "Cámara primero (Cámara/Fecha)",
-            "Fecha primero (Fecha/Cámara)",
-            "Solo por cámara",
-            "Sin subcarpetas"
+            self.tr("Cámara primero (Cámara/Fecha)"),
+            self.tr("Fecha primero (Fecha/Cámara)"),
+            self.tr("Solo por cámara"),
+            self.tr("Sin subcarpetas")
         ])
         self.org_combo.setMinimumHeight(36)
         org_layout.addWidget(self.org_combo)
         
-        self.chk_use_metadata_date = QCheckBox("Usar fecha de metadatos")
+        self.chk_use_metadata_date = QCheckBox(self.tr("Usar fecha de metadatos"))
         self.chk_use_metadata_date.setChecked(True)
-        self.chk_use_metadata_date.setToolTip("Usar las fechas de los archivos en lugar de la fecha manual")
+        self.chk_use_metadata_date.setToolTip(self.tr("Usar las fechas de los archivos en lugar de la fecha manual"))
         org_layout.addWidget(self.chk_use_metadata_date)
         
         config_row.addWidget(org_group, 1)
@@ -101,12 +105,12 @@ class ProjectWizard(QWidget):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.setMinimumHeight(44)
         btn_cancel.clicked.connect(self._cancel)
         btn_row.addWidget(btn_cancel)
         
-        btn_finish = QPushButton("Crear Proyecto")
+        btn_finish = QPushButton(self.tr("Crear Proyecto"))
         btn_finish.setObjectName("PrimaryAction")
         btn_finish.setMinimumHeight(44)
         btn_finish.clicked.connect(self.finish_wizard)
@@ -123,7 +127,7 @@ class ProjectWizard(QWidget):
         dest = self.dest_input.text().strip()
         
         if not name or not dest:
-            QMessageBox.warning(self, "Error", "Debes poner un nombre y una ruta de destino.")
+            QMessageBox.warning(self, self.tr("Error"), self.tr("Debes poner un nombre y una ruta de destino."))
             return
         
         conn = db.get_connection()
@@ -163,6 +167,6 @@ class ProjectWizard(QWidget):
             
         except Exception as e:
             conn.rollback()
-            QMessageBox.critical(self, "Error", f"No se pudo guardar el proyecto: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo guardar el proyecto: %1").arg(str(e)))
         finally:
             conn.close()

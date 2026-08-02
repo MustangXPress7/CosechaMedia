@@ -135,6 +135,34 @@ class TestUtils(unittest.TestCase):
         p = resource_path(os.path.join("app", "ui", "logo.png"))
         self.assertTrue(p.endswith(os.path.join("app", "ui", "logo.png")))
 
+    def test_is_removable_drive_darwin(self):
+        from unittest.mock import patch
+        from app.core import utils
+        with patch.object(utils, "sys", spec=["platform"]) as fake_sys:
+            fake_sys.platform = "darwin"
+            self.assertTrue(utils.is_removable_drive("/Volumes/LEXAR"))
+            self.assertFalse(utils.is_removable_drive("/System/Volumes/Data"))
+            self.assertFalse(utils.is_removable_drive(""))
+
+    def test_is_removable_drive_linux(self):
+        from unittest.mock import patch
+        from app.core import utils
+        with patch.object(utils, "sys", spec=["platform"]) as fake_sys:
+            fake_sys.platform = "linux"
+            self.assertTrue(utils.is_removable_drive("/media/user/LEXAR"))
+            self.assertTrue(utils.is_removable_drive("/mnt/card"))
+            self.assertFalse(utils.is_removable_drive("/home/user"))
+
+    def test_get_drive_label_darwin_linux(self):
+        from unittest.mock import patch
+        from app.core import utils
+        with patch.object(utils, "sys", spec=["platform"]) as fake_sys:
+            fake_sys.platform = "darwin"
+            self.assertEqual(utils.get_drive_label("/Volumes/LEXAR"), "LEXAR")
+        with patch.object(utils, "sys", spec=["platform"]) as fake_sys:
+            fake_sys.platform = "linux"
+            self.assertEqual(utils.get_drive_label("/media/user/LEXAR"), "LEXAR")
+
 
 if __name__ == "__main__":
     unittest.main()

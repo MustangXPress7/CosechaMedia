@@ -50,51 +50,106 @@ def calculate_md5(file_path: str, chunk_size: int = 8192) -> str:
         print(f"Error calculating MD5 for {file_path}: {e}")
         return ""
 
+def _windows_mounted_drives():
+    import string
+    from ctypes import windll
+
+    drives = []
+    bitmask = windll.kernel32.GetLogicalDrives()
+    for letter in string.ascii_uppercase:
+        if bitmask & 1:
+            drive_path = f"{letter}:\\"
+            try:
+                drive_type = windll.kernel32.GetDriveTypeW(drive_path)
+                if drive_type == 2:
+                    drives.append({
+                        "path": drive_path,
+                        "type": "removable",
+                        "label": get_drive_label(drive_path)
+                    })
+            except Exception:
+                pass
+        bitmask >>= 1
+    return drives
+
+
+def _mac_mounted_drives():
+    drives = []
+    try:
+        for name in sorted(os.listdir("/Volumes")):
+            path = os.path.join("/Volumes", name)
+            if os.path.ismount(path) and not name.startswith("."):
+                drives.append({
+                    "path": path,
+                    "type": "removable",
+                    "label": name,
+                })
+    except OSError:
+        pass
+    return drives
+
+
+def _linux_mounted_drives():
+    drives = []
+    prefixes = ("/media/", "/run/media/", "/mnt/")
+    try:
+        with open("/proc/mounts", "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 2 or not parts[1].startswith(prefixes):
+                    continue
+                mount = parts[1].replace("\\040", " ")
+                path = mount if mount.endswith(os.sep) else mount + os.sep
+                drives.append({
+                    "path": path,
+                    "type": "removable",
+                    "label": get_drive_label(path),
+                })
+    except OSError:
+        pass
+    return drives
+
+
 def get_mounted_drives():
+    """Unidades extraíbles montadas (Windows: letras; macOS: /Volumes; Linux: /media, /run/media, /mnt)."""
     if sys.platform == "win32":
-        import string
-        from ctypes import windll
-        
-        drives = []
-        bitmask = windll.kernel32.GetLogicalDrives()
-        for letter in string.ascii_uppercase:
-            if bitmask & 1:
-                drive_path = f"{letter}:\\"
-                try:
-                    drive_type = windll.kernel32.GetDriveTypeW(drive_path)
-                    if drive_type == 2:
-                        drives.append({
-                            "path": drive_path,
-                            "type": "removable",
-                            "label": get_drive_label(drive_path)
-                        })
-                except:
-                    pass
-            bitmask >>= 1
-        return drives
-    else:
-        return []
+        return _windows_mounted_drives()
+    if sys.platform == "darwin":
+        return _mac_mounted_drives()
+    return _linux_mounted_drives()
 
 def get_drive_label(drive_path: str) -> str:
-    try:
-        import ctypes
-        kernel32 = ctypes.windll.kernel32
-        buffer = ctypes.create_unicode_buffer(256)
-        kernel32.GetVolumeInformationW(drive_path, buffer, 256, None, None, None, None, 0)
-        return buffer.value
-    except:
-        return ""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            buffer = ctypes.create_unicode_buffer(256)
+            kernel32.GetVolumeInformationW(drive_path, buffer, 256, None, None, None, None, 0)
+            return buffer.value
+        except Exception:
+            return ""
+    base = os.path.basename(drive_path.rstrip("\\/"))
+    return base if base not in ("", "/") else ""
 
 def is_removable_drive(path: str) -> bool:
-    """Devuelve True si la ruta apunta a una unidad extraíble (DRIVE_REMOVABLE)."""
-    if sys.platform != "win32":
+    """Devuelve True si la ruta apunta a una unidad extraíble.
+
+    Windows: DRIVE_REMOVABLE. macOS: montada bajo /Volumes. Linux: bajo
+    /media, /run/media o /mnt (heurística).
+    """
+    if sys.platform == "win32":
+        if len(path) >= 2 and path[1] == ":":
+            drive = path[:2] + "\\"
+        else:
+            drive = os.path.splitdrive(path)[0] + "\\"
+        try:
+            import ctypes
+            return ctypes.windll.kernel32.GetDriveTypeW(drive) == 2
+        except Exception:
+            return False
+    if not path:
         return False
-    if len(path) >= 2 and path[1] == ":":
-        drive = path[:2] + "\\"
-    else:
-        drive = os.path.splitdrive(path)[0] + "\\"
-    try:
-        import ctypes
-        return ctypes.windll.kernel32.GetDriveTypeW(drive) == 2
-    except:
-        return False
+    norm = path.replace("\\", "/")
+    if sys.platform == "darwin":
+        return norm == "/Volumes" or norm.startswith("/Volumes/")
+    return norm.startswith("/media/") or norm.startswith("/run/media/") or norm.startswith("/mnt/")

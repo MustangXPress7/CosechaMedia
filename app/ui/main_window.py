@@ -18,6 +18,8 @@ from app.core.sd_reader import sd_reader
 from app.core.ffmpeg_utils import ffmpeg
 from app.core.utils import create_folder_structure, get_mounted_drives, is_removable_drive, resource_path
 from app.core.metadata_engine import metadata_engine
+from app.core import translator
+from app.core.translator import QtString
 from app.ui import theme
 from app.ui.wheat_field import paint_wheat_field
 import app.ui.wheat_field as wheat_field
@@ -30,6 +32,8 @@ ORG_TYPE_MAP = {
 }
 
 def _format_drive(path: str, quick: bool = True):
+    if sys.platform != "win32":
+        raise RuntimeError(translator.tr("El formateo de tarjetas solo está disponible en Windows."))
     if len(path) >= 2 and path[1] == ":":
         drive = path[:2]
         cmd = f"format {drive} /FS:exFAT /Q" if quick else f"format {drive} /FS:exFAT"
@@ -41,12 +45,12 @@ def _format_drive(path: str, quick: bool = True):
             timeout=600,
         )
     else:
-        raise RuntimeError("Solo se admiten letras de unidad de Windows en este momento.")
+        raise RuntimeError(translator.tr("Solo se admiten letras de unidad de Windows en este momento."))
 
 def _format_sources_worker(progress, paths, quick):
     results = []
     for i, path in enumerate(paths, start=1):
-        progress.emit(f"Formateando {path} ({i}/{len(paths)})...")
+        progress.emit(translator.tr("Formateando %1 (%2/%3)...").arg(path).arg(i).arg(len(paths)))
         try:
             _format_drive(path, quick=quick)
             results.append((path, True, ""))
@@ -59,14 +63,14 @@ def _generate_proxies_worker(progress, jobs, height):
     for i, (path, root) in enumerate(jobs, start=1):
         proxy_dir = os.path.join(root, "Proxies")
         os.makedirs(proxy_dir, exist_ok=True)
-        progress.emit(f"Proxy {i}/{len(jobs)}: {os.path.basename(path)}")
+        progress.emit(translator.tr("Proxy %1/%2: %3").arg(i).arg(len(jobs)).arg(os.path.basename(path)))
         if ffmpeg.create_proxy(path, proxy_dir, height=height):
             count += 1
     return count
 
 def _reorganize_worker(progress, ingestors):
     for i, ing in enumerate(ingestors, start=1):
-        progress.emit(f"Reorganizando ingesta {i}/{len(ingestors)}...")
+        progress.emit(translator.tr("Reorganizando ingesta %1/%2...").arg(i).arg(len(ingestors)))
         ing.reorganize_by_metadata()
     return True
 
@@ -98,6 +102,9 @@ class _TaskWorker(QObject):
             self.finished.emit(False, e)
 
 class MainWindow(QMainWindow):
+    def tr(self, text, *args, **kwargs):
+        return QtString(super().tr(text, *args, **kwargs))
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("CosechaMedia")
@@ -174,19 +181,19 @@ class MainWindow(QMainWindow):
         hb.addWidget(app_label)
         hb.addSpacing(6)
 
-        hb.addWidget(QLabel("Proyecto:"))
+        hb.addWidget(QLabel(self.tr("Proyecto:")))
         self.project_combo = QComboBox()
         self.project_combo.setMinimumWidth(160)
         self.project_combo.currentIndexChanged.connect(self.on_project_selected)
         hb.addWidget(self.project_combo)
 
         for btn, txt, tip in [
-            ("btn_refresh_projects", "⟳", "Actualizar proyectos"),
-            ("btn_new_project", "+", "Nuevo proyecto"),
-            ("btn_delete_project", "×", "Eliminar proyecto"),
-            ("btn_rename_project", "✎", "Renombrar proyecto"),
-            ("btn_duplicate_project", "⧉", "Duplicar proyecto"),
-            ("btn_browse_root", "📁", "Cambiar ruta maestra del proyecto"),
+            ("btn_refresh_projects", "⟳", self.tr("Actualizar proyectos")),
+            ("btn_new_project", "+", self.tr("Nuevo proyecto")),
+            ("btn_delete_project", "×", self.tr("Eliminar proyecto")),
+            ("btn_rename_project", "✎", self.tr("Renombrar proyecto")),
+            ("btn_duplicate_project", "⧉", self.tr("Duplicar proyecto")),
+            ("btn_browse_root", "📁", self.tr("Cambiar ruta maestra del proyecto")),
         ]:
             b = QPushButton(txt)
             b.setObjectName("IconButton")
@@ -215,7 +222,7 @@ class MainWindow(QMainWindow):
         hb.addStretch()
 
         for btn, txt, tip, cb in [
-            ("btn_show_metadata", "⚙", "Configuración", "_show_metadata_dialog"),
+            ("btn_show_metadata", "⚙", self.tr("Configuración"), "_show_metadata_dialog"),
         ]:
             b = QPushButton(txt)
             b.setObjectName("IconButton")
@@ -232,7 +239,7 @@ class MainWindow(QMainWindow):
         self._set_status_color("border_strong")
         hb.addWidget(self.status_indicator)
 
-        self.status_text = QLabel("Listo")
+        self.status_text = QLabel(self.tr("Listo"))
         self.status_text.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
         hb.addWidget(self.status_text)
 
@@ -253,18 +260,18 @@ class MainWindow(QMainWindow):
         left_col.setSpacing(6)
 
         # --- Sources ---
-        src_label = QLabel("Orígenes:")
+        src_label = QLabel(self.tr("Orígenes:"))
         src_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
         left_col.addWidget(src_label)
 
         src_top = QHBoxLayout()
         self.source_input = QComboBox()
         self.source_input.setEditable(True)
-        self.source_input.setPlaceholderText("E:\\DCIM...")
+        self.source_input.setPlaceholderText(self.tr("E:\\DCIM..."))
         self.source_input.currentTextChanged.connect(self.update_start_button_state)
         src_top.addWidget(self.source_input, 1)
 
-        self.btn_browse_source = QPushButton("Examinar")
+        self.btn_browse_source = QPushButton(self.tr("Examinar"))
         self.btn_browse_source.clicked.connect(self.select_source_path)
         src_top.addWidget(self.btn_browse_source)
 
@@ -272,7 +279,7 @@ class MainWindow(QMainWindow):
 
         self.source_list = QTableWidget()
         self.source_list.setColumnCount(2)
-        self.source_list.setHorizontalHeaderLabels(["Ruta de origen", "Cámara"])
+        self.source_list.setHorizontalHeaderLabels([self.tr("Ruta de origen"), self.tr("Cámara")])
         self.source_list.horizontalHeader().setStretchLastSection(False)
         self.source_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.source_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
@@ -287,23 +294,23 @@ class MainWindow(QMainWindow):
         left_col.addWidget(self.source_list)
 
         src_scan_row = QHBoxLayout()
-        self.btn_detect_drives = QPushButton("⟳ Detectar")
-        self.btn_detect_drives.setToolTip("Detectar unidades extraíbles")
+        self.btn_detect_drives = QPushButton(self.tr("⟳ Detectar"))
+        self.btn_detect_drives.setToolTip(self.tr("Detectar unidades extraíbles"))
         self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)
         src_scan_row.addWidget(self.btn_detect_drives)
-        self.btn_guided_mode = QPushButton("Modo guiado")
-        self.btn_guided_mode.setToolTip("Asistente guiado para volcados rápidos (próximamente)")
+        self.btn_guided_mode = QPushButton(self.tr("Modo guiado"))
+        self.btn_guided_mode.setToolTip(self.tr("Asistente guiado para volcados rápidos (próximamente)"))
         self.btn_guided_mode.clicked.connect(self._show_guided_mode_stub)
         src_scan_row.addWidget(self.btn_guided_mode)
-        self.btn_scan_cameras = QPushButton("📷 Escanear cámaras")
-        self.btn_scan_cameras.setToolTip("Escanear cámaras de todos los orígenes checkeados")
+        self.btn_scan_cameras = QPushButton(self.tr("📷 Escanear cámaras"))
+        self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
 
         # --- Sessions ---
-        sess_label = QLabel("Sesiones:")
+        sess_label = QLabel(self.tr("Sesiones:"))
         sess_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
         left_col.addWidget(sess_label)
 
@@ -318,14 +325,14 @@ class MainWindow(QMainWindow):
         self.btn_new_session = QPushButton("+")
         self.btn_new_session.setObjectName("IconButton")
         self.btn_new_session.setFixedSize(28, 28)
-        self.btn_new_session.setToolTip("Nueva sesión")
+        self.btn_new_session.setToolTip(self.tr("Nueva sesión"))
         self.btn_new_session.clicked.connect(self._add_manual_session)
         sess_row.addWidget(self.btn_new_session)
 
         self.btn_delete_session = QPushButton("−")
         self.btn_delete_session.setObjectName("IconButton")
         self.btn_delete_session.setFixedSize(28, 28)
-        self.btn_delete_session.setToolTip("Eliminar sesión")
+        self.btn_delete_session.setToolTip(self.tr("Eliminar sesión"))
         self.btn_delete_session.setEnabled(False)
         self.btn_delete_session.clicked.connect(self._delete_current_session)
         sess_row.addWidget(self.btn_delete_session)
@@ -338,20 +345,20 @@ class MainWindow(QMainWindow):
         self._btn_browse_sess_src = QPushButton("📁")
         self._btn_browse_sess_src.setObjectName("IconButton")
         self._btn_browse_sess_src.setFixedSize(28, 28)
-        self._btn_browse_sess_src.setToolTip("Examinar origen de sesión…")
+        self._btn_browse_sess_src.setToolTip(self.tr("Examinar origen de sesión…"))
         self._btn_browse_sess_src.clicked.connect(self._browse_session_src)
         sess_row.addWidget(self._btn_browse_sess_src)
 
         sess_row.addSpacing(8)
-        sess_row.addWidget(QLabel("Destino:"))
+        sess_row.addWidget(QLabel(self.tr("Destino:")))
         self.session_dest_combo = QComboBox()
-        self.session_dest_combo.addItems(["Por defecto", "Personalizado"])
+        self.session_dest_combo.addItems([self.tr("Por defecto"), self.tr("Personalizado")])
         self.session_dest_combo.setFixedWidth(110)
         self.session_dest_combo.activated.connect(self._on_session_dest_type_changed)
         sess_row.addWidget(self.session_dest_combo)
 
         self.session_dest_path = QLineEdit()
-        self.session_dest_path.setPlaceholderText("Ruta...")
+        self.session_dest_path.setPlaceholderText(self.tr("Ruta..."))
         self.session_dest_path.setFixedWidth(200)
         self.session_dest_path.editingFinished.connect(self._save_session_override)
         self.session_dest_path.setVisible(False)
@@ -360,12 +367,12 @@ class MainWindow(QMainWindow):
         self._btn_browse_sess_dest = QPushButton("📁")
         self._btn_browse_sess_dest.setObjectName("IconButton")
         self._btn_browse_sess_dest.setFixedSize(28, 28)
-        self._btn_browse_sess_dest.setToolTip("Examinar...")
+        self._btn_browse_sess_dest.setToolTip(self.tr("Examinar..."))
         self._btn_browse_sess_dest.clicked.connect(self._browse_session_dest)
         self._btn_browse_sess_dest.setVisible(False)
         sess_row.addWidget(self._btn_browse_sess_dest)
 
-        self.chk_session_delicate = QCheckBox("Modo delicado")
+        self.chk_session_delicate = QCheckBox(self.tr("Modo delicado"))
         self.chk_session_delicate.stateChanged.connect(self._save_session_override)
         sess_row.addWidget(self.chk_session_delicate)
 
@@ -374,13 +381,13 @@ class MainWindow(QMainWindow):
 
         # --- Action buttons ---
         action_row = QHBoxLayout()
-        self.btn_start = QPushButton("INICIAR INGESTA")
+        self.btn_start = QPushButton(self.tr("INICIAR INGESTA"))
         self.btn_start.setObjectName("PrimaryAction")
         self.btn_start.setEnabled(False)
         self.btn_start.setMinimumHeight(36)
         self.btn_start.clicked.connect(self.start_ingest)
 
-        self.btn_stop = QPushButton("DETENER")
+        self.btn_stop = QPushButton(self.tr("DETENER"))
         self.btn_stop.setObjectName("DangerAction")
         self.btn_stop.setEnabled(False)
         self.btn_stop.setMinimumHeight(36)
@@ -398,13 +405,13 @@ class MainWindow(QMainWindow):
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setMinimumHeight(18)
-        self.progress_bar.setFormat("%v / %m archivos")
+        self.progress_bar.setFormat(self.tr("%v / %m archivos"))
         left_col.addWidget(self.progress_bar)
 
         proxy_row = QHBoxLayout()
         proxy_row.setSpacing(6)
-        self.chk_generate_proxies = QCheckBox("Generar proxies")
-        self.chk_generate_proxies.setToolTip("Genera proxies de los clips de video tras la ingesta")
+        self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies"))
+        self.chk_generate_proxies.setToolTip(self.tr("Genera proxies de los clips de video tras la ingesta"))
         proxy_row.addWidget(self.chk_generate_proxies)
         self.proxy_resolution = QComboBox()
         self.proxy_resolution.addItem("720p", 720)
@@ -417,11 +424,11 @@ class MainWindow(QMainWindow):
         self.chk_generate_proxies.toggled.connect(self.proxy_resolution.setEnabled)
 
         stats_row = QHBoxLayout()
-        self.lbl_files_processed = QLabel("0 procesados")
+        self.lbl_files_processed = QLabel(self.tr("0 procesados"))
         self.lbl_files_processed.setStyleSheet(f"color: {theme.color('success')}; font-weight: bold; font-size: 10px;")
-        self.lbl_files_pending = QLabel("0 pendientes")
+        self.lbl_files_pending = QLabel(self.tr("0 pendientes"))
         self.lbl_files_pending.setStyleSheet(f"color: {theme.color('warning')}; font-weight: bold; font-size: 10px;")
-        self.lbl_files_errors = QLabel("0 errores")
+        self.lbl_files_errors = QLabel(self.tr("0 errores"))
         self.lbl_files_errors.setStyleSheet(f"color: {theme.color('danger')}; font-weight: bold; font-size: 10px;")
         stats_row.addWidget(self.lbl_files_processed)
         stats_row.addWidget(self.lbl_files_pending)
@@ -433,18 +440,18 @@ class MainWindow(QMainWindow):
         post_row = QHBoxLayout()
         post_row.setSpacing(6)
 
-        self.btn_reorganize = QPushButton("Reorganizar por metadatos")
-        self.btn_reorganize.setToolTip("Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos")
+        self.btn_reorganize = QPushButton(self.tr("Reorganizar por metadatos"))
+        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos"))
         self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
         post_row.addWidget(self.btn_reorganize)
 
         post_row.addStretch()
 
-        self.chk_format_sources = QCheckBox("Formatear orígenes al acabar:")
-        self.chk_format_sources.setToolTip("Formatea las unidades de origen al acabar el volcado y la comprobación")
+        self.chk_format_sources = QCheckBox(self.tr("Formatear orígenes al acabar:"))
+        self.chk_format_sources.setToolTip(self.tr("Formatea las unidades de origen al acabar el volcado y la comprobación"))
         post_row.addWidget(self.chk_format_sources)
         self.combo_format_mode = QComboBox()
-        self.combo_format_mode.addItems(["Rápido", "Completo"])
+        self.combo_format_mode.addItems([self.tr("Rápido"), self.tr("Completo")])
         self.combo_format_mode.setFixedWidth(100)
         self.combo_format_mode.setEnabled(False)
         post_row.addWidget(self.combo_format_mode)
@@ -452,8 +459,8 @@ class MainWindow(QMainWindow):
 
         post_row.addSpacing(8)
 
-        self.chk_shutdown = QCheckBox("Apagar al acabar")
-        self.chk_shutdown.setToolTip("Apaga el ordenador al finalizar todas las tareas de ingesta")
+        self.chk_shutdown = QCheckBox(self.tr("Apagar al acabar"))
+        self.chk_shutdown.setToolTip(self.tr("Apaga el ordenador al finalizar todas las tareas de ingesta"))
         post_row.addWidget(self.chk_shutdown)
 
         left_col.addLayout(post_row)
@@ -462,7 +469,7 @@ class MainWindow(QMainWindow):
 
         # --- Files table ---
         self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["Archivo", "Cámara", "Estado", "Destino"])
+        self.table.setHorizontalHeaderLabels([self.tr("Archivo"), self.tr("Cámara"), self.tr("Estado"), self.tr("Destino")])
         th = self.table.horizontalHeader()
         th.setSectionResizeMode(QHeaderView.Interactive)
         th.setStretchLastSection(True)
@@ -492,7 +499,7 @@ class MainWindow(QMainWindow):
 
     def _show_metadata_dialog(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Configuración")
+        dialog.setWindowTitle(self.tr("Configuración"))
         dialog.setMinimumWidth(480)
         layout = QFormLayout(dialog)
         layout.setSpacing(8)
@@ -502,42 +509,42 @@ class MainWindow(QMainWindow):
         folder_input.setEditable(True)
         folder_input.addItems(db.get_footage_folders())
         folder_input.setCurrentText(self.project_folder_name or "Footage")
-        layout.addRow("Carpeta footage:", folder_input)
+        layout.addRow(self.tr("Carpeta footage:"), folder_input)
 
         org_combo = QComboBox()
-        org_combo.addItems(["Cámara primero", "Fecha primero", "Solo cámara", "Sin subcarpetas"])
+        org_combo.addItems([self.tr("Cámara primero"), self.tr("Fecha primero"), self.tr("Solo cámara"), self.tr("Sin subcarpetas")])
         org_combo.setCurrentIndex(self.project_organization_type)
-        layout.addRow("Organización:", org_combo)
+        layout.addRow(self.tr("Organización:"), org_combo)
 
         dur_combo = QComboBox()
-        dur_combo.addItems(["Un solo día", "Múltiples días", "Sin fecha"])
+        dur_combo.addItems([self.tr("Un solo día"), self.tr("Múltiples días"), self.tr("Sin fecha")])
         dur_map = {1: 0, 2: 1, 3: 2}
         dur_combo.setCurrentIndex(dur_map.get(self.project_duration_type, 0))
-        layout.addRow("Duración:", dur_combo)
+        layout.addRow(self.tr("Duración:"), dur_combo)
 
         chk_use_meta = QCheckBox()
         chk_use_meta.setChecked(self.project_use_metadata_date)
-        layout.addRow("Usar fecha de metadatos:", chk_use_meta)
+        layout.addRow(self.tr("Usar fecha de metadatos:"), chk_use_meta)
 
         date_input = QDateEdit()
         date_input.setCalendarPopup(True)
         date_input.setDate(self.project_date)
         date_input.setDisplayFormat("yyyy-MM-dd")
-        layout.addRow("Fecha:", date_input)
+        layout.addRow(self.tr("Fecha:"), date_input)
 
         layout.addRow("", QWidget())
 
         # Ruta maestra
-        root_btn = QPushButton("Cambiar...")
-        root_label = QLabel(self.dest_root or "(sin definir)")
+        root_btn = QPushButton(self.tr("Cambiar..."))
+        root_label = QLabel(self.dest_root or self.tr("(sin definir)"))
         root_label.setStyleSheet(f"color: {theme.color('text_secondary')};")
         root_row = QHBoxLayout()
         root_row.addWidget(root_label, 1)
         root_row.addWidget(root_btn)
-        layout.addRow("Ruta maestra:", root_row)
+        layout.addRow(self.tr("Ruta maestra:"), root_row)
 
         def _change_root():
-            path = QFileDialog.getExistingDirectory(dialog, "Seleccionar ruta maestra", self.dest_root or "")
+            path = QFileDialog.getExistingDirectory(dialog, self.tr("Seleccionar ruta maestra"), self.dest_root or "")
             if path:
                 if self.current_project_id is not None:
                     self._save_project_root(path)
@@ -546,7 +553,7 @@ class MainWindow(QMainWindow):
         root_btn.clicked.connect(_change_root)
 
         # Botones
-        btn_save = QPushButton("Guardar")
+        btn_save = QPushButton(self.tr("Guardar"))
         btn_save.setObjectName("PrimaryAction")
 
         def _save():
@@ -571,7 +578,7 @@ class MainWindow(QMainWindow):
 
         btn_save.clicked.connect(_save)
 
-        btn_defaults = QPushButton("Establecer como predeterminado")
+        btn_defaults = QPushButton(self.tr("Establecer como predeterminado"))
         def _set_defaults():
             settings = QSettings("Audiovisual Production", "CosechaMedia")
             settings.setValue("default_folder_name", folder_input.currentText().strip() or "Footage")
@@ -579,10 +586,10 @@ class MainWindow(QMainWindow):
             settings.setValue("default_duration_type",
                               {0: 1, 1: 2, 2: 3}.get(dur_combo.currentIndex(), 1))
             settings.setValue("default_use_metadata_date", chk_use_meta.isChecked())
-            self.ingest_status_label.setText("Valores guardados como predeterminados.")
+            self.ingest_status_label.setText(self.tr("Valores guardados como predeterminados."))
         btn_defaults.clicked.connect(_set_defaults)
 
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(dialog.reject)
         btn_row = QHBoxLayout()
         btn_row.addWidget(btn_defaults)
@@ -596,39 +603,39 @@ class MainWindow(QMainWindow):
     def _show_camera_detection_dialog(self):
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         dialog = QDialog(self)
-        dialog.setWindowTitle("Detección de cámara")
+        dialog.setWindowTitle(self.tr("Detección de cámara"))
         dialog.setMinimumWidth(320)
         layout = QVBoxLayout(dialog)
         layout.setSpacing(8)
         layout.setContentsMargins(16, 12, 16, 12)
 
-        mode_group = QGroupBox("Modo")
+        mode_group = QGroupBox(self.tr("Modo"))
         mode_layout = QVBoxLayout(mode_group)
         mode_combo = QComboBox()
-        mode_combo.addItems(["Manual", "Automático (próximamente)"])
+        mode_combo.addItems([self.tr("Manual"), self.tr("Automático (próximamente)")])
         mode_combo.setCurrentIndex(0)
         mode_model = mode_combo.model()
         mode_model.item(1).setEnabled(False)
-        mode_combo.setToolTip("El modo automático estará disponible próximamente.")
+        mode_combo.setToolTip(self.tr("El modo automático estará disponible próximamente."))
         mode_layout.addWidget(mode_combo)
         layout.addWidget(mode_group)
 
-        timeout_group = QGroupBox("Tiempo máximo de escaneo")
+        timeout_group = QGroupBox(self.tr("Tiempo máximo de escaneo"))
         timeout_layout = QHBoxLayout(timeout_group)
         timeout_spin = QSpinBox()
         timeout_spin.setRange(5, 30)
         timeout_spin.setValue(settings.value("camera_detection_timeout", 5, type=int))
         timeout_spin.setEnabled(False)
-        timeout_spin.setToolTip("Solo aplica al modo automático, disponible próximamente.")
+        timeout_spin.setToolTip(self.tr("Solo aplica al modo automático, disponible próximamente."))
         timeout_layout.addWidget(timeout_spin)
         timeout_layout.addStretch()
         layout.addWidget(timeout_group)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        btn_cancel = QPushButton("Cancelar")
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(dialog.reject)
-        btn_save = QPushButton("Guardar")
+        btn_save = QPushButton(self.tr("Guardar"))
         btn_save.setObjectName("PrimaryAction")
         def _save():
             settings.setValue("camera_detection_mode", "manual")
@@ -637,7 +644,7 @@ class MainWindow(QMainWindow):
             self.project_camera_detection_timeout = timeout_spin.value()
             self._update_detect_button_state()
             self._refresh_source_list()
-            self.ingest_status_label.setText("Detección de cámara actualizada.")
+            self.ingest_status_label.setText(self.tr("Detección de cámara actualizada."))
             dialog.accept()
         btn_save.clicked.connect(_save)
         btn_row.addWidget(btn_cancel)
@@ -655,15 +662,15 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(16, 12, 16, 12)
 
         hint = QLabel(
-            "Puedes añadir, duplicar, renombrar o eliminar nombres."
+            self.tr("Puedes añadir, duplicar, renombrar o eliminar nombres.")
             if duplicate_cb is not None
-            else "Puedes añadir, renombrar o eliminar nombres."
+            else self.tr("Puedes añadir, renombrar o eliminar nombres.")
         )
         hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
         layout.addWidget(hint)
 
         search = QLineEdit()
-        search.setPlaceholderText("Buscar...")
+        search.setPlaceholderText(self.tr("Buscar..."))
         layout.addWidget(search)
 
         listw = QListWidget()
@@ -694,7 +701,7 @@ class MainWindow(QMainWindow):
             return item.text() if item else None
 
         def _add():
-            name, ok = QInputDialog.getText(dialog, "Añadir", "Nuevo nombre:")
+            name, ok = QInputDialog.getText(dialog, self.tr("Añadir"), self.tr("Nuevo nombre:"))
             name = name.strip() if ok else ""
             if name:
                 add_cb(name)
@@ -711,7 +718,7 @@ class MainWindow(QMainWindow):
             name = _selected()
             if not name:
                 return
-            new_name, ok = QInputDialog.getText(dialog, "Renombrar", "Nuevo nombre:", text=name)
+            new_name, ok = QInputDialog.getText(dialog, self.tr("Renombrar"), self.tr("Nuevo nombre:"), text=name)
             new_name = new_name.strip() if ok else ""
             if new_name and new_name != name:
                 rename_cb(name, new_name)
@@ -722,8 +729,8 @@ class MainWindow(QMainWindow):
             if not name:
                 return
             reply = QMessageBox.question(
-                dialog, "Eliminar",
-                f"¿Eliminar '{name}'?",
+                dialog, self.tr("Eliminar"),
+                self.tr("¿Eliminar '%1'?").arg(name),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No
             )
             if reply == QMessageBox.Yes:
@@ -731,17 +738,17 @@ class MainWindow(QMainWindow):
                 refresh()
 
         btn_row = QHBoxLayout()
-        btn_add = QPushButton("Añadir...")
-        btn_ren = QPushButton("Renombrar...")
-        btn_del = QPushButton("Eliminar")
+        btn_add = QPushButton(self.tr("Añadir..."))
+        btn_ren = QPushButton(self.tr("Renombrar..."))
+        btn_del = QPushButton(self.tr("Eliminar"))
         for b in (btn_add, btn_ren, btn_del):
             btn_row.addWidget(b)
         btn_dup = None
         if duplicate_cb is not None:
-            btn_dup = QPushButton("Duplicar")
+            btn_dup = QPushButton(self.tr("Duplicar"))
             btn_row.addWidget(btn_dup)
         btn_row.addStretch()
-        btn_close = QPushButton("Cerrar")
+        btn_close = QPushButton(self.tr("Cerrar"))
         btn_row.addWidget(btn_close)
         layout.addLayout(btn_row)
 
@@ -755,7 +762,7 @@ class MainWindow(QMainWindow):
 
     def _manage_footage_folders(self):
         self._show_names_manager(
-            "Personalizar carpeta de footage",
+            self.tr("Personalizar carpeta de footage"),
             db.get_footage_folders,
             db.add_footage_folder,
             db.rename_footage_folder,
@@ -765,7 +772,7 @@ class MainWindow(QMainWindow):
 
     def _manage_containers(self):
         self._show_names_manager(
-            "Personalizar contenedores de archivos",
+            self.tr("Personalizar contenedores de archivos"),
             db.get_containers,
             db.add_container,
             db.rename_container,
@@ -776,19 +783,17 @@ class MainWindow(QMainWindow):
 
     def _manage_dump_locations(self):
         if self.current_project_id is None:
-            QMessageBox.information(self, "Sin proyecto", "Selecciona un proyecto primero.")
+            QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Selecciona un proyecto primero."))
             return
         dialog = QDialog(self)
-        dialog.setWindowTitle("Destinos de volcado")
+        dialog.setWindowTitle(self.tr("Destinos de volcado"))
         dialog.setMinimumSize(480, 340)
         layout = QVBoxLayout(dialog)
         layout.setSpacing(8)
         layout.setContentsMargins(16, 12, 16, 12)
 
         hint = QLabel(
-            "Los archivos se repartirán entre estos destinos por orden. "
-            "Cuando uno esté lleno se pasará al siguiente. Deja vacío para usar "
-            "la ruta maestra del proyecto."
+            self.tr("Los archivos se repartirán entre estos destinos por orden. Cuando uno esté lleno se pasará al siguiente. Deja vacío para usar la ruta maestra del proyecto.")
         )
         hint.setWordWrap(True)
         hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
@@ -802,17 +807,17 @@ class MainWindow(QMainWindow):
             for loc in db.dump_locations(self.current_project_id):
                 include = []
                 if loc["include_date"]:
-                    include.append("fecha")
+                    include.append(self.tr("fecha"))
                 if loc["include_camera"]:
-                    include.append("cámara")
+                    include.append(self.tr("cámara"))
                 suffix = f"  [{', '.join(include)}]" if include else ""
                 listw.addItem(f"{loc['path']}{suffix}")
 
         btn_row = QHBoxLayout()
-        btn_add = QPushButton("Añadir...")
-        btn_del = QPushButton("Eliminar")
-        btn_up = QPushButton("Subir")
-        btn_down = QPushButton("Bajar")
+        btn_add = QPushButton(self.tr("Añadir..."))
+        btn_del = QPushButton(self.tr("Eliminar"))
+        btn_up = QPushButton(self.tr("Subir"))
+        btn_down = QPushButton(self.tr("Bajar"))
         for b in (btn_add, btn_del, btn_up, btn_down):
             btn_row.addWidget(b)
         btn_row.addStretch()
@@ -820,11 +825,11 @@ class MainWindow(QMainWindow):
 
         def _add():
             path = QFileDialog.getExistingDirectory(
-                dialog, "Seleccionar destino de volcado", self.dest_root or os.path.expanduser("~")
+                dialog, self.tr("Seleccionar destino de volcado"), self.dest_root or os.path.expanduser("~")
             )
             if not path:
                 return
-            label, ok = QInputDialog.getText(dialog, "Destino de volcado", "Etiqueta (opcional):")
+            label, ok = QInputDialog.getText(dialog, self.tr("Destino de volcado"), self.tr("Etiqueta (opcional):"))
             label = label.strip() if ok else None
             db.add_dump_location(self.current_project_id, path, label or None)
             refresh()
@@ -857,7 +862,7 @@ class MainWindow(QMainWindow):
         btn_up.clicked.connect(lambda: _move(-1))
         btn_down.clicked.connect(lambda: _move(1))
 
-        btn_close = QPushButton("Cerrar")
+        btn_close = QPushButton(self.tr("Cerrar"))
         btn_close.setObjectName("PrimaryAction")
         bottom = QHBoxLayout()
         bottom.addStretch()
@@ -878,7 +883,7 @@ class MainWindow(QMainWindow):
         previous_id = self.current_project_id
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
-        self.project_combo.addItem("-- Selecciona un proyecto --", None)
+        self.project_combo.addItem(self.tr("-- Selecciona un proyecto --"), None)
 
         try:
             conn = db.get_connection()
@@ -889,7 +894,7 @@ class MainWindow(QMainWindow):
                 self.project_combo.addItem(label, row['id'])
             conn.close()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudieron cargar los proyectos: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudieron cargar los proyectos: %1").arg(str(e)))
             return
         finally:
             self.project_combo.blockSignals(False)
@@ -907,7 +912,7 @@ class MainWindow(QMainWindow):
             self.current_session_id = None
             self.project_path_label.setText("")
             self._set_status_color("border_strong")
-            self.status_text.setText("Listo")
+            self.status_text.setText(self.tr("Listo"))
             self.btn_delete_project.setEnabled(False)
             self.btn_rename_project.setEnabled(False)
             self.btn_duplicate_project.setEnabled(False)
@@ -930,7 +935,7 @@ class MainWindow(QMainWindow):
         conn.close()
 
         if not res:
-            QMessageBox.warning(self, "Aviso", f"Proyecto #{project_id} no encontrado.")
+            QMessageBox.warning(self, self.tr("Aviso"), self.tr("Proyecto #%1 no encontrado.").arg(project_id))
             return
 
         self.current_project_id = project_id
@@ -944,10 +949,10 @@ class MainWindow(QMainWindow):
         self.project_use_metadata_date = bool(res["use_metadata_date"]) if res["use_metadata_date"] is not None else True
 
         name = res["name"]
-        root = self.dest_root or "(sin ruta)"
+        root = self.dest_root or self.tr("(sin ruta)")
         self.project_path_label.setText(f"→ {root}")
         self._set_status_color("success")
-        self.status_text.setText(f"Proyecto: {name}")
+        self.status_text.setText(self.tr("Proyecto: %1").arg(name))
 
         self._populate_source_paths_from_sessions()
         self._refresh_sessions_combo()
@@ -955,11 +960,11 @@ class MainWindow(QMainWindow):
         self._update_detect_button_state()
 
     def _show_create_project(self):
-        name, ok = QInputDialog.getText(self, "Nuevo proyecto", "Nombre del proyecto:")
+        name, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Nombre del proyecto:"))
         if not ok or not name.strip():
             return
         name = name.strip()
-        desc, ok = QInputDialog.getText(self, "Nuevo proyecto", "Descripción (opcional):")
+        desc, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Descripción (opcional):"))
         if not ok:
             desc = ""
         else:
@@ -981,13 +986,13 @@ class MainWindow(QMainWindow):
             idx = self.project_combo.findData(project_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
-            self.ingest_status_label.setText(f"Proyecto #{project_id} creado con sesión inicial.")
+            self.ingest_status_label.setText(self.tr("Proyecto #%1 creado con sesión inicial.").arg(project_id))
             self.btn_delete_project.setEnabled(True)
             self.btn_rename_project.setEnabled(True)
             self.btn_duplicate_project.setEnabled(True)
             self.update_start_button_state()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo crear el proyecto: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo crear el proyecto: %1").arg(str(e)))
 
     def _update_detect_button_state(self):
         is_auto = self.project_camera_detection_mode == "auto"
@@ -1062,8 +1067,8 @@ class MainWindow(QMainWindow):
         conn.close()
         current_name = res["name"] if res else ""
         new_name, ok = QInputDialog.getText(
-            self, "Renombrar proyecto",
-            "Nuevo nombre del proyecto:",
+            self, self.tr("Renombrar proyecto"),
+            self.tr("Nuevo nombre del proyecto:"),
             text=current_name
         )
         if not ok or not new_name.strip() or new_name.strip() == current_name:
@@ -1076,11 +1081,11 @@ class MainWindow(QMainWindow):
             conn.commit()
             conn.close()
             self.load_existing_projects()
-            self.project_path_label.setText(f"→ {self.dest_root or '(sin ruta)'}")
-            self.status_text.setText(f"Proyecto: {new_name}")
-            self.ingest_status_label.setText(f"Proyecto renombrado a '{new_name}'.")
+            self.project_path_label.setText(f"→ {self.dest_root or self.tr('(sin ruta)')}")
+            self.status_text.setText(self.tr("Proyecto: %1").arg(new_name))
+            self.ingest_status_label.setText(self.tr("Proyecto renombrado a '%1'.").arg(new_name))
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo renombrar el proyecto: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo renombrar el proyecto: %1").arg(str(e)))
 
     def _duplicate_current_project(self):
         if self.current_project_id is None:
@@ -1099,8 +1104,8 @@ class MainWindow(QMainWindow):
             return
         default_new_name = f"{src['name']} (copia)"
         new_name, ok = QInputDialog.getText(
-            self, "Duplicar proyecto",
-            "Nombre del proyecto duplicado:",
+            self, self.tr("Duplicar proyecto"),
+            self.tr("Nombre del proyecto duplicado:"),
             text=default_new_name
         )
         if not ok or not new_name.strip():
@@ -1134,10 +1139,10 @@ class MainWindow(QMainWindow):
             idx = self.project_combo.findData(new_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
-            self.ingest_status_label.setText(f"Proyecto duplicado como '{new_name}' (ID {new_id}).")
+            self.ingest_status_label.setText(self.tr("Proyecto duplicado como '%1' (ID %2).").arg(new_name).arg(new_id))
         except Exception as e:
             conn.close()
-            QMessageBox.critical(self, "Error", f"No se pudo duplicar el proyecto: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo duplicar el proyecto: %1").arg(str(e)))
 
 
 
@@ -1166,7 +1171,7 @@ class MainWindow(QMainWindow):
             ]
 
         if not active:
-            QMessageBox.warning(self, "Sin orígenes", "No hay sesiones con rutas de origen válidas.")
+            QMessageBox.warning(self, self.tr("Sin orígenes"), self.tr("No hay sesiones con rutas de origen válidas."))
             return
 
         sources = [s["source_path"] for s in active]
@@ -1175,7 +1180,7 @@ class MainWindow(QMainWindow):
         self._refresh_recent_paths()
 
         if any(getattr(w, "running", False) for w in self.watchers):
-            QMessageBox.information(self, "Ya en marcha", "El monitoreo de la SD ya está activo.")
+            QMessageBox.information(self, self.tr("Ya en marcha"), self.tr("El monitoreo de la SD ya está activo."))
             return
 
         folder_name = self.project_folder_name or "Footage"
@@ -1269,11 +1274,11 @@ class MainWindow(QMainWindow):
             self.watchers.append(watcher)
 
         self.btn_start.setEnabled(False)
-        self.btn_start.setText("Procesando...")
+        self.btn_start.setText(self.tr("Procesando..."))
         self.btn_stop.setEnabled(True)
-        self.ingest_status_label.setText(f"Procesando {len(sources)} ruta(s): {', '.join(sources)}")
+        self.ingest_status_label.setText(self.tr("Procesando %1 ruta(s): %2").arg(len(sources)).arg(', '.join(sources)))
         self._set_status_color("warning", 6)
-        self.status_text.setText("En progreso")
+        self.status_text.setText(self.tr("En progreso"))
 
     def stop_ingest(self):
         for watcher in self.watchers:
@@ -1284,12 +1289,12 @@ class MainWindow(QMainWindow):
         for ing in self._ingestors:
             ing.stop()
 
-        self.btn_start.setText("Iniciar Ingesta")
+        self.btn_start.setText(self.tr("Iniciar Ingesta"))
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
-        self.ingest_status_label.setText("Ingesta detenida por el usuario")
+        self.ingest_status_label.setText(self.tr("Ingesta detenida por el usuario"))
         self._set_status_color("danger", 6)
-        self.status_text.setText("Detenido")
+        self.status_text.setText(self.tr("Detenido"))
 
         self.notification_manager.notify_ingest_stopped()
 
@@ -1305,14 +1310,14 @@ class MainWindow(QMainWindow):
         if cam_name:
             cam_text = cam_name
         elif self.project_camera_detection_mode == "manual":
-            cam_text = "Sin nombre"
+            cam_text = self.tr("Sin nombre")
         else:
-            cam_text = "Detectando..."
+            cam_text = self.tr("Detectando...")
         camera_item = QTableWidgetItem(cam_text)
         camera_item.setFlags(camera_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 1, camera_item)
 
-        status_item = QTableWidgetItem("Copiando...")
+        status_item = QTableWidgetItem(self.tr("Copiando..."))
         status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 2, status_item)
 
@@ -1323,7 +1328,7 @@ class MainWindow(QMainWindow):
         self._file_row_map[source_path] = row
         self._total_files += 1
         self.progress_bar.setMaximum(self._total_files)
-        self.ingest_status_label.setText(f"Procesando: {os.path.basename(source_path)}")
+        self.ingest_status_label.setText(self.tr("Procesando: %1").arg(os.path.basename(source_path)))
 
     def on_file_finished(self, source_path, dest_path, success, metadata=None, ingestor=None):
         row = self._file_row_map.get(source_path)
@@ -1333,10 +1338,10 @@ class MainWindow(QMainWindow):
                 self.table.setItem(row, 1, camera_item)
 
             if success:
-                status = "Completado"
+                status = self.tr("Completado")
                 text_color = QColor(theme.color("success"))
             else:
-                status = "Error"
+                status = self.tr("Error")
                 text_color = QColor(theme.color("danger"))
 
             status_item = QTableWidgetItem(status)
@@ -1356,8 +1361,8 @@ class MainWindow(QMainWindow):
         self._processed_count += 1
         self.progress_bar.setValue(self._processed_count)
 
-        self.lbl_files_processed.setText(f"{self._processed_count} procesados")
-        self.lbl_files_pending.setText(f"{max(0, self._total_files - self._processed_count)} pendientes")
+        self.lbl_files_processed.setText(self.tr("%1 procesados").arg(self._processed_count))
+        self.lbl_files_pending.setText(self.tr("%1 pendientes").arg(max(0, self._total_files - self._processed_count)))
 
     def _on_ingestor_complete(self, stats, ingestor):
         self._ingest_completed.add(id(ingestor))
@@ -1376,7 +1381,7 @@ class MainWindow(QMainWindow):
             for ing in self._ingestors:
                 ing.stop()
 
-            self.btn_start.setText("Iniciar Ingesta")
+            self.btn_start.setText(self.tr("Iniciar Ingesta"))
             self.btn_start.setEnabled(True)
             self.btn_stop.setEnabled(False)
 
@@ -1384,12 +1389,12 @@ class MainWindow(QMainWindow):
             total_errors = sum(ing.get_stats().get("errors", 0) for ing in self._ingestors)
             total_skipped = sum(ing.get_stats().get("skipped", 0) for ing in self._ingestors)
             self.ingest_status_label.setText(
-                f"Ingesta completada: {total_processed} procesados, "
-                f"{total_errors} errores, {total_skipped} omitidos."
+                self.tr("Ingesta completada: %1 procesados, %2 errores, %3 omitidos.")
+                .arg(total_processed).arg(total_errors).arg(total_skipped)
             )
 
             self._set_status_color("success", 6)
-            self.status_text.setText("Completado")
+            self.status_text.setText(self.tr("Completado"))
 
             stats = {
                 "processed": total_processed,
@@ -1407,14 +1412,14 @@ class MainWindow(QMainWindow):
             can_destroy = total_errors == 0
             blocked = []
             if self.chk_format_sources.isChecked() and not can_destroy:
-                blocked.append("formateo de orígenes")
+                blocked.append(self.tr("formateo de orígenes"))
             if self.chk_shutdown.isChecked() and not can_destroy:
-                blocked.append("apagado del equipo")
+                blocked.append(self.tr("apagado del equipo"))
             if blocked:
                 QMessageBox.warning(
-                    self, "Acciones posteriores bloqueadas",
-                    "Hay errores en la ingesta. Por seguridad, se han bloqueado las "
-                    "siguientes acciones:\n• " + "\n• ".join(blocked)
+                    self, self.tr("Acciones posteriores bloqueadas"),
+                    self.tr("Hay errores en la ingesta. Por seguridad, se han bloqueado las siguientes acciones:\n• %1")
+                    .arg("\n• ".join(blocked))
                 )
 
             self._pending_actions = []
@@ -1432,7 +1437,7 @@ class MainWindow(QMainWindow):
     def _run_next_post_ingest_action(self):
         while True:
             if not self._pending_actions:
-                self.btn_start.setText("Iniciar Ingesta")
+                self.btn_start.setText(self.tr("Iniciar Ingesta"))
                 self.btn_start.setEnabled(True)
                 return
             action = self._pending_actions[0]
@@ -1451,62 +1456,69 @@ class MainWindow(QMainWindow):
                 return
 
     def _format_sources_after_ingest(self) -> bool:
-        if not self._source_paths:
-            QMessageBox.information(self, "Formatear orígenes", "No hay orígenes que formatear.")
+        if sys.platform != "win32":
+            QMessageBox.information(
+                self, self.tr("Formatear orígenes"),
+                self.tr("El formateo de tarjetas solo está disponible en Windows.")
+            )
             return False
-        mode = "completo" if self.combo_format_mode.currentIndex() == 1 else "rápido"
+        if not self._source_paths:
+            QMessageBox.information(self, self.tr("Formatear orígenes"), self.tr("No hay orígenes que formatear."))
+            return False
+        mode_idx = self.combo_format_mode.currentIndex()
+        mode = self.tr("completo") if mode_idx == 1 else self.tr("rápido")
         removable = [p for p in self._source_paths if is_removable_drive(p)]
         skipped = [p for p in self._source_paths if not is_removable_drive(p)]
         if not removable:
             QMessageBox.warning(
-                self, "Formatear orígenes",
-                "Ninguno de los orígenes es una unidad extraíble. No se formateará nada."
+                self, self.tr("Formatear orígenes"),
+                self.tr("Ninguno de los orígenes es una unidad extraíble. No se formateará nada.")
             )
             return False
-        lines = [f"Se formatearán las unidades extraíbles (modo {mode}):"]
+        lines = [self.tr("Se formatearán las unidades extraíbles (modo %1):").arg(mode)]
         lines += removable
         if skipped:
-            lines.append("\nSe omitirán (no son unidades extraíbles):")
+            lines.append(self.tr("\nSe omitirán (no son unidades extraíbles):"))
             lines += skipped
         reply = QMessageBox.question(
-            self, "Formatear orígenes",
-            "\n".join(lines) + "\n\n¿Continuar?",
+            self, self.tr("Formatear orígenes"),
+            "\n".join(lines) + self.tr("\n\n¿Continuar?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
             return False
         self.btn_start.setEnabled(False)
-        self.btn_start.setText("Formateando...")
+        self.btn_start.setText(self.tr("Formateando..."))
         self._run_background(
             _format_sources_worker, self._on_format_finished,
-            removable, quick=(mode == "rápido")
+            removable, quick=(mode_idx != 1)
         )
         return True
 
     def _on_format_finished(self, success, payload):
         if not success:
-            QMessageBox.critical(self, "Formatear", f"No se pudo completar el formateo:\n{payload}")
+            QMessageBox.critical(self, self.tr("Formatear"), self.tr("No se pudo completar el formateo:\n%1").arg(str(payload)))
         else:
             failed = [f"{p}: {e}" for p, ok, e in payload if not ok]
             ok_count = sum(1 for _, ok, _ in payload if ok)
             if failed:
-                self.ingest_status_label.setText(f"Formateados {ok_count}/{len(payload)} con errores")
+                self.ingest_status_label.setText(self.tr("Formateados %1/%2 con errores").arg(ok_count).arg(len(payload)))
                 QMessageBox.warning(
-                    self, "Formatear",
-                    f"Formateados {ok_count}/{len(payload)}.\nErrores:\n" + "\n".join(failed)
+                    self, self.tr("Formatear"),
+                    self.tr("Formateados %1/%2.\nErrores:\n%3").arg(ok_count).arg(len(payload)).arg("\n".join(failed))
                 )
             else:
-                self.ingest_status_label.setText(f"Orígenes formateados: {ok_count}/{len(payload)}")
+                self.ingest_status_label.setText(self.tr("Orígenes formateados: %1/%2").arg(ok_count).arg(len(payload)))
                 QMessageBox.information(
-                    self, "Formatear",
-                    f"Orígenes formateados correctamente: {ok_count}/{len(payload)}."
+                    self, self.tr("Formatear"),
+                    self.tr("Orígenes formateados correctamente: %1/%2.").arg(ok_count).arg(len(payload))
                 )
         self._run_next_post_ingest_action()
 
     def _shutdown_computer(self):
         reply = QMessageBox.question(
-            self, "Apagar ordenador",
-            "Todas las tareas han finalizado. ¿Apagar el ordenador ahora?",
+            self, self.tr("Apagar ordenador"),
+            self.tr("Todas las tareas han finalizado. ¿Apagar el ordenador ahora?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
         )
         if reply != QMessageBox.Yes:
@@ -1519,9 +1531,9 @@ class MainWindow(QMainWindow):
                 subprocess.run(["sudo", "shutdown", "-h", "+1"], check=False)
             else:
                 subprocess.run(["shutdown", "-h", "+1"], check=False)
-            self.ingest_status_label.setText("Apagado programado.")
+            self.ingest_status_label.setText(self.tr("Apagado programado."))
         except Exception as e:
-            QMessageBox.warning(self, "Apagar", f"No se pudo programar el apagado:\n{e}")
+            QMessageBox.warning(self, self.tr("Apagar"), self.tr("No se pudo programar el apagado:\n%1").arg(str(e)))
 
     def update_status_from_watcher(self, message):
         self.ingest_status_label.setText(message)
@@ -1553,7 +1565,7 @@ class MainWindow(QMainWindow):
         if row < 0:
             return
         context_menu = QMenu(self)
-        rename_action = context_menu.addAction("Renombrar cámara...")
+        rename_action = context_menu.addAction(self.tr("Renombrar cámara..."))
         rename_action.triggered.connect(lambda: self._rename_camera_dialog(row))
         context_menu.exec(self.table.viewport().mapToGlobal(pos))
 
@@ -1563,11 +1575,11 @@ class MainWindow(QMainWindow):
             return
         old_name = old_name_item.text()
         if old_name in ("Detectando...", "Unknown_Camera", ""):
-            QMessageBox.information(self, "Sin cámara", "No se detectó cámara para renombrar.")
+            QMessageBox.information(self, self.tr("Sin cámara"), self.tr("No se detectó cámara para renombrar."))
             return
         new_name, ok = QInputDialog.getText(
-            self, "Renombrar cámara",
-            f"Nuevo nombre para '{old_name}':",
+            self, self.tr("Renombrar cámara"),
+            self.tr("Nuevo nombre para '%1':").arg(old_name),
             text=old_name
         )
         if ok and new_name.strip() and new_name.strip() != old_name:
@@ -1578,7 +1590,7 @@ class MainWindow(QMainWindow):
                 cam_item = self.table.item(r, 1)
                 if cam_item and cam_item.text() == old_name:
                     cam_item.setText(new_name)
-            self.ingest_status_label.setText(f"Cámara renombrada: {old_name} → {new_name}")
+            self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_name))
 
     def _post_ingest_rename_dialog(self):
         if self.project_camera_detection_mode == "manual":
@@ -1590,8 +1602,8 @@ class MainWindow(QMainWindow):
         self._unknown_cameras.clear()
         for old_name in unknown_list:
             new_name, ok = QInputDialog.getText(
-                self, "Cámara desconocida detectada",
-                f"Se detectó '{old_name}' sin identificar.\nIntroduce un nombre para el dispositivo:",
+                self, self.tr("Cámara desconocida detectada"),
+                self.tr("Se detectó '%1' sin identificar.\nIntroduce un nombre para el dispositivo:").arg(old_name),
                 text=""
             )
             if ok and new_name.strip():
@@ -1601,7 +1613,7 @@ class MainWindow(QMainWindow):
                     cam_item = self.table.item(r, 1)
                     if cam_item and cam_item.text() == old_name:
                         cam_item.setText(new_name.strip())
-                self.ingest_status_label.setText(f"Cámara renombrada: {old_name} → {new_name.strip()}")
+                self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_name.strip()))
 
     def _on_source_double_clicked(self, item):
         if item.column() == 1:
@@ -1620,8 +1632,8 @@ class MainWindow(QMainWindow):
             return
         current = session.get("camera_name") or ""
         name, ok = QInputDialog.getText(
-            self, "Renombrar cámara",
-            "Nombre de la cámara para este origen:",
+            self, self.tr("Renombrar cámara"),
+            self.tr("Nombre de la cámara para este origen:"),
             text=current
         )
         if ok:
@@ -1647,7 +1659,7 @@ class MainWindow(QMainWindow):
             # Column 1: camera name
             s = auto_sources.get(path)
             cam = s.get("camera_name") if s else None
-            cam_text = cam if cam else ("Sin nombre" if self.project_camera_detection_mode == "manual" else "—")
+            cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
             cam_item = QTableWidgetItem(cam_text)
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
@@ -1704,7 +1716,7 @@ class MainWindow(QMainWindow):
             db.update_session_config(session_id, camera_name=None)
             self._refresh_source_list()
             self._refresh_sessions_combo()
-            self.ingest_status_label.setText("Cámara: Sin nombre (manual)")
+            self.ingest_status_label.setText(self.tr("Cámara: Sin nombre (manual)"))
             return
         self._set_camera_cell_text(source_path, "🔄 Escaneando…")
         import threading
@@ -1713,14 +1725,14 @@ class MainWindow(QMainWindow):
         def on_timeout():
             if getattr(self, '_cam_done', False):
                 return
-            self._set_camera_cell_text(source_path, "Sin nombre")
+            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
             QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
         self._cam_timer.timeout.connect(on_timeout)
         self._cam_timer.start(self.project_camera_detection_timeout * 1000)
         def scan():
             smallest = self._find_smallest_media(source_path)
             if smallest is None:
-                self._set_camera_cell_text(source_path, "Sin nombre")
+                self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
                 QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
                 return
             try:
@@ -1733,11 +1745,11 @@ class MainWindow(QMainWindow):
                     db.update_session_config(session_id, camera_name=cam)
                     QTimer.singleShot(0, self._refresh_source_list)
                     QTimer.singleShot(0, self._refresh_sessions_combo)
-                    QTimer.singleShot(0, lambda c=cam: self.ingest_status_label.setText(f"Cámara detectada: {c}"))
+                    QTimer.singleShot(0, lambda c=cam: self.ingest_status_label.setText(self.tr("Cámara detectada: %1").arg(c)))
                     return
             except Exception:
                 pass
-            self._set_camera_cell_text(source_path, "Sin nombre")
+            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
             QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
         self._cam_done = False
         t = threading.Thread(target=scan, daemon=True)
@@ -1761,29 +1773,29 @@ class MainWindow(QMainWindow):
         if count:
             self._refresh_source_list()
             self._refresh_sessions_combo()
-            self.ingest_status_label.setText(f"Escaneo de cámaras: {count} sesion(es) procesada(s).")
+            self.ingest_status_label.setText(self.tr("Escaneo de cámaras: %1 sesion(es) procesada(s).").arg(count))
 
     def _prompt_unknown_camera(self, session_id, source_path):
         base = self._drive_label(source_path)
         msg = QMessageBox(self)
-        msg.setWindowTitle("Cámara no detectada")
-        msg.setText(f"No se pudo detectar la cámara en {base}.")
-        msg.setInformativeText("¿Qué nombre quieres darle a esta cámara?")
-        btn_sin = msg.addButton("Sin nombre", QMessageBox.ActionRole)
-        btn_rename = msg.addButton("Renombrar…", QMessageBox.ActionRole)
+        msg.setWindowTitle(self.tr("Cámara no detectada"))
+        msg.setText(self.tr("No se pudo detectar la cámara en %1.").arg(base))
+        msg.setInformativeText(self.tr("¿Qué nombre quieres darle a esta cámara?"))
+        btn_sin = msg.addButton(self.tr("Sin nombre"), QMessageBox.ActionRole)
+        btn_rename = msg.addButton(self.tr("Renombrar…"), QMessageBox.ActionRole)
         msg.setDefaultButton(btn_sin)
         msg.exec()
         if msg.clickedButton() == btn_rename:
             name, ok = QInputDialog.getText(
-                self, "Nombre de cámara",
-                "Introduce el nombre de la cámara:"
+                self, self.tr("Nombre de cámara"),
+                self.tr("Introduce el nombre de la cámara:")
             )
             if ok and name.strip():
                 db.update_session_config(session_id, camera_name=name.strip())
-                self.ingest_status_label.setText(f"Cámara: {name.strip()}")
+                self.ingest_status_label.setText(self.tr("Cámara: %1").arg(name.strip()))
         else:
             db.update_session_config(session_id, camera_name=None)
-            self.ingest_status_label.setText("Cámara: Sin nombre")
+            self.ingest_status_label.setText(self.tr("Cámara: Sin nombre"))
         self._refresh_source_list()
         self._refresh_sessions_combo()
         self.update_start_button_state()
@@ -1801,7 +1813,7 @@ class MainWindow(QMainWindow):
         new_name = item.text().strip()
         db.update_session_config(session["id"], camera_name=new_name or None)
         self._refresh_sessions_combo()
-        self.ingest_status_label.setText(f"Cámara: {new_name or 'Sin nombre'}")
+        self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
 
     def _on_source_check_changed(self, item):
         if self.current_project_id is None:
@@ -1823,14 +1835,14 @@ class MainWindow(QMainWindow):
                 if no_source:
                     sid = no_source[0]["id"]
                     db.update_session_config(sid, source_path=path, name=name)
-                    self.ingest_status_label.setText(f"Origen asignado a sesión #{sid}")
+                    self.ingest_status_label.setText(self.tr("Origen asignado a sesión #%1").arg(sid))
                 else:
                     sid = db.create_session(
                         self.current_project_id, name,
                         QDate.currentDate().toString("yyyy-MM-dd"), "active",
                         source_path=path
                     )
-                    self.ingest_status_label.setText(f"Sesión auto creada para {path}")
+                    self.ingest_status_label.setText(self.tr("Sesión auto creada para %1").arg(path))
                 self.current_session_id = sid
                 self._detect_camera_for_session(sid, path)
         else:
@@ -1840,7 +1852,7 @@ class MainWindow(QMainWindow):
                     if s["id"] == self.current_session_id:
                         self.current_session_id = None
                     db.delete_session(s["id"])
-                    self.ingest_status_label.setText(f"Sesión de {path} eliminada.")
+                    self.ingest_status_label.setText(self.tr("Sesión de %1 eliminada.").arg(path))
                     break
         self._refresh_sessions_combo()
         self.update_start_button_state()
@@ -1860,7 +1872,7 @@ class MainWindow(QMainWindow):
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
-            self.sessions_combo.addItem("(Sin sesiones)", None)
+            self.sessions_combo.addItem(self.tr("(Sin sesiones)"), None)
             self.sessions_combo.blockSignals(False)
             self.btn_delete_session.setEnabled(False)
             return
@@ -1897,7 +1909,8 @@ class MainWindow(QMainWindow):
         if not session:
             return
         src = session.get("source_path") or ""
-        text = f"Origen: {src}" if src else "Origen: sin origen (no se ejecutará)"
+        text = (self.tr("Origen: %1").arg(src) if src
+                else self.tr("Origen: sin origen (no se ejecutará)"))
         from PySide6.QtGui import QFontMetrics
         fm = QFontMetrics(self.session_src_label.font())
         self.session_src_label.setText(fm.elidedText(text, Qt.ElideMiddle, 240))
@@ -1924,12 +1937,12 @@ class MainWindow(QMainWindow):
 
     def _add_manual_session(self):
         if self.current_project_id is None:
-            QMessageBox.information(self, "Sin proyecto", "Selecciona un proyecto primero.")
+            QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Selecciona un proyecto primero."))
             return
         name, ok = QInputDialog.getText(
-            self, "Nueva Sesión manual",
-            "Nombre de la sesión:",
-            text=f"Sesión {datetime.now().strftime('%Y-%m-%d')}"
+            self, self.tr("Nueva Sesión manual"),
+            self.tr("Nombre de la sesión:"),
+            text="Sesión " + datetime.now().strftime("%Y-%m-%d")
         )
         if not ok or not name.strip():
             return
@@ -1941,16 +1954,16 @@ class MainWindow(QMainWindow):
         idx = self.sessions_combo.findData(session_id)
         if idx >= 0:
             self.sessions_combo.setCurrentIndex(idx)
-        self.ingest_status_label.setText(f"Sesión manual '{name.strip()}' creada (ID: {session_id})")
+        self.ingest_status_label.setText(self.tr("Sesión manual '%1' creada (ID: %2)").arg(name.strip()).arg(session_id))
 
     def _delete_current_session(self):
         if self.current_session_id is None:
             return
         sid = self.current_session_id
         reply = QMessageBox.question(
-            self, "Eliminar sesión",
-            f"¿Eliminar la sesión #{sid} y todos sus archivos?\n"
-            "Esta acción no se puede deshacer.",
+            self, self.tr("Eliminar sesión"),
+            self.tr("¿Eliminar la sesión #%1 y todos sus archivos?\n"
+                    "Esta acción no se puede deshacer.").arg(sid),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -1960,7 +1973,7 @@ class MainWindow(QMainWindow):
         self.current_session_id = None
         self._refresh_sessions_combo()
         self._refresh_source_list()
-        self.ingest_status_label.setText(f"Sesión #{sid} eliminada.")
+        self.ingest_status_label.setText(self.tr("Sesión #%1 eliminada.").arg(sid))
 
     def _on_session_dest_type_changed(self, index):
         is_alt = index == 1
@@ -1986,7 +1999,7 @@ class MainWindow(QMainWindow):
 
     def _browse_session_dest(self):
         path = QFileDialog.getExistingDirectory(
-            self, "Seleccionar destino de sesión",
+            self, self.tr("Seleccionar destino de sesión"),
             self.session_dest_path.text().strip() or self.dest_root or os.path.expanduser("~")
         )
         if path:
@@ -1997,7 +2010,7 @@ class MainWindow(QMainWindow):
         if self.current_session_id is None:
             return
         path = QFileDialog.getExistingDirectory(
-            self, "Seleccionar origen de sesión",
+            self, self.tr("Seleccionar origen de sesión"),
             os.path.expanduser("~")
         )
         if path:
@@ -2015,44 +2028,44 @@ class MainWindow(QMainWindow):
     def build_menu(self):
         menu_bar = self.menuBar()
 
-        m_file = menu_bar.addMenu("&Archivo")
+        m_file = menu_bar.addMenu(self.tr("&Archivo"))
 
-        act_new = QAction("&Nuevo Proyecto...", self)
+        act_new = QAction(self.tr("&Nuevo Proyecto..."), self)
         act_new.setShortcut("Ctrl+N")
         act_new.triggered.connect(self._show_create_project)
         m_file.addAction(act_new)
 
-        act_refresh = QAction("&Recargar proyectos", self)
+        act_refresh = QAction(self.tr("&Recargar proyectos"), self)
         act_refresh.setShortcut("F5")
         act_refresh.triggered.connect(self.load_existing_projects)
         m_file.addAction(act_refresh)
 
-        act_delete_all = QAction("&Eliminar todos los proyectos...", self)
+        act_delete_all = QAction(self.tr("&Eliminar todos los proyectos..."), self)
         act_delete_all.triggered.connect(self.delete_all_projects)
         m_file.addAction(act_delete_all)
 
         m_file.addSeparator()
 
-        act_quit = QAction("&Salir", self)
+        act_quit = QAction(self.tr("&Salir"), self)
         act_quit.setShortcut("Ctrl+Q")
         act_quit.triggered.connect(self.close)
         m_file.addAction(act_quit)
 
-        m_routes = menu_bar.addMenu("&Rutas")
+        m_routes = menu_bar.addMenu(self.tr("&Rutas"))
 
-        act_pick_source = QAction("Seleccionar &origen (SD)...", self)
+        act_pick_source = QAction(self.tr("Seleccionar &origen (SD)..."), self)
         act_pick_source.setShortcut("Ctrl+O")
         act_pick_source.triggered.connect(self.select_source_path)
         m_routes.addAction(act_pick_source)
 
-        act_pick_dest = QAction("Seleccionar &destino del proyecto...", self)
+        act_pick_dest = QAction(self.tr("Seleccionar &destino del proyecto..."), self)
         act_pick_dest.setShortcut("Ctrl+D")
         act_pick_dest.triggered.connect(self.select_dest_path)
         m_routes.addAction(act_pick_dest)
 
         m_routes.addSeparator()
 
-        self.act_auto_detect = QAction("Auto-detectar &unidades extraíbles al inicio", self)
+        self.act_auto_detect = QAction(self.tr("Auto-detectar &unidades extraíbles al inicio"), self)
         self.act_auto_detect.setCheckable(True)
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         self.act_auto_detect.setChecked(
@@ -2061,57 +2074,57 @@ class MainWindow(QMainWindow):
         self.act_auto_detect.triggered.connect(self._on_auto_detect_toggled)
         m_routes.addAction(self.act_auto_detect)
 
-        act_detect_now = QAction("&Detectar unidades extraíbles ahora", self)
+        act_detect_now = QAction(self.tr("&Detectar unidades extraíbles ahora"), self)
         act_detect_now.triggered.connect(self._auto_detect_removable_drives)
         m_routes.addAction(act_detect_now)
 
         m_routes.addSeparator()
 
-        act_open_data = QAction("Abrir carpeta &datos...", self)
+        act_open_data = QAction(self.tr("Abrir carpeta &datos..."), self)
         act_open_data.triggered.connect(self.open_data_folder)
         m_routes.addAction(act_open_data)
 
         m_routes.addSeparator()
 
-        act_dump_targets = QAction("Gestionar &destinos de volcado...", self)
+        act_dump_targets = QAction(self.tr("Gestionar &destinos de volcado..."), self)
         act_dump_targets.triggered.connect(self._manage_dump_locations)
         m_routes.addAction(act_dump_targets)
 
-        m_detection = menu_bar.addMenu("&Detección")
-        act_cam_detect = QAction("Configurar detección de &cámara...", self)
+        m_detection = menu_bar.addMenu(self.tr("&Detección"))
+        act_cam_detect = QAction(self.tr("Configurar detección de &cámara..."), self)
         act_cam_detect.triggered.connect(self._show_camera_detection_dialog)
         m_detection.addAction(act_cam_detect)
-        act_detect_sd = QAction("Detectar &información de tarjeta SD...", self)
+        act_detect_sd = QAction(self.tr("Detectar &información de tarjeta SD..."), self)
         act_detect_sd.triggered.connect(self._detect_sd_card)
         m_detection.addAction(act_detect_sd)
 
-        m_custom = menu_bar.addMenu("&Personalizado")
-        act_footage = QAction("Personalizar &carpeta de footage...", self)
+        m_custom = menu_bar.addMenu(self.tr("&Personalizado"))
+        act_footage = QAction(self.tr("Personalizar &carpeta de footage..."), self)
         act_footage.triggered.connect(self._manage_footage_folders)
         m_custom.addAction(act_footage)
-        act_containers = QAction("Personalizar &contenedores de archivos...", self)
+        act_containers = QAction(self.tr("Personalizar &contenedores de archivos..."), self)
         act_containers.triggered.connect(self._manage_containers)
         m_custom.addAction(act_containers)
 
-        self._view_menu = menu_bar.addMenu("&Vista")
-        self._theme_menu = self._view_menu.addMenu("Tema")
+        self._view_menu = menu_bar.addMenu(self.tr("&Vista"))
+        self._theme_menu = self._view_menu.addMenu(self.tr("Tema"))
         self._theme_group = QActionGroup(self)
         self._theme_group.setExclusive(True)
         current_theme = theme.get_theme()
         for key, palette in theme.THEMES.items():
-            act = QAction(palette["name"], self)
+            act = QAction(self.tr(palette["name"]), self)
             act.setCheckable(True)
             act.setChecked(key == current_theme)
             act.triggered.connect(lambda checked=False, k=key: self._switch_theme(k))
             self._theme_group.addAction(act)
             self._theme_menu.addAction(act)
 
-        self._accent_menu = self._view_menu.addMenu("Acento")
+        self._accent_menu = self._view_menu.addMenu(self.tr("Acento"))
         self._accent_group = QActionGroup(self)
         self._accent_group.setExclusive(True)
         current_accent = theme.get_accent()
         for key, acc in theme.ACCENTS.items():
-            act = QAction(acc["name"], self)
+            act = QAction(self.tr(acc["name"]), self)
             act.setCheckable(True)
             act.setChecked(key == current_accent)
             act.triggered.connect(lambda checked=False, k=key: self._switch_accent(k))
@@ -2122,20 +2135,41 @@ class MainWindow(QMainWindow):
         bg_enabled = settings.value("wheatBg", True, type=bool)
         if not bg_enabled:
             wheat_field.set_enabled(False)
-        self._act_wheat_bg = QAction("Fondo de trigo", self)
+        self._act_wheat_bg = QAction(self.tr("Fondo de trigo"), self)
         self._act_wheat_bg.setCheckable(True)
         self._act_wheat_bg.setChecked(wheat_field.is_enabled())
         self._act_wheat_bg.triggered.connect(self._toggle_wheat_background)
         self._view_menu.addAction(self._act_wheat_bg)
 
-        m_help = menu_bar.addMenu("A&yuda")
-        act_check_updates = QAction("&Búsqueda de actualizaciones...", self)
+        m_help = menu_bar.addMenu(self.tr("A&yuda"))
+        act_check_updates = QAction(self.tr("&Búsqueda de actualizaciones..."), self)
         act_check_updates.triggered.connect(self._check_for_updates)
         m_help.addAction(act_check_updates)
         m_help.addSeparator()
-        act_about = QAction("&Acerca de...", self)
+        act_about = QAction(self.tr("&Acerca de..."), self)
         act_about.triggered.connect(self.show_about)
         m_help.addAction(act_about)
+
+        m_lang = menu_bar.addMenu(self.tr("&Idioma"))
+        lang_group = QActionGroup(self)
+        lang_group.setExclusive(True)
+        current_lang = translator.current_language()
+        for code, name in translator.LANGUAGES.items():
+            act = QAction(name, self)
+            act.setCheckable(True)
+            act.setChecked(code == current_lang)
+            act.triggered.connect(lambda checked=False, c=code: self._switch_language(c))
+            lang_group.addAction(act)
+            m_lang.addAction(act)
+
+    def _switch_language(self, code):
+        if code == translator.current_language():
+            return
+        translator.set_language(code)
+        QMessageBox.information(
+            self, self.tr("Idioma"),
+            self.tr("Reinicia la aplicación para aplicar el idioma.")
+        )
 
     def _populate_source_paths_from_sessions(self):
         self._source_paths.clear()
@@ -2149,7 +2183,7 @@ class MainWindow(QMainWindow):
     def select_source_path(self):
         start_dir = self.source_input.currentText().strip() or os.path.expanduser("~")
         path = QFileDialog.getExistingDirectory(
-            self, "Seleccionar carpeta de la Tarjeta SD", start_dir
+            self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start_dir
         )
         if path:
             if path not in self._source_paths:
@@ -2177,12 +2211,12 @@ class MainWindow(QMainWindow):
     def select_dest_path(self):
         if self.current_project_id is None:
             QMessageBox.information(
-                self, "Sin proyecto",
-                "Selecciona o crea un proyecto antes de cambiar su destino."
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona o crea un proyecto antes de cambiar su destino.")
             )
             return
         path = QFileDialog.getExistingDirectory(
-            self, "Seleccionar carpeta maestra del proyecto",
+            self, self.tr("Seleccionar carpeta maestra del proyecto"),
             self.dest_root or os.path.expanduser("~")
         )
         if path:
@@ -2203,10 +2237,10 @@ class MainWindow(QMainWindow):
             conn.close()
             self.dest_root = os.path.abspath(new_root)
             self.project_path_label.setText(f"→ {self.dest_root}")
-            self.ingest_status_label.setText(f"Destino maestro actualizado: {self.dest_root}")
+            self.ingest_status_label.setText(self.tr("Destino maestro actualizado: %1").arg(self.dest_root))
             db.save_recent_path(self.dest_root, "dest")
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"No se pudo actualizar el destino: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo actualizar el destino: %1").arg(str(e)))
 
     def open_data_folder(self):
         data_dir = os.path.dirname(db.db_path)
@@ -2219,13 +2253,14 @@ class MainWindow(QMainWindow):
 
     def delete_current_project(self):
         if self.current_project_id is None:
-            QMessageBox.information(self, "Sin proyecto", "Selecciona un proyecto para eliminar.")
+            QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Selecciona un proyecto para eliminar."))
             return
 
         reply = QMessageBox.question(
             self,
-            "Confirmar eliminación",
-            f"¿Eliminar el proyecto #{self.current_project_id} y todos sus datos?\nEsta acción no se puede deshacer.",
+            self.tr("Confirmar eliminación"),
+            self.tr("¿Eliminar el proyecto #%1 y todos sus datos?\nEsta acción no se puede deshacer.")
+            .arg(self.current_project_id),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -2253,9 +2288,9 @@ class MainWindow(QMainWindow):
             self.btn_duplicate_project.setEnabled(False)
             self.load_existing_projects()
             self.update_start_button_state()
-            QMessageBox.information(self, "Eliminado", "Proyecto eliminado correctamente.")
+            QMessageBox.information(self, self.tr("Eliminado"), self.tr("Proyecto eliminado correctamente."))
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error al eliminar el proyecto: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Error al eliminar el proyecto: %1").arg(str(e)))
 
     def delete_all_projects(self):
         conn = db.get_connection()
@@ -2265,13 +2300,13 @@ class MainWindow(QMainWindow):
         conn.close()
 
         if count == 0:
-            QMessageBox.information(self, "Sin proyectos", "No hay proyectos para eliminar.")
+            QMessageBox.information(self, self.tr("Sin proyectos"), self.tr("No hay proyectos para eliminar."))
             return
 
         reply = QMessageBox.question(
             self,
-            "Eliminar todos los proyectos",
-            f"¿Eliminar los {count} proyectos y todos sus datos?\nEsta acción no se puede deshacer.",
+            self.tr("Eliminar todos los proyectos"),
+            self.tr("¿Eliminar los %1 proyectos y todos sus datos?\nEsta acción no se puede deshacer.").arg(count),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -2300,60 +2335,61 @@ class MainWindow(QMainWindow):
             self.btn_duplicate_project.setEnabled(False)
             self.load_existing_projects()
             self.update_start_button_state()
-            QMessageBox.information(self, "Eliminados", "Todos los proyectos han sido eliminados.")
+            QMessageBox.information(self, self.tr("Eliminados"), self.tr("Todos los proyectos han sido eliminados."))
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Error al eliminar los proyectos: {e}")
+            QMessageBox.critical(self, self.tr("Error"), self.tr("Error al eliminar los proyectos: %1").arg(str(e)))
 
     def show_about(self):
         QMessageBox.about(
             self,
-            "Acerca de CosechaMedia",
+            self.tr("Acerca de CosechaMedia"),
             "<h2 style='color: {accent};'>CosechaMedia</h2>"
-            "<p style='color: {text};'>Herramienta de ingesta de tarjetas SD para producción audiovisual.</p>"
+            "<p style='color: {text};'>{desc}</p>"
             "<p style='color: {secondary};'>Versión 2.0 - Tech Innovation Edition</p>"
             "<p style='color: {secondary};'>PySide6 + SQLite + FFmpeg</p>".format(
                 accent=theme.color("accent"),
                 text=theme.color("text"),
                 secondary=theme.color("text_secondary"),
+                desc=self.tr("Herramienta de ingesta de tarjetas SD para producción audiovisual."),
             )
         )
- 
+
     def _show_guided_mode_stub(self):
         QMessageBox.information(
-            self, "Modo guiado",
-            "El Modo guiado para volcados rápidos estará disponible próximamente."
+            self, self.tr("Modo guiado"),
+            self.tr("El Modo guiado para volcados rápidos estará disponible próximamente.")
         )
 
     def _check_for_updates(self):
         QMessageBox.information(
-            self, "Búsqueda de actualizaciones",
-            "La búsqueda de actualizaciones estará disponible próximamente."
+            self, self.tr("Búsqueda de actualizaciones"),
+            self.tr("La búsqueda de actualizaciones estará disponible próximamente.")
         )
 
     def _detect_sd_card(self):
         if not self._source_paths and not self.source_input.currentText().strip():
-            QMessageBox.information(self, "Sin origen", "Selecciona o añade una ruta de tarjeta SD primero.")
+            QMessageBox.information(self, self.tr("Sin origen"), self.tr("Selecciona o añade una ruta de tarjeta SD primero."))
             return
         path = self._source_paths[0] if self._source_paths else self.source_input.currentText().strip()
         info = sd_reader.detect_card_info(path)
         lines = []
         if info["brand"]:
-            lines.append(f"Marca: {info['brand']}")
+            lines.append(self.tr("Marca: %1").arg(info["brand"]))
         if info["model"]:
-            lines.append(f"Modelo: {info['model']}")
+            lines.append(self.tr("Modelo: %1").arg(info["model"]))
         if info["serial"]:
-            lines.append(f"Serie: {info['serial']}")
+            lines.append(self.tr("Serie: %1").arg(info["serial"]))
         if info["capacity_gb"]:
-            lines.append(f"Capacidad: {info['capacity_gb']} GB")
+            lines.append(self.tr("Capacidad: %1 GB").arg(info["capacity_gb"]))
         if info["file_system"]:
-            lines.append(f"Sistema: {info['file_system']}")
+            lines.append(self.tr("Sistema: %1").arg(info["file_system"]))
         if info["total_space"] > 0:
             used_pct = (info["used_space"] / info["total_space"]) * 100
-            lines.append(f"Uso: {used_pct:.1f}%")
+            lines.append(self.tr("Uso: %1%").arg(f"{used_pct:.1f}"))
         if info["errors"]:
-            lines.append(f"Errores: {', '.join(info['errors'])}")
-        text = "\n".join(lines) if lines else "No se pudo detectar información de la tarjeta."
-        QMessageBox.information(self, "Información de Tarjeta SD", text)
+            lines.append(self.tr("Errores: %1").arg(", ".join(info["errors"])))
+        text = "\n".join(lines) if lines else self.tr("No se pudo detectar información de la tarjeta.")
+        QMessageBox.information(self, self.tr("Información de Tarjeta SD"), text)
 
     def _on_auto_detect_toggled(self, checked):
         settings = QSettings("Audiovisual Production", "CosechaMedia")
@@ -2368,7 +2404,7 @@ class MainWindow(QMainWindow):
             print(f"Error detecting drives: {e}")
             return
         if not drives:
-            self.ingest_status_label.setText("No se detectaron unidades extraíbles.")
+            self.ingest_status_label.setText(self.tr("No se detectaron unidades extraíbles."))
             return
         added = []
         for d in drives:
@@ -2401,34 +2437,34 @@ class MainWindow(QMainWindow):
             self._refresh_source_list()
             self._refresh_sessions_combo()
             self.update_start_button_state()
-            self.ingest_status_label.setText(f"Auto-detect: {len(added)} unidad(es) añadida(s).")
+            self.ingest_status_label.setText(self.tr("Auto-detect: %1 unidad(es) añadida(s).").arg(len(added)))
         else:
             self._refresh_source_list()
-            self.ingest_status_label.setText("Auto-detect: ninguna unidad nueva.")
+            self.ingest_status_label.setText(self.tr("Auto-detect: ninguna unidad nueva."))
 
     def _reorganize_by_metadata(self):
         if not self._ingestors:
-            QMessageBox.information(self, "Sin ingesta", "Realiza una ingesta primero.")
+            QMessageBox.information(self, self.tr("Sin ingesta"), self.tr("Realiza una ingesta primero."))
             return
         reply = QMessageBox.question(
-            self, "Reorganizar",
-            "¿Reorganizar archivos en 'Unknown_Camera' detectando su cámara por metadatos?",
+            self, self.tr("Reorganizar"),
+            self.tr("¿Reorganizar archivos en 'Unknown_Camera' detectando su cámara por metadatos?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
             return
         ingestors = list(self._ingestors)
         self.btn_start.setEnabled(False)
-        self.btn_start.setText("Reorganizando...")
+        self.btn_start.setText(self.tr("Reorganizando..."))
         self._run_background(_reorganize_worker, self._on_reorganize_finished, ingestors)
 
     def _on_reorganize_finished(self, success, payload):
-        self.btn_start.setText("Iniciar Ingesta")
+        self.btn_start.setText(self.tr("Iniciar Ingesta"))
         self.btn_start.setEnabled(True)
         if not success:
-            QMessageBox.warning(self, "Reorganizar", f"No se pudo reorganizar:\n{payload}")
+            QMessageBox.warning(self, self.tr("Reorganizar"), self.tr("No se pudo reorganizar:\n%1").arg(payload))
             return
-        QMessageBox.information(self, "Hecho", "Archivos reorganizados.")
+        QMessageBox.information(self, self.tr("Hecho"), self.tr("Archivos reorganizados."))
 
     def _proxy_resolution_height(self) -> int:
         return self.proxy_resolution.currentData() or 720
@@ -2436,12 +2472,12 @@ class MainWindow(QMainWindow):
     def _generate_proxies_after_ingest(self) -> bool:
         videos = list(dict.fromkeys(self._ingested_videos))
         if not videos:
-            QMessageBox.information(self, "Proxies", "No se encontraron clips de video en la ingesta.")
+            QMessageBox.information(self, self.tr("Proxies"), self.tr("No se encontraron clips de video en la ingesta."))
             return False
         height = self._proxy_resolution_height()
         reply = QMessageBox.question(
-            self, "Generar proxies",
-            f"Generar proxies {height}p para {len(videos)} clips de video?",
+            self, self.tr("Generar proxies"),
+            self.tr("Generar proxies %1p para %2 clips de video?").arg(height).arg(len(videos)),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
@@ -2451,7 +2487,7 @@ class MainWindow(QMainWindow):
             path, root = item if isinstance(item, tuple) else (item, self.dest_root)
             jobs.append((path, root))
         self.btn_start.setEnabled(False)
-        self.btn_start.setText("Generando proxies...")
+        self.btn_start.setText(self.tr("Generando proxies..."))
         self._run_background(
             _generate_proxies_worker, self._on_proxies_finished,
             jobs, height
@@ -2460,9 +2496,9 @@ class MainWindow(QMainWindow):
 
     def _on_proxies_finished(self, success, payload):
         if not success:
-            QMessageBox.critical(self, "Proxies", f"No se pudieron generar los proxies:\n{payload}")
+            QMessageBox.critical(self, self.tr("Proxies"), self.tr("No se pudieron generar los proxies:\n%1").arg(payload))
         else:
-            QMessageBox.information(self, "Proxies", f"Proxies generados: {payload}")
+            QMessageBox.information(self, self.tr("Proxies"), self.tr("Proxies generados: %1").arg(payload))
         self._run_next_post_ingest_action()
 
 if __name__ == "__main__":

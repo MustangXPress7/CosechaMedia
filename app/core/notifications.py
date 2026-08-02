@@ -7,6 +7,7 @@ from typing import Dict, Optional
 from PySide6.QtWidgets import QMessageBox, QApplication, QDialog
 from app.ui import theme
 from app.core.utils import resource_path
+from app.core.translator import tr
 
 class _SilentMessageBox(QMessageBox):
     """QMessageBox que no reproduce el sonido de sistema al mostrarse.
@@ -72,7 +73,7 @@ class NotificationManager:
             return
         
         msg = _SilentMessageBox()
-        msg.setWindowTitle("Ingesta Completada")
+        msg.setWindowTitle(tr("Ingesta Completada"))
         msg.setIcon(QMessageBox.Information)
         
         processed = stats.get("processed", 0)
@@ -87,15 +88,15 @@ class NotificationManager:
         danger = theme.color("danger")
 
         text = f"""
-        <h2 style='color: {success};'>✓ Ingesta completada</h2>
-        <p><b>Archivos procesados:</b> {processed}</p>
-        <p><b>Errores:</b> {errors}</p>
-        <p><b>Omitidos:</b> {skipped}</p>
-        <p><b>Tiempo total:</b> {minutes}m {seconds}s</p>
+        <h2 style='color: {success};'>✓ {tr('Ingesta completada')}</h2>
+        <p><b>{tr('Archivos procesados')}:</b> {processed}</p>
+        <p><b>{tr('Errores')}:</b> {errors}</p>
+        <p><b>{tr('Omitidos')}:</b> {skipped}</p>
+        <p><b>{tr('Tiempo total')}:</b> {minutes}m {seconds}s</p>
         """
         
         if errors > 0:
-            text += f"<p style='color: {danger};'>Algunos archivos tuvieron errores. Revisa la tabla para más detalles.</p>"
+            text += f"<p style='color: {danger};'>{tr('Algunos archivos tuvieron errores. Revisa la tabla para más detalles.')}</p>"
         
         msg.setText(text)
         msg.exec()
@@ -106,7 +107,7 @@ class NotificationManager:
             return
 
         msg = _SilentMessageBox()
-        msg.setWindowTitle("Ingesta con errores")
+        msg.setWindowTitle(tr("Ingesta con errores"))
         msg.setIcon(QMessageBox.Warning)
 
         processed = stats.get("processed", 0)
@@ -116,11 +117,11 @@ class NotificationManager:
         danger = theme.color("danger")
 
         text = f"""
-        <h2 style='color: {danger};'>✗ Ingesta no completada</h2>
-        <p><b>Archivos procesados:</b> {processed}</p>
-        <p><b>Errores:</b> {errors}</p>
-        <p><b>Omitidos:</b> {skipped}</p>
-        <p style='color: {danger};'>Hubo errores durante el volcado. Revisa la tabla para más detalles.</p>
+        <h2 style='color: {danger};'>✗ {tr('Ingesta no completada')}</h2>
+        <p><b>{tr('Archivos procesados')}:</b> {processed}</p>
+        <p><b>{tr('Errores')}:</b> {errors}</p>
+        <p><b>{tr('Omitidos')}:</b> {skipped}</p>
+        <p style='color: {danger};'>{tr('Hubo errores durante el volcado. Revisa la tabla para más detalles.')}</p>
         """
 
         msg.setText(text)

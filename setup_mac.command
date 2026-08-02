@@ -1,33 +1,19 @@
 #!/bin/bash
-
-# Verificar si Python 3 está instalado
-if ! command -v python3 &> /dev/null; then
-    echo "Error: Python 3 no está instalado. Por favor, instálalo desde python.org"
-    exit 1
-fi
+# SD IMPORT / CosechaMedia - Compilar ejecutable para macOS
+set -e
 
 echo "======================================================"
-echo "    INICIADOR DE SD IMPORT (Mac / Linux)"
+echo "    SD IMPORT - Compilar ejecutable (macOS)"
 echo "======================================================"
-echo ""
+
+cd "$(dirname "$0")"
 
 echo "[1/3] Verificando dependencias..."
-python3 -m pip install PySide6 PyInstaller --quiet
+python3 -m pip install -r requirements.txt --quiet
 
-echo ""
-echo "[2/3] Generando ejecutable..."
-# Usamos python3 para asegurar la compatibilidad
-python3 -m PyInstaller --noconsole --onefile --path.app=app --clean main.py
+echo "[2/3] Compilando ejecutable..."
+python3 -m PyInstaller --clean main.spec
 
+echo "[3/3] Listo: dist/CosechaMedia.app"
 echo ""
-echo "[3/3] ¡Listo! Abriendo aplicación..."
-echo ""
-# Esperar un poco para que el usuario vea el mensaje
-sleep 3
-
-# Abrir la aplicación
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    open dist/main
-else
-    ./dist/main &
-fi
+echo "Abre la app con: open dist/CosechaMedia.app"

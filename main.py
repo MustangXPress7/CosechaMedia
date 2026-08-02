@@ -1,6 +1,7 @@
 from app.ui.main_window import MainWindow
 from app.ui import theme
 from app.core.utils import resource_path
+from app.core import translator
 from PySide6.QtWidgets import QApplication
 from PySide6.QtGui import QFont, QIcon
 import sys
@@ -12,6 +13,8 @@ def main():
     app.setApplicationName("CosechaMedia")
     app.setOrganizationName("Audiovisual Production")
     app.setApplicationVersion("2.0.0")
+
+    translator.load_translation()
 
     logo_path = resource_path(os.path.join("app", "ui", "logo.png"))
     if os.path.exists(logo_path):

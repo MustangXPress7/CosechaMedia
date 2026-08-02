@@ -12,6 +12,7 @@ a = Analysis(
         (os.path.join(ROOT, 'app', 'ui', 'logo.png'), 'app/ui'),
         (os.path.join(ROOT, 'app', 'ui', 'assets'), 'app/ui/assets'),
         (os.path.join(ROOT, 'app', 'sounds'), 'app/sounds'),
+        (os.path.join(ROOT, 'app', 'i18n'), 'app/i18n'),
     ],
     hiddenimports=[],
     hookspath=[],
