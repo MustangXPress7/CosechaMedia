@@ -1,3 +1,6 @@
+![Logo de CosechaMedia]([https://github.com/MustangXPress7/CosechaMedia/blob/master/app/ui/logo.png])
+
+
 # CosechaMedia
 
 Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verificada (MD5), organización por cámara y fecha, generación de proxies y flujo de trabajo diseñado para volcados rápidos de rodaje.
