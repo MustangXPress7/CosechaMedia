@@ -1,5 +1,4 @@
-![Logo de CosechaMedia]([https://github.com/MustangXPress7/CosechaMedia/blob/master/app/ui/logo.png])
-
+![Logo de CosechaMedia](https://i.imgur.com/tir6i57.png)
 
 # CosechaMedia
 
@@ -9,13 +8,15 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 
 - **Ingesta verificada**: copia de tarjetas SD con comprobación MD5 y eliminación de destinos corruptos.
 - **Organización automática**: `Footage/<Cámara>/<Fecha>` con varios modos (cámara primero, fecha primero, solo cámara, sin subcarpetas).
-- **Detección de cámaras (WIP)**: escaneo de orígenes y renombrado manual de cámaras desconocidas.
+- **(WIP) Detección de cámaras**: escaneo de orígenes y renombrado manual de cámaras desconocidas.
 - **Destinos de volcado múltiples**: reparto automático entre discos (cuando uno se llena, pasa al siguiente).
 - **Proxies**: generación de proxies 720p/1080p de los clips de vídeo.
 - **Post-ingesta**: formateo de orígenes (Windows) y apagado programado.
 - **Temas y acentos**: tema oscuro/claro con acentos de color y fondo de trigo animado.
 - **Internacionalización**: español e inglés (se cambia en el menú *Idioma*).
 - **Actualizaciones automáticas**: comprobación vía GitHub Releases con verificación SHA-256.
+
+![UI de CosechaMedia](https://i.imgur.com/wn2ZprQ.png)
 
 ## Requisitos
 
