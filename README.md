@@ -6,7 +6,7 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 
 - **Ingesta verificada**: copia de tarjetas SD con comprobación MD5 y eliminación de destinos corruptos.
 - **Organización automática**: `Footage/<Cámara>/<Fecha>` con varios modos (cámara primero, fecha primero, solo cámara, sin subcarpetas).
-- **Detección de cámaras**: escaneo de orígenes y renombrado manual de cámaras desconocidas.
+- **Detección de cámaras (WIP)**: escaneo de orígenes y renombrado manual de cámaras desconocidas.
 - **Destinos de volcado múltiples**: reparto automático entre discos (cuando uno se llena, pasa al siguiente).
 - **Proxies**: generación de proxies 720p/1080p de los clips de vídeo.
 - **Post-ingesta**: formateo de orígenes (Windows) y apagado programado.
