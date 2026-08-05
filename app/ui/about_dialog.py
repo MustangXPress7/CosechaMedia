@@ -23,11 +23,21 @@ class _CheckWorker(QObject):
     done = Signal(object)
     error = Signal(str)
 
+    def __init__(self):
+        super().__init__()
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
+
     def run(self):
         try:
+            if self._cancelled:
+                return
             self.done.emit(updater.check_for_updates())
         except Exception as e:
-            self.error.emit(str(e))
+            if not self._cancelled:
+                self.error.emit(str(e))
 
 
 class _DownloadWorker(QObject):
@@ -39,14 +49,24 @@ class _DownloadWorker(QObject):
         super().__init__()
         self._asset = asset
         self._dest = dest
+        self._cancelled = False
+
+    def cancel(self):
+        self._cancelled = True
 
     def run(self):
         try:
+            if self._cancelled:
+                return
             path = updater.download_asset(self._asset, self._dest, self.progress.emit)
+            if self._cancelled:
+                return
             updater.verify_download(path, self._asset)
-            self.done.emit(path)
+            if not self._cancelled:
+                self.done.emit(path)
         except Exception as e:
-            self.error.emit(str(e))
+            if not self._cancelled:
+                self.error.emit(str(e))
 
 
 class AboutDialog(QDialog):
@@ -56,6 +76,7 @@ class AboutDialog(QDialog):
     def __init__(self, parent=None, check_updates=False):
         super().__init__(parent)
         self._threads = []
+        self._workers = []
         self._info = None
         self._download_path = None
 
@@ -73,6 +94,16 @@ class AboutDialog(QDialog):
         if check_updates:
             self.tabs.setCurrentIndex(1)
             QTimer.singleShot(0, self._check_now)
+
+    def closeEvent(self, event):
+        # Cancel any running workers
+        for w in self._workers:
+            w.cancel()
+        # Wait for threads to finish (max 2s)
+        for t in self._threads:
+            t.quit()
+            t.wait(2000)
+        event.accept()
 
     def _build_about_tab(self):
         page = QWidget()
@@ -275,4 +306,5 @@ class AboutDialog(QDialog):
         worker.error.connect(thread.quit)
         thread.finished.connect(thread.deleteLater)
         self._threads.append(thread)
+        self._workers.append(worker)
         thread.start()

@@ -61,7 +61,7 @@ def compare_versions(a: str, b: str) -> int:
     return (va > vb) - (va < vb)
 
 
-def _http_json(url: str, timeout: int = _TIMEOUT):
+def _http_json(url: str, timeout: int = 10):
     req = urllib.request.Request(
         url,
         headers={"User-Agent": _user_agent(), "Accept": "application/vnd.github+json"},
