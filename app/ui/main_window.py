@@ -2148,6 +2148,9 @@ class MainWindow(QMainWindow):
             idx = self.sessions_combo.findData(prev_id)
             if idx >= 0:
                 self.sessions_combo.setCurrentIndex(idx)
+        elif len(sessions) > 0:
+            self.sessions_combo.setCurrentIndex(0)
+            self._on_session_selected(0)
         self.sessions_combo.blockSignals(False)
         self.btn_delete_session.setEnabled(True)
         self._update_wifi_button_state()
