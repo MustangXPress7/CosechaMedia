@@ -362,6 +362,7 @@ class MainWindow(QMainWindow):
         self.btn_receive_wifi = QPushButton(self.tr("WiFi…"))
         self.btn_receive_wifi.setToolTip(self.tr("Recibir archivos de un móvil por WiFi (QR o FTP)"))
         self.btn_receive_wifi.clicked.connect(self._pick_wifi_source)
+        self.btn_receive_wifi.setEnabled(False)
         src_top.addWidget(self.btn_receive_wifi)
 
         left_col.addLayout(src_top)
@@ -1085,6 +1086,7 @@ class MainWindow(QMainWindow):
             self.btn_delete_project.setEnabled(False)
             self.btn_rename_project.setEnabled(False)
             self.btn_duplicate_project.setEnabled(False)
+            self._update_wifi_button_state()
         else:
             self._load_project(project_id)
             self.btn_delete_project.setEnabled(True)
@@ -1127,6 +1129,7 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self._refresh_source_list()
         self._update_detect_button_state()
+        self._update_wifi_button_state()
 
     def _show_create_project(self):
         name, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Nombre del proyecto:"))
@@ -2125,12 +2128,14 @@ class MainWindow(QMainWindow):
             self.session_dest_combo.setVisible(False)
             self._btn_browse_sess_dest.setVisible(False)
             self.chk_session_delicate.setVisible(False)
+            self._update_wifi_button_state()
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
             self.sessions_combo.addItem(self.tr("(Sin sesiones)"), None)
             self.sessions_combo.blockSignals(False)
             self.btn_delete_session.setEnabled(False)
+            self._update_wifi_button_state()
             return
         for idx, s in enumerate(sessions, start=1):
             status_fmt = "●" if s["status"] == "active" else "○"
@@ -2145,6 +2150,7 @@ class MainWindow(QMainWindow):
                 self.sessions_combo.setCurrentIndex(idx)
         self.sessions_combo.blockSignals(False)
         self.btn_delete_session.setEnabled(True)
+        self._update_wifi_button_state()
 
     def _on_session_selected(self, index):
         session_id = self.sessions_combo.itemData(index)
@@ -2156,9 +2162,11 @@ class MainWindow(QMainWindow):
             self.session_dest_combo.setVisible(False)
             self._btn_browse_sess_dest.setVisible(False)
             self.chk_session_delicate.setVisible(False)
+            self._update_wifi_button_state()
             return
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
+        self._update_wifi_button_state()
         self._btn_browse_sess_src.setVisible(True)
         self.session_dest_combo.setVisible(True)
         session = db.get_session(session_id)
@@ -2516,36 +2524,24 @@ class MainWindow(QMainWindow):
         elif dialog.method == "pairdrop":
             self._open_shoot_inbox()
 
+    def _update_wifi_button_state(self):
+        """WiFi… solo está disponible dentro de una sesión concreta."""
+        self.btn_receive_wifi.setEnabled(
+            self.current_project_id is not None
+            and self.current_session_id is not None
+        )
+
     def _open_shoot_inbox(self):
         from app.ui.shoot_inbox import ShootInboxDialog
-        if self.current_project_id is not None:
-            from app.core.shoot_inbox import inbox_root
-            self._register_inbox_source(inbox_root())
-        dlg = ShootInboxDialog(self)
+        if self.current_project_id is None or self.current_session_id is None:
+            return
+        project_context = {
+            "master_root": self.dest_root or "",
+            "folder_name": self.project_folder_name or "Footage",
+            "organization_type": self.project_organization_type,
+        }
+        dlg = ShootInboxDialog(self, project_context=project_context)
         dlg.exec()
-
-    def _register_inbox_source(self, path):
-        os.makedirs(path, exist_ok=True)
-        sessions = db.get_sessions(self.current_project_id)
-        existing = next((s for s in sessions if s.get("source_path") == path), None)
-        if existing:
-            db.update_session_config(existing["id"], source_path=path)
-        else:
-            no_source = [s for s in sessions if not s.get("source_path")]
-            if no_source:
-                sid = no_source[0]["id"]
-                db.update_session_config(
-                    sid, source_path=path, name=self.tr("Inbox WiFi"))
-            else:
-                sid = db.create_session(
-                    self.current_project_id, self.tr("Inbox WiFi"),
-                    QDate.currentDate().toString("yyyy-MM-dd"), "active",
-                    source_path=path)
-        if path not in self._source_paths:
-            self._source_paths.append(path)
-        self._refresh_source_list()
-        self._refresh_sessions_combo()
-        self.update_start_button_state()
 
     def _pick_ftp_source(self):
         from app.ui.ftp_picker import FtpPickerDialog
@@ -2632,7 +2628,7 @@ class MainWindow(QMainWindow):
 
     def _on_stage_done(self, ok, res, worker, thread, session_id, cache_dir, silent=False):
         self.act_pick_device.setEnabled(True)
-        self.btn_receive_wifi.setEnabled(True)
+        self._update_wifi_button_state()
         if not ok:
             if silent:
                 self.ingest_status_label.setText(self.tr("Dispositivo no disponible"))

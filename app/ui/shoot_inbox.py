@@ -11,8 +11,8 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPainter, QPixmap
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
-    QLineEdit, QListWidget, QPushButton, QTreeWidget, QTreeWidgetItem,
+    QCheckBox, QDialog, QDialogButtonBox, QFileDialog, QFormLayout, QHBoxLayout,
+    QLabel, QLineEdit, QListWidget, QPushButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QMessageBox,
 )
 
@@ -32,16 +32,22 @@ class _SenderEditDialog(QDialog):
     """Formulario para añadir/editar remitente (nombre + ubicación)."""
 
     def __init__(self, parent=None, title="", name="", location="",
-                 name_label="", location_label="", location_hint=""):
+                 name_label="", location_label="", location_hint="",
+                 browse_label="Browse"):
         super().__init__(parent)
         self.setWindowTitle(title)
-        self.setMinimumWidth(400)
+        self.setMinimumWidth(440)
         self.name_edit = QLineEdit(name)
         self.location_edit = QLineEdit(location)
         self.location_edit.setPlaceholderText(location_hint)
+        browse_btn = QPushButton(browse_label)
+        browse_btn.clicked.connect(self._browse_location)
+        loc_row = QHBoxLayout()
+        loc_row.addWidget(self.location_edit, 1)
+        loc_row.addWidget(browse_btn)
         form = QFormLayout()
         form.addRow(name_label, self.name_edit)
-        form.addRow(location_label, self.location_edit)
+        form.addRow(location_label, loc_row)
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.accept)
@@ -50,6 +56,13 @@ class _SenderEditDialog(QDialog):
         lay.addLayout(form)
         lay.addWidget(buttons)
 
+    def _browse_location(self):
+        start = self.location_edit.text().strip() or os.path.expanduser("~")
+        path = QFileDialog.getExistingDirectory(
+            self, self.tr("Seleccionar ubicación"), start)
+        if path:
+            self.location_edit.setText(path)
+
 
 class ShootInboxDialog(QDialog):
     """Diálogo modal que sirve el buzón de recepción por WiFi."""
@@ -57,9 +70,10 @@ class ShootInboxDialog(QDialog):
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
 
-    def __init__(self, parent=None, backend=None):
+    def __init__(self, parent=None, backend=None, project_context=None):
         super().__init__(parent)
-        self._server = backend or inboxmod.ShootInboxServer()
+        self._server = backend or inboxmod.ShootInboxServer(
+            project_context=project_context)
         self._bridge = _Bridge()
         self._bridge.received.connect(self._on_file_received)
 
@@ -80,7 +94,7 @@ class ShootInboxDialog(QDialog):
             self.tr("Cada persona escanea su código QR desde el móvil y envía "
                     "los archivos sin instalar nada. El móvil y el ordenador "
                     "deben estar conectados a la misma red WiFi. Al llegar, "
-                    "CosechaMedia los recibe en su carpeta inbox."))
+                    "CosechaMedia los guarda en la ruta maestra del proyecto."))
         hint.setWordWrap(True)
         hint.setStyleSheet(
             "color: {}; font-size: 12px;".format(theme.color("text_secondary")))
@@ -135,7 +149,7 @@ class ShootInboxDialog(QDialog):
         self.copy_btn = QPushButton(self.tr("Copiar enlace"))
         self.copy_btn.clicked.connect(self._copy_url)
         right.addWidget(self.copy_btn)
-        self.open_btn = QPushButton(self.tr("Abrir carpeta inbox"))
+        self.open_btn = QPushButton(self.tr("Abrir carpeta destino"))
         self.open_btn.clicked.connect(self._open_inbox)
         right.addWidget(self.open_btn)
         right.addStretch()
@@ -258,9 +272,11 @@ class ShootInboxDialog(QDialog):
             name_label=self.tr(
                 "Nombre de la persona (aparecerá en el código QR):"),
             location_label=self.tr(
-                "Ubicación (carpeta donde se guardarán sus archivos):"),
+                "Ubicación (carpeta donde se guardarán sus archivos; "
+                "en blanco usa la ruta maestra del proyecto):"),
             location_hint=self.tr(
-                "En blanco: se usará el nombre del remitente"),
+                "En blanco: ruta maestra del proyecto"),
+            browse_label=self.tr("Examinar…"),
         )
 
     def _edit_sender(self):
@@ -310,16 +326,16 @@ class ShootInboxDialog(QDialog):
         self.status_label.setText(self.tr("Enlace copiado al portapapeles."))
 
     def _open_inbox(self):
-        path = self._server.root
+        path = self._server.base_dir()
         os.makedirs(path, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _on_file_received(self, alias, path, size):
         size_txt = self._format_size(size)
-        rel = os.path.relpath(path, self._server.root)
+        rel = os.path.relpath(path, self._server.base_dir())
         self.received_list.insertItem(0, f"{alias} → {rel} ({size_txt})")
         self.status_label.setText(
-            self.tr("Recibido de %1: %2 (%3). Ya puedes ingerir la carpeta inbox.")
+            self.tr("Recibido de %1: %2 (%3).")
             .arg(alias).arg(os.path.basename(path)).arg(size_txt))
 
     def _format_size(self, size):

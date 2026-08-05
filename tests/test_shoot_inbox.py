@@ -29,6 +29,42 @@ class TestSanitizers(unittest.TestCase):
         self.assertEqual(inboxmod.sanitize_relative_path("DCIM/VID_1.mp4"), "DCIM/VID_1.mp4")
 
 
+class TestResolveTargetDir(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="target_")
+        self.sender = {"name": "Laura", "location": ""}
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_no_location_uses_master_root_camera_first(self):
+        out = inboxmod.resolve_target_dir(
+            self.sender, self.tmp, "Footage", 0, fallback_root=self.tmp)
+        parts = os.path.normpath(out).split(os.sep)
+        self.assertEqual(parts[-3:], ["Footage", "Laura", parts[-1]])
+        self.assertTrue(os.path.isdir(out))
+
+    def test_absolute_location_overrides_master_root(self):
+        loc = os.path.join(self.tmp, "Clase")
+        out = inboxmod.resolve_target_dir(
+            self.sender | {"location": loc}, self.tmp, "Footage", 0,
+            fallback_root=self.tmp)
+        self.assertTrue(out.startswith(loc))
+        self.assertIn("Laura", out)
+
+    def test_date_first_order(self):
+        out = inboxmod.resolve_target_dir(
+            self.sender, self.tmp, "Footage", 1, fallback_root=self.tmp)
+        parts = os.path.normpath(out).split(os.sep)
+        self.assertEqual(parts[-3], "Footage")
+        self.assertEqual(parts[-1], "Laura")
+
+    def test_flat_order(self):
+        out = inboxmod.resolve_target_dir(
+            self.sender, self.tmp, "Footage", 3, fallback_root=self.tmp)
+        self.assertEqual(os.path.normpath(out), os.path.join(self.tmp, "Footage"))
+
+
 class TestShootInboxServer(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="inbox_")
@@ -74,13 +110,13 @@ class TestShootInboxServer(unittest.TestCase):
         body = urlopen(f"{self.base}/health", timeout=10).read()
         self.assertEqual(json.loads(body)["ok"], True)
 
-    def test_upload_stores_file_with_date_folder(self):
+    def test_upload_stores_file_with_project_structure(self):
         resp = self._upload(self.alice["name"], self.alice["token"], "VID_1.mp4", b"content")
         self.assertEqual(resp.status, 200)
         data = json.loads(resp.read())
         self.assertTrue(data["ok"])
         import glob
-        hits = glob.glob(os.path.join(self.root, "Alice", "????-??-??", "VID_1.mp4"))
+        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "VID_1.mp4"))
         self.assertEqual(len(hits), 1)
         with open(hits[0], "rb") as f:
             self.assertEqual(f.read(), b"content")
@@ -100,23 +136,66 @@ class TestShootInboxServer(unittest.TestCase):
     def test_upload_sanitizes_filename(self):
         self._upload(self.alice["name"], self.alice["token"], "../escape.mp4", b"y")
         import glob
-        hits = glob.glob(os.path.join(self.root, "Alice", "????-??-??", "escape.mp4"))
+        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "escape.mp4"))
         self.assertEqual(len(hits), 1)
 
-    def test_upload_uses_sender_location(self):
-        self.db.update_inbox_sender(self.alice_id, "Alice", "Rodaje 1")
+    def test_upload_uses_absolute_sender_location(self):
+        loc = os.path.join(self.tmp, "Clase")
+        self.db.update_inbox_sender(self.alice_id, "Alice", loc)
         self._upload(self.alice["name"], self.alice["token"], "VID_2.mp4", b"z")
         import glob
-        hits = glob.glob(os.path.join(self.root, "Rodaje 1", "????-??-??", "VID_2.mp4"))
+        hits = glob.glob(os.path.join(loc, "Footage", "Alice", "????-??-??", "VID_2.mp4"))
         self.assertEqual(len(hits), 1)
         self.assertEqual(self.received[0][0], "Alice")
+
+    def test_upload_uses_project_master_root(self):
+        master = os.path.join(self.tmp, "Rodaje")
+        srv = inboxmod.ShootInboxServer(
+            root=self.root, db=self.db, host="127.0.0.1", port=0,
+            project_context={
+                "master_root": master,
+                "folder_name": "Footage",
+                "organization_type": 0,
+            },
+        )
+        srv.start()
+        self.addCleanup(srv.stop)
+        url = (f"http://127.0.0.1:{srv.port}/upload?src={self.alice['name']}"
+               f"&token={self.alice['token']}&name=VID_3.mp4")
+        req = Request(url, data=b"w", method="POST")
+        req.add_header("Content-Type", "application/octet-stream")
+        self.assertEqual(urlopen(req, timeout=10).status, 200)
+        import glob
+        hits = glob.glob(os.path.join(master, "Footage", "Alice", "????-??-??", "VID_3.mp4"))
+        self.assertEqual(len(hits), 1)
+
+    def test_upload_respects_date_first_organization(self):
+        master = os.path.join(self.tmp, "Rodaje2")
+        srv = inboxmod.ShootInboxServer(
+            root=self.root, db=self.db, host="127.0.0.1", port=0,
+            project_context={
+                "master_root": master,
+                "folder_name": "Footage",
+                "organization_type": 1,
+            },
+        )
+        srv.start()
+        self.addCleanup(srv.stop)
+        url = (f"http://127.0.0.1:{srv.port}/upload?src={self.alice['name']}"
+               f"&token={self.alice['token']}&name=VID_4.mp4")
+        req = Request(url, data=b"w", method="POST")
+        req.add_header("Content-Type", "application/octet-stream")
+        self.assertEqual(urlopen(req, timeout=10).status, 200)
+        import glob
+        hits = glob.glob(os.path.join(master, "Footage", "????-??-??", "Alice", "VID_4.mp4"))
+        self.assertEqual(len(hits), 1)
 
     def test_duplicate_names_get_unique_suffix(self):
         for _ in range(2):
             self._upload(self.alice["name"], self.alice["token"], "same.mp4", b"a")
         import glob
-        hits = glob.glob(os.path.join(self.root, "Alice", "????-??-??", "same.mp4"))
-        plus = glob.glob(os.path.join(self.root, "Alice", "????-??-??", "same (1).mp4"))
+        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "same.mp4"))
+        plus = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "same (1).mp4"))
         self.assertEqual(len(hits), 1)
         self.assertEqual(len(plus), 1)
 

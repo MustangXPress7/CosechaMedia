@@ -521,10 +521,10 @@ TRANSLATIONS = {
     "Cada persona escanea su código QR desde el móvil y envía "
     "los archivos sin instalar nada. El móvil y el ordenador "
     "deben estar conectados a la misma red WiFi. Al llegar, "
-    "CosechaMedia los recibe en su carpeta inbox.": "Each person scans their QR code from their phone and sends "
+    "CosechaMedia los guarda en la ruta maestra del proyecto.": "Each person scans their QR code from their phone and sends "
     "the files without installing anything. The phone and the computer "
     "must be connected to the same WiFi network. When they arrive, "
-    "CosechaMedia receives them in its inbox folder.",
+    "CosechaMedia saves them to the project master path.",
     "Remitentes:": "Senders:",
     "Remitente": "Sender",
     "Ubicación": "Location",
@@ -533,7 +533,7 @@ TRANSLATIONS = {
     "Eliminar": "Delete",
     "Enviar una carpeta entera (modo carpeta)": "Send a whole folder (folder mode)",
     "Copiar enlace": "Copy link",
-    "Abrir carpeta inbox": "Open inbox folder",
+    "Abrir carpeta destino": "Open destination folder",
     "Recibidos:": "Received:",
     "Cerrar": "Close",
     "No se pudo iniciar el servidor: %1": "Could not start the server: %1",
@@ -543,11 +543,15 @@ TRANSLATIONS = {
     "Editar remitente": "Edit sender",
     "Eliminar remitente": "Delete sender",
     "Nombre de la persona (aparecerá en el código QR):": "Person's name (it will appear in the QR code):",
-    "Ubicación (carpeta donde se guardarán sus archivos):": "Location (folder where their files will be saved):",
-    "En blanco: se usará el nombre del remitente": "Leave blank: the sender's name will be used",
+    "Ubicación (carpeta donde se guardarán sus archivos; "
+    "en blanco usa la ruta maestra del proyecto):": "Location (folder where their files will be saved; "
+    "blank uses the project master path):",
+    "En blanco: ruta maestra del proyecto": "Blank: project master path",
+    "Examinar…": "Browse…",
+    "Seleccionar ubicación": "Select location",
     "¿Eliminar a %1?": "Delete %1?",
     "Enlace copiado al portapapeles.": "Link copied to clipboard.",
-    "Recibido de %1: %2 (%3). Ya puedes ingerir la carpeta inbox.": "Received from %1: %2 (%3). You can now ingest the inbox folder.",
+    "Recibido de %1: %2 (%3).": "Received from %1: %2 (%3).",
 }
 
 
@@ -582,6 +586,9 @@ def main():
         name = context.findtext("name") or ""
         messages = []
         for msg in context.findall("message"):
+            trans = msg.find("translation")
+            if trans is not None and trans.get("type") in ("obsolete", "vanished"):
+                continue
             source = msg.findtext("source")
             if source is not None and source not in TRANSLATIONS:
                 missing.append(source)

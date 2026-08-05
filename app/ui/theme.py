@@ -289,6 +289,34 @@ QListWidget::item:selected {
     color: @on_accent;
 }
 
+QTreeWidget {
+    background-color: @bg_elevated;
+    border: 1px solid @border;
+    border-radius: 4px;
+    color: @text;
+    padding: 2px;
+    font-size: 11px;
+}
+
+QTreeWidget::item {
+    padding: 2px 6px;
+    border-radius: 2px;
+    color: @text;
+}
+
+QTreeWidget::item:hover {
+    background-color: @bg_hover;
+}
+
+QTreeWidget::item:selected, QTreeWidget::item:selected:active {
+    background-color: @accent_selection;
+    color: @on_accent;
+}
+
+QTreeWidget QHeaderView::section {
+    background-color: @bg_tinted_alt;
+}
+
 QMenuBar {
     background-color: @bg_elevated;
     border-bottom: 1px solid @border;

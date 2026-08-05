@@ -1,9 +1,12 @@
 """Recepción de clips por WiFi mediante un servidor HTTP embebido.
 
 El móvil (Android o iOS) abre una URL/código QR en su navegador, sin instalar
-nada, y sube los archivos a ``inbox/<ubicación>/<fecha>/`` (si el remitente no
-tiene ubicación, se usa ``inbox/<alias>/<fecha>/``). No hace falta un servidor
-FTP en el dispositivo: el servidor lo monta CosechaMedia.
+nada, y sube los archivos. El destino lo decide el contexto de proyecto:
+si el remitente tiene una ubicación (ruta absoluta) los archivos caen en
+``<ubicación>/<folder_name>/<remitente>/<fecha>``; si no, en la ruta maestra
+del proyecto con la misma estructura configurada (cámara primero, fecha
+primero, etc.). ``self.server.root`` (``data/inbox``) solo se usa como
+respaldo cuando no hay proyecto.
 
 Cada persona tiene un remitente (tabla ``inbox_senders``) con su propio token;
 el QR de cada remitente lleva ``?src=<nombre>&token=<token>`` para atribuir el
@@ -26,6 +29,14 @@ from urllib.parse import parse_qs, urlsplit
 
 from app.core.db import db as _default_db
 from app.core.ftp import local_ip
+from app.core.utils import create_folder_structure
+
+_ORG_TYPE_MAP = {
+    0: "camera_first",
+    1: "date_first",
+    2: "camera_only",
+    3: "flat",
+}
 
 _PAGE_TEMPLATE = """<!doctype html>
 <html lang="es">
@@ -176,6 +187,30 @@ def _unique_path(dest: str) -> str:
     return f"{base} ({n}){ext}"
 
 
+def resolve_target_dir(sender: dict, master_root: str, folder_name: str,
+                       organization_type=0, fallback_root: str = "") -> str:
+    """Carpeta destino de un remitente dentro de la estructura del proyecto.
+
+    Base: la ubicación del remitente (ruta absoluta) si la tiene; si no, la
+    ruta maestra del proyecto; como último recurso ``fallback_root``. Después
+    se aplica la estructura del proyecto (folder_name + organización).
+    """
+    location = (sender.get("location") or "").strip()
+    if os.path.isabs(location):
+        base = location
+    elif master_root:
+        base = master_root
+    else:
+        base = fallback_root
+    if not base:
+        base = "."
+    order_type = _ORG_TYPE_MAP.get(organization_type, "camera_first")
+    camera = sanitize_alias(sender["name"])
+    date_dir = datetime.now().strftime("%Y-%m-%d")
+    return create_folder_structure(base, camera, date_dir, order_type,
+                                   folder_name or "Footage")
+
+
 class _UploadHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -251,9 +286,14 @@ class _UploadHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "error": "sin contenido"})
             return
 
-        date_dir = datetime.now().strftime("%Y-%m-%d")
-        folder = sanitize_alias(sender["location"] or sender["name"])
-        target_dir = os.path.join(self.server.root, folder, date_dir)
+        ctx = getattr(self.server, "project_context", None) or {}
+        target_dir = resolve_target_dir(
+            sender,
+            master_root=ctx.get("master_root") or "",
+            folder_name=ctx.get("folder_name") or "Footage",
+            organization_type=ctx.get("organization_type", 0),
+            fallback_root=self.server.root,
+        )
         os.makedirs(target_dir, exist_ok=True)
         final = _unique_path(os.path.join(target_dir, rel))
         part = final + ".part"
@@ -307,13 +347,15 @@ class ShootInboxServer:
     def __init__(self, root: Optional[str] = None, db=None,
                  on_file_received: Optional[Callable[[str, str, int], None]] = None,
                  host: str = "0.0.0.0", port: int = 0,
-                 folder_mode: bool = False):
+                 folder_mode: bool = False,
+                 project_context: Optional[dict] = None):
         self.root = root or inbox_root(db)
         self.db = db or _default_db
         self.on_file_received = on_file_received
         self.host = host
         self.port = port
         self.folder_mode = folder_mode
+        self.project_context = project_context
         self._httpd = None
         self._thread = None
 
@@ -325,6 +367,7 @@ class ShootInboxServer:
         httpd.root = self.root
         httpd.senders = lambda: self.db.list_inbox_senders()
         httpd.owner = self
+        httpd.project_context = self.project_context
         httpd.callback = self.on_file_received
         self._httpd = httpd
         self.port = httpd.server_address[1]
@@ -341,6 +384,11 @@ class ShootInboxServer:
     @property
     def running(self) -> bool:
         return self._httpd is not None
+
+    def base_dir(self) -> str:
+        """Carpeta base efectiva: ruta maestra del proyecto o el inbox de respaldo."""
+        ctx = self.project_context or {}
+        return (ctx.get("master_root") or "").strip() or self.root
 
     def base_url(self) -> str:
         ip = local_ip() or "127.0.0.1"
