@@ -2686,6 +2686,17 @@ class MainWindow(QMainWindow):
             db.save_recent_path(self.dest_root, "dest")
         except Exception as e:
             QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo actualizar el destino: %1").arg(str(e)))
+            return
+        sessions = db.get_sessions(self.current_project_id)
+        if not sessions:
+            from datetime import datetime
+            sid = db.create_session(
+                self.current_project_id,
+                self.tr("Sesión 1"),
+                datetime.now().strftime("%Y-%m-%d"), "active",
+                source_path="")
+            self.current_session_id = sid
+        self._refresh_sessions_combo()
 
     def open_data_folder(self):
         data_dir = os.path.dirname(db.db_path)
