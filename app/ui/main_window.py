@@ -2797,6 +2797,37 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, self.tr("Eliminados"), self.tr("Todos los proyectos han sido eliminados."))
         except Exception as e:
             QMessageBox.critical(self, self.tr("Error"), self.tr("Error al eliminar los proyectos: %1").arg(str(e)))
+            return
+
+        self._create_default_project()
+
+    def _create_default_project(self):
+        """Crea un proyecto por defecto para que la app sea usable al instante."""
+        from datetime import datetime
+        try:
+            conn = db.get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT INTO projects (name, root_path, description) VALUES (?, ?, ?)',
+                (self.tr("Proyecto por defecto"), "", self.tr("Proyecto creado automáticamente"))
+            )
+            project_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+
+            db.create_session(project_id, self.tr("Sesión 1"), datetime.now().strftime("%Y-%m-%d"), "active")
+
+            self.load_existing_projects()
+            idx = self.project_combo.findData(project_id)
+            if idx >= 0:
+                self.project_combo.setCurrentIndex(idx)
+            self.ingest_status_label.setText(self.tr("Proyecto por defecto creado con sesión inicial."))
+            self.btn_delete_project.setEnabled(True)
+            self.btn_rename_project.setEnabled(True)
+            self.btn_duplicate_project.setEnabled(True)
+            self.update_start_button_state()
+        except Exception as e:
+            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo crear el proyecto por defecto: %1").arg(str(e)))
 
     def show_about(self):
         AboutDialog(self).exec()
