@@ -1,13 +1,17 @@
 """Recepción de clips por WiFi mediante un servidor HTTP embebido.
 
 El móvil (Android o iOS) abre una URL/código QR en su navegador, sin instalar
-nada, y sube los archivos a ``inbox/<persona>/<fecha>/``. No hace falta un
-servidor FTP en el dispositivo: el servidor lo monta CosechaMedia.
+nada, y sube los archivos a ``inbox/<ubicación>/<fecha>/`` (si el remitente no
+tiene ubicación, se usa ``inbox/<alias>/<fecha>/``). No hace falta un servidor
+FTP en el dispositivo: el servidor lo monta CosechaMedia.
 
 Cada persona tiene un remitente (tabla ``inbox_senders``) con su propio token;
 el QR de cada remitente lleva ``?src=<nombre>&token=<token>`` para atribuir el
 origen de cada archivo. Los envíos se escriben a un archivo ``.part`` y se
 renombran al terminar para no ingerir archivos a medio bajar.
+
+El modo carpeta (``folder_mode``) hace que la página ofrezca elegir una carpeta
+entera (webkitdirectory); por defecto solo se envían archivos sueltos.
 """
 
 import html
@@ -48,9 +52,11 @@ _PAGE_TEMPLATE = """<!doctype html>
 <body>
 <h1>Enviar a CosechaMedia</h1>
 <p>Estás enviando a: <span class="alias">{alias}</span></p>
+<p style="font-size: 12px; color: #888;">Este móvil y el ordenador deben estar
+conectados a la misma red WiFi.</p>
 <div class="card">
-  <label>Selecciona los archivos que quieres enviar</label>
-  <input id="pick" type="file" multiple>
+  <label>{pick_label}</label>
+  <input id="pick" type="file" {pick_attr}>
   <ul id="files"></ul>
   <button id="send" class="btn" disabled>Enviar</button>
   <progress id="bar" value="0" max="100" hidden></progress>
@@ -90,7 +96,7 @@ _PAGE_TEMPLATE = """<!doctype html>
       const xhr = new XMLHttpRequest();
       const url = "/upload?src=" + encodeURIComponent(src) +
                   "&token=" + encodeURIComponent(token) +
-                  "&name=" + encodeURIComponent(file.name);
+                  "&name=" + encodeURIComponent({fname_expr});
       xhr.open("POST", url);
       xhr.responseType = "json";
       xhr.upload.onprogress = function (e) {{
@@ -187,7 +193,16 @@ class _UploadHandler(BaseHTTPRequestHandler):
 
     def _serve_page(self):
         alias = html.escape(sanitize_alias(self._query().get("src", [""])[0]))
-        page = _PAGE_TEMPLATE.format(alias=alias)
+        folder_mode = bool(getattr(self.server.owner, "folder_mode", False))
+        page = _PAGE_TEMPLATE.format(
+            alias=alias,
+            pick_label=("Selecciona la carpeta que quieres enviar"
+                        if folder_mode else
+                        "Selecciona los archivos que quieres enviar"),
+            pick_attr=("multiple webkitdirectory" if folder_mode else "multiple"),
+            fname_expr=("file.webkitRelativePath || file.name"
+                        if folder_mode else "file.name"),
+        )
         body = page.encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -237,7 +252,8 @@ class _UploadHandler(BaseHTTPRequestHandler):
             return
 
         date_dir = datetime.now().strftime("%Y-%m-%d")
-        target_dir = os.path.join(self.server.root, src, date_dir)
+        folder = sanitize_alias(sender["location"] or sender["name"])
+        target_dir = os.path.join(self.server.root, folder, date_dir)
         os.makedirs(target_dir, exist_ok=True)
         final = _unique_path(os.path.join(target_dir, rel))
         part = final + ".part"
@@ -290,12 +306,14 @@ class ShootInboxServer:
 
     def __init__(self, root: Optional[str] = None, db=None,
                  on_file_received: Optional[Callable[[str, str, int], None]] = None,
-                 host: str = "0.0.0.0", port: int = 0):
+                 host: str = "0.0.0.0", port: int = 0,
+                 folder_mode: bool = False):
         self.root = root or inbox_root(db)
         self.db = db or _default_db
         self.on_file_received = on_file_received
         self.host = host
         self.port = port
+        self.folder_mode = folder_mode
         self._httpd = None
         self._thread = None
 
@@ -306,6 +324,7 @@ class ShootInboxServer:
         httpd = ThreadingHTTPServer((self.host, self.port), _UploadHandler)
         httpd.root = self.root
         httpd.senders = lambda: self.db.list_inbox_senders()
+        httpd.owner = self
         httpd.callback = self.on_file_received
         self._httpd = httpd
         self.port = httpd.server_address[1]

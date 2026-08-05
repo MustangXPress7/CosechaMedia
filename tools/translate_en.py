@@ -519,14 +519,19 @@ TRANSLATIONS = {
     "Inbox WiFi": "WiFi Inbox",
     "Recibir por WiFi (PairDrop)": "Receive via WiFi (PairDrop)",
     "Cada persona escanea su código QR desde el móvil y envía "
-    "los archivos sin instalar nada. Al llegar, CosechaMedia "
-    "los recibe en su carpeta inbox.": "Each person scans their QR code from their phone and sends "
-    "the files without installing anything. When they arrive, "
+    "los archivos sin instalar nada. El móvil y el ordenador "
+    "deben estar conectados a la misma red WiFi. Al llegar, "
+    "CosechaMedia los recibe en su carpeta inbox.": "Each person scans their QR code from their phone and sends "
+    "the files without installing anything. The phone and the computer "
+    "must be connected to the same WiFi network. When they arrive, "
     "CosechaMedia receives them in its inbox folder.",
     "Remitentes:": "Senders:",
+    "Remitente": "Sender",
+    "Ubicación": "Location",
     "Añadir": "Add",
-    "Renombrar": "Rename",
+    "Editar": "Edit",
     "Eliminar": "Delete",
+    "Enviar una carpeta entera (modo carpeta)": "Send a whole folder (folder mode)",
     "Copiar enlace": "Copy link",
     "Abrir carpeta inbox": "Open inbox folder",
     "Recibidos:": "Received:",
@@ -535,8 +540,11 @@ TRANSLATIONS = {
     "Servidor activo. Comparte esta dirección con los móviles: "
     "%1": "Server active. Share this address with the phones: %1",
     "Añadir remitente": "Add sender",
+    "Editar remitente": "Edit sender",
+    "Eliminar remitente": "Delete sender",
     "Nombre de la persona (aparecerá en el código QR):": "Person's name (it will appear in the QR code):",
-    "Nuevo nombre:": "New name:",
+    "Ubicación (carpeta donde se guardarán sus archivos):": "Location (folder where their files will be saved):",
+    "En blanco: se usará el nombre del remitente": "Leave blank: the sender's name will be used",
     "¿Eliminar a %1?": "Delete %1?",
     "Enlace copiado al portapapeles.": "Link copied to clipboard.",
     "Recibido de %1: %2 (%3). Ya puedes ingerir la carpeta inbox.": "Received from %1: %2 (%3). You can now ingest the inbox folder.",

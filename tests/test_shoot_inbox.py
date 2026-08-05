@@ -62,6 +62,13 @@ class TestShootInboxServer(unittest.TestCase):
         self.assertIn("Alice".encode(), body)
         self.assertIn(b"type=\"file\" multiple", body)
         self.assertNotIn(b"webkitdirectory", body)
+        self.assertIn("misma red WiFi".encode(), body)
+
+    def test_folder_mode_page_offers_whole_folder(self):
+        self.server.folder_mode = True
+        body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
+        self.assertIn(b"webkitdirectory", body)
+        self.assertIn(b"carpeta", body)
 
     def test_health(self):
         body = urlopen(f"{self.base}/health", timeout=10).read()
@@ -95,6 +102,14 @@ class TestShootInboxServer(unittest.TestCase):
         import glob
         hits = glob.glob(os.path.join(self.root, "Alice", "????-??-??", "escape.mp4"))
         self.assertEqual(len(hits), 1)
+
+    def test_upload_uses_sender_location(self):
+        self.db.update_inbox_sender(self.alice_id, "Alice", "Rodaje 1")
+        self._upload(self.alice["name"], self.alice["token"], "VID_2.mp4", b"z")
+        import glob
+        hits = glob.glob(os.path.join(self.root, "Rodaje 1", "????-??-??", "VID_2.mp4"))
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(self.received[0][0], "Alice")
 
     def test_duplicate_names_get_unique_suffix(self):
         for _ in range(2):
@@ -131,17 +146,41 @@ class TestInboxSenders(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_sender_crud_with_tokens(self):
-        sid = self.db.add_inbox_sender("Alice")
+        sid = self.db.add_inbox_sender("Alice", "Rodaje 1")
         rows = self.db.list_inbox_senders()
         self.assertEqual(len(rows), 1)
         self.assertTrue(rows[0]["token"])
         self.assertGreater(len(rows[0]["token"]), 8)
+        self.assertEqual(rows[0]["location"], "Rodaje 1")
 
-        self.db.rename_inbox_sender(sid, "Alice 2")
-        self.assertEqual(self.db.list_inbox_senders()[0]["name"], "Alice 2")
+        self.db.update_inbox_sender(sid, "Alice 2", "Rodaje 2")
+        rows = self.db.list_inbox_senders()
+        self.assertEqual(rows[0]["name"], "Alice 2")
+        self.assertEqual(rows[0]["location"], "Rodaje 2")
 
         self.db.delete_inbox_sender(sid)
         self.assertEqual(self.db.list_inbox_senders(), [])
+
+    def test_sender_default_location_empty(self):
+        self.db.add_inbox_sender("Bob")
+        self.assertEqual(self.db.list_inbox_senders()[0]["location"], "")
+
+    def test_sender_location_migration_from_old_schema(self):
+        import sqlite3
+        db_path = os.path.join(self.tmp, "old_schema.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("""CREATE TABLE inbox_senders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            token TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )""")
+        conn.commit()
+        conn.close()
+        dbm = DatabaseManager(db_path=db_path)
+        dbm.add_inbox_sender("Alice", "Rodaje")
+        rows = dbm.list_inbox_senders()
+        self.assertEqual(rows[0]["location"], "Rodaje")
 
     def test_senders_have_unique_tokens(self):
         a = self.db.add_inbox_sender("A")

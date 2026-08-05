@@ -11,8 +11,9 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QPainter, QPixmap
 from PySide6.QtCore import QUrl
 from PySide6.QtWidgets import (
-    QDialog, QHBoxLayout, QInputDialog, QLabel, QListWidget, QListWidgetItem,
-    QPushButton, QVBoxLayout, QMessageBox,
+    QCheckBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel,
+    QLineEdit, QListWidget, QPushButton, QTreeWidget, QTreeWidgetItem,
+    QVBoxLayout, QMessageBox,
 )
 
 from app.core import shoot_inbox as inboxmod
@@ -25,6 +26,29 @@ class _Bridge(QObject):
     """Puente hilo-del-servidor -> hilo de UI (señales en cola)."""
 
     received = Signal(str, str, int)  # alias, ruta, tamaño
+
+
+class _SenderEditDialog(QDialog):
+    """Formulario para añadir/editar remitente (nombre + ubicación)."""
+
+    def __init__(self, parent=None, title="", name="", location="",
+                 name_label="", location_label="", location_hint=""):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.setMinimumWidth(400)
+        self.name_edit = QLineEdit(name)
+        self.location_edit = QLineEdit(location)
+        self.location_edit.setPlaceholderText(location_hint)
+        form = QFormLayout()
+        form.addRow(name_label, self.name_edit)
+        form.addRow(location_label, self.location_edit)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        lay = QVBoxLayout(self)
+        lay.addLayout(form)
+        lay.addWidget(buttons)
 
 
 class ShootInboxDialog(QDialog):
@@ -54,8 +78,9 @@ class ShootInboxDialog(QDialog):
 
         hint = QLabel(
             self.tr("Cada persona escanea su código QR desde el móvil y envía "
-                    "los archivos sin instalar nada. Al llegar, CosechaMedia "
-                    "los recibe en su carpeta inbox."))
+                    "los archivos sin instalar nada. El móvil y el ordenador "
+                    "deben estar conectados a la misma red WiFi. Al llegar, "
+                    "CosechaMedia los recibe en su carpeta inbox."))
         hint.setWordWrap(True)
         hint.setStyleSheet(
             "color: {}; font-size: 12px;".format(theme.color("text_secondary")))
@@ -66,22 +91,31 @@ class ShootInboxDialog(QDialog):
         self.status_label.setStyleSheet("font-weight: 600;")
         layout.addWidget(self.status_label)
 
+        self.folder_mode_cb = QCheckBox(
+            self.tr("Enviar una carpeta entera (modo carpeta)"))
+        self.folder_mode_cb.toggled.connect(self._on_folder_mode_toggled)
+        layout.addWidget(self.folder_mode_cb)
+
         row = QHBoxLayout()
         row.addWidget(QLabel(self.tr("Remitentes:")))
-        self.sender_list = QListWidget()
-        self.sender_list.currentItemChanged.connect(self._on_sender_changed)
-        row.addWidget(self.sender_list, 1)
+        self.sender_tree = QTreeWidget()
+        self.sender_tree.setHeaderLabels(
+            [self.tr("Remitente"), self.tr("Ubicación")])
+        self.sender_tree.setRootIsDecorated(False)
+        self.sender_tree.setColumnWidth(0, 190)
+        self.sender_tree.currentItemChanged.connect(self._on_sender_changed)
+        row.addWidget(self.sender_tree, 1)
         layout.addLayout(row)
 
         btns = QHBoxLayout()
         self.add_btn = QPushButton(self.tr("Añadir"))
         self.add_btn.clicked.connect(self._add_sender)
-        self.rename_btn = QPushButton(self.tr("Renombrar"))
-        self.rename_btn.clicked.connect(self._rename_sender)
+        self.edit_btn = QPushButton(self.tr("Editar"))
+        self.edit_btn.clicked.connect(self._edit_sender)
         self.del_btn = QPushButton(self.tr("Eliminar"))
         self.del_btn.clicked.connect(self._delete_sender)
         btns.addWidget(self.add_btn)
-        btns.addWidget(self.rename_btn)
+        btns.addWidget(self.edit_btn)
         btns.addWidget(self.del_btn)
         btns.addStretch()
         layout.addLayout(btns)
@@ -145,17 +179,21 @@ class ShootInboxDialog(QDialog):
 
     # -- remitentes ------------------------------------------------------
 
+    def _on_folder_mode_toggled(self, checked):
+        self._server.folder_mode = checked
+
     def _load_senders(self):
         self._senders = db.list_inbox_senders()
-        self.sender_list.blockSignals(True)
-        self.sender_list.clear()
+        self.sender_tree.blockSignals(True)
+        self.sender_tree.clear()
         for s in self._senders:
-            item = QListWidgetItem(s["name"])
-            item.setData(Qt.UserRole, s["id"])
-            self.sender_list.addItem(item)
-        self.sender_list.blockSignals(False)
+            loc = s["location"] or "—"
+            item = QTreeWidgetItem([s["name"], loc])
+            item.setData(0, Qt.UserRole, s["id"])
+            self.sender_tree.addTopLevelItem(item)
+        self.sender_tree.blockSignals(False)
         if self._senders:
-            self.sender_list.setCurrentRow(0)
+            self.sender_tree.setCurrentItem(self.sender_tree.topLevelItem(0))
         else:
             self._clear_qr()
 
@@ -163,7 +201,7 @@ class ShootInboxDialog(QDialog):
         if current is None:
             self._clear_qr()
             return
-        sid = current.data(Qt.UserRole)
+        sid = current.data(0, Qt.UserRole)
         sender = next((s for s in self._senders if s["id"] == sid), None)
         if sender is None:
             self._clear_qr()
@@ -204,37 +242,52 @@ class ShootInboxDialog(QDialog):
         return pix
 
     def _add_sender(self):
-        name, ok = QInputDialog.getText(
-            self, self.tr("Añadir remitente"),
-            self.tr("Nombre de la persona (aparecerá en el código QR):"))
-        name = (name or "").strip()
-        if not ok or not name:
+        dlg = self._make_edit_dialog(title=self.tr("Añadir remitente"))
+        if dlg.exec() != QDialog.Accepted:
             return
-        db.add_inbox_sender(name)
+        name = dlg.name_edit.text().strip()
+        if not name:
+            return
+        db.add_inbox_sender(name, dlg.location_edit.text().strip())
         self._load_senders()
 
-    def _rename_sender(self):
-        item = self.sender_list.currentItem()
+    def _make_edit_dialog(self, title, name="", location=""):
+        return _SenderEditDialog(
+            self,
+            title=title, name=name, location=location,
+            name_label=self.tr(
+                "Nombre de la persona (aparecerá en el código QR):"),
+            location_label=self.tr(
+                "Ubicación (carpeta donde se guardarán sus archivos):"),
+            location_hint=self.tr(
+                "En blanco: se usará el nombre del remitente"),
+        )
+
+    def _edit_sender(self):
+        item = self.sender_tree.currentItem()
         if item is None:
             return
-        sid = item.data(Qt.UserRole)
+        sid = item.data(0, Qt.UserRole)
         sender = next((s for s in self._senders if s["id"] == sid), None)
         if sender is None:
             return
-        name, ok = QInputDialog.getText(
-            self, self.tr("Renombrar remitente"),
-            self.tr("Nuevo nombre:"), text=sender["name"])
-        name = (name or "").strip()
-        if not ok or not name:
+        dlg = self._make_edit_dialog(
+            title=self.tr("Editar remitente"),
+            name=sender["name"], location=sender["location"])
+        if dlg.exec() != QDialog.Accepted:
             return
-        db.rename_inbox_sender(sid, name)
+        name = dlg.name_edit.text().strip()
+        if not name:
+            return
+        db.update_inbox_sender(
+            sid, name, dlg.location_edit.text().strip())
         self._load_senders()
 
     def _delete_sender(self):
-        item = self.sender_list.currentItem()
+        item = self.sender_tree.currentItem()
         if item is None:
             return
-        sid = item.data(Qt.UserRole)
+        sid = item.data(0, Qt.UserRole)
         sender = next((s for s in self._senders if s["id"] == sid), None)
         if sender is None:
             return

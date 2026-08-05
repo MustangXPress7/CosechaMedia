@@ -2401,6 +2401,167 @@ This action cannot be undone.</translation>
     </message>
 </context>
 <context>
+    <name>ShootInboxDialog</name>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="66"/>
+        <source>Recibir por WiFi (PairDrop)</source>
+        <translation>Receive via WiFi (PairDrop)</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="80"/>
+        <source>Cada persona escanea su código QR desde el móvil y envía los archivos sin instalar nada. El móvil y el ordenador deben estar conectados a la misma red WiFi. Al llegar, CosechaMedia los recibe en su carpeta inbox.</source>
+        <translation>Each person scans their QR code from their phone and sends the files without installing anything. The phone and the computer must be connected to the same WiFi network. When they arrive, CosechaMedia receives them in its inbox folder.</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="95"/>
+        <source>Enviar una carpeta entera (modo carpeta)</source>
+        <translation>Send a whole folder (folder mode)</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="100"/>
+        <source>Remitentes:</source>
+        <translation>Senders:</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="103"/>
+        <source>Remitente</source>
+        <translation>Sender</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="103"/>
+        <source>Ubicación</source>
+        <translation>Location</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="111"/>
+        <source>Añadir</source>
+        <translation>Add</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="113"/>
+        <source>Editar</source>
+        <translation>Edit</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="115"/>
+        <source>Eliminar</source>
+        <translation>Delete</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="135"/>
+        <source>Copiar enlace</source>
+        <translation>Copy link</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="138"/>
+        <source>Abrir carpeta inbox</source>
+        <translation>Open inbox folder</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="145"/>
+        <source>Recibidos:</source>
+        <translation>Received:</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="151"/>
+        <source>Cerrar</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="164"/>
+        <source>No se pudo iniciar el servidor: %1</source>
+        <translation>Could not start the server: %1</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="167"/>
+        <source>Servidor activo. Comparte esta dirección con los móviles: %1</source>
+        <translation>Server active. Share this address with the phones: %1</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="245"/>
+        <source>Añadir remitente</source>
+        <translation>Add sender</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="259"/>
+        <source>Nombre de la persona (aparecerá en el código QR):</source>
+        <translation>Person's name (it will appear in the QR code):</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="261"/>
+        <source>Ubicación (carpeta donde se guardarán sus archivos):</source>
+        <translation>Location (folder where their files will be saved):</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="263"/>
+        <source>En blanco: se usará el nombre del remitente</source>
+        <translation>Leave blank: the sender's name will be used</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="275"/>
+        <source>Editar remitente</source>
+        <translation>Edit sender</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="295"/>
+        <source>Eliminar remitente</source>
+        <translation>Delete sender</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="296"/>
+        <source>¿Eliminar a %1?</source>
+        <translation>Delete %1?</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="310"/>
+        <source>Enlace copiado al portapapeles.</source>
+        <translation>Link copied to clipboard.</translation>
+    </message>
+    <message>
+        <location filename="../ui/shoot_inbox.py" line="322"/>
+        <source>Recibido de %1: %2 (%3). Ya puedes ingerir la carpeta inbox.</source>
+        <translation>Received from %1: %2 (%3). You can now ingest the inbox folder.</translation>
+    </message>
+</context>
+<context>
+    <name>WifiMethodDialog</name>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="22"/>
+        <source>Recibir por WiFi</source>
+        <translation>Receive via WiFi</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="31"/>
+        <source>¿Cómo quieres recibir los archivos de los móviles?</source>
+        <translation>How do you want to receive files from the phones?</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="36"/>
+        <source>PairDrop</source>
+        <translation>PairDrop</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="37"/>
+        <source>Compatible con Android/iOS. Sin instalar nada en el móvil: escanea el código QR y envía los archivos.</source>
+        <translation>Works with Android/iOS. Nothing to install on the phone: scan the QR code and send the files.</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="45"/>
+        <source>FTP Clásico</source>
+        <translation>Classic FTP</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="46"/>
+        <source>Avanzado. El dispositivo ejecuta un servidor FTP (requiere una app y configuración en el móvil).</source>
+        <translation>Advanced. The device runs an FTP server (requires an app and setup on the phone).</translation>
+    </message>
+    <message>
+        <location filename="../ui/wifi_picker.py" line="54"/>
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
+</context>
+<context>
     <name>translator</name>
     <message>
         <location filename="../ui/main_window.py" line="40"/>

@@ -213,10 +213,16 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS inbox_senders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
+                location TEXT DEFAULT '',
                 token TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        cursor.execute("PRAGMA table_info(inbox_senders)")
+        sender_cols = [row[1] for row in cursor.fetchall()]
+        if "location" not in sender_cols:
+            cursor.execute(
+                "ALTER TABLE inbox_senders ADD COLUMN location TEXT DEFAULT ''")
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS containers (
@@ -663,31 +669,32 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            '''SELECT id, name, token FROM inbox_senders ORDER BY id ASC'''
+            '''SELECT id, name, location, token FROM inbox_senders ORDER BY id ASC'''
         )
         rows = [{
-            "id": r[0], "name": r[1], "token": r[2],
+            "id": r[0], "name": r[1], "location": r[2], "token": r[3],
         } for r in cursor.fetchall()]
         conn.close()
         return rows
 
-    def add_inbox_sender(self, name: str) -> int:
+    def add_inbox_sender(self, name: str, location: str = "") -> int:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            '''INSERT INTO inbox_senders (name, token) VALUES (?, ?)''',
-            (name, secrets.token_urlsafe(12))
+            '''INSERT INTO inbox_senders (name, location, token) VALUES (?, ?, ?)''',
+            (name, location, secrets.token_urlsafe(12))
         )
         sid = cursor.lastrowid
         conn.commit()
         conn.close()
         return sid
 
-    def rename_inbox_sender(self, sender_id: int, name: str):
+    def update_inbox_sender(self, sender_id: int, name: str, location: str = ""):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'UPDATE inbox_senders SET name = ? WHERE id = ?', (name, sender_id))
+            'UPDATE inbox_senders SET name = ?, location = ? WHERE id = ?',
+            (name, location, sender_id))
         conn.commit()
         conn.close()
 
