@@ -28,6 +28,52 @@ def _free_space(path: str) -> int:
         return 0
 
 
+def copy_verified(source_path: str, dest_path: str, progress_cb=None) -> bool:
+    """Copia un archivo calculando el hash del origen durante la copia y
+    comparándolo con el del destino. Devuelve True solo si coinciden.
+    Elimina el destino parcial ante cualquier error o discrepancia.
+    ``progress_cb(copied, total)`` se invoca por bloque copiado."""
+    import hashlib
+    src_md5 = hashlib.md5()
+    total = 0
+    try:
+        total = os.path.getsize(source_path)
+    except OSError:
+        pass
+    try:
+        with open(source_path, 'rb') as src_f, open(dest_path, 'wb') as dst_f:
+            copied = 0
+            while True:
+                chunk = src_f.read(8192)
+                if not chunk:
+                    break
+                src_md5.update(chunk)
+                dst_f.write(chunk)
+                copied += len(chunk)
+                if progress_cb:
+                    progress_cb(copied, total)
+        try:
+            shutil.copystat(source_path, dest_path)
+        except OSError:
+            pass
+        src_hash = src_md5.hexdigest()
+        dest_hash = calculate_md5(dest_path)
+        if src_hash and dest_hash and src_hash != dest_hash:
+            try:
+                os.remove(dest_path)
+            except OSError:
+                pass
+            return False
+        return True
+    except Exception as e:
+        print(f"Error copying {source_path}: {e}")
+        try:
+            os.remove(dest_path)
+        except OSError:
+            pass
+        return False
+
+
 def _ensure_subfolder(parent: str, camera: str, shoot_date: str,
                       include_date: bool, include_camera: bool,
                       folder_name: str) -> str:
@@ -68,6 +114,7 @@ class DumpTarget:
 class Ingestor(QObject):
     file_started = Signal(str)
     file_finished = Signal(str, str, bool, dict)
+    copy_progress = Signal(str, int, int)
     ingest_complete = Signal(dict)
     camera_rename_needed = Signal(str, str)
     disk_full = Signal(int)
@@ -81,7 +128,8 @@ class Ingestor(QObject):
                  dump_targets: Optional[List[DumpTarget]] = None,
                  project_master_root: Optional[str] = None,
                  camera_map: Optional[Dict[str, str]] = None,
-                 manual_date: Optional[str] = None):
+                 manual_date: Optional[str] = None,
+                 content_filter: Optional[Dict] = None):
         super().__init__()
         self.project_id = project_id
         self.session_id = session_id
@@ -109,6 +157,13 @@ class Ingestor(QObject):
         )
         self._legacy_session_file = os.path.join(destination_root, ".sdimport_session.json")
         self._copied_files = self._load_copied_files()
+
+        self._content_filter = None
+        if content_filter:
+            self._content_filter = {
+                "dates": set(content_filter.get("dates") or []),
+                "include_nodate": bool(content_filter.get("include_nodate")),
+            }
         self._stats = {
             "processed": 0,
             "errors": 0,
@@ -187,7 +242,11 @@ class Ingestor(QObject):
         
         if self._stop_event.is_set():
             return
-        
+
+        if self._content_filter and not self._matches_filter(source_path):
+            self._stats["skipped"] += 1
+            return
+
         self.processed_files.add(source_path)
         
         file_info = metadata_engine.get_file_type_info(source_path)
@@ -201,6 +260,13 @@ class Ingestor(QObject):
         with self._inflight_lock:
             self._inflight += 1
         self.executor.submit(self._process_single_file, source_path, file_info)
+
+    def _matches_filter(self, source_path: str) -> bool:
+        """True si el archivo cae dentro del filtro de contenido (por fecha)."""
+        date_key = metadata_engine.date_key_for_file(source_path)
+        if date_key is None:
+            return self._content_filter.get("include_nodate", False)
+        return date_key in self._content_filter.get("dates", set())
 
     def _handle_reference_file(self, source_path: str):
         ref_dir = os.path.join(self.destination_root, "_reference")
@@ -320,39 +386,18 @@ class Ingestor(QObject):
             self.file_finished.emit(source_path, "", False, {})
 
     def _copy_verified(self, source_path: str, dest_path: str) -> bool:
-        """Copia un archivo calculando el hash del origen durante la copia y
-        comparándolo con el del destino. Devuelve True solo si coinciden.
-        Elimina el destino parcial ante cualquier error o discrepancia."""
-        import hashlib
-        src_md5 = hashlib.md5()
-        try:
-            with open(source_path, 'rb') as src_f, open(dest_path, 'wb') as dst_f:
-                while True:
-                    chunk = src_f.read(8192)
-                    if not chunk:
-                        break
-                    src_md5.update(chunk)
-                    dst_f.write(chunk)
-            try:
-                shutil.copystat(source_path, dest_path)
-            except OSError:
-                pass
-            src_hash = src_md5.hexdigest()
-            dest_hash = calculate_md5(dest_path)
-            if src_hash and dest_hash and src_hash != dest_hash:
-                try:
-                    os.remove(dest_path)
-                except OSError:
-                    pass
-                return False
-            return True
-        except Exception as e:
-            print(f"Error copying {source_path}: {e}")
-            try:
-                os.remove(dest_path)
-            except OSError:
-                pass
-            return False
+        """Copia verificada por MD5 con progreso por archivo (emitido por %)."""
+        state = {"last": -1}
+
+        def _progress(copied: int, total: int):
+            if not total:
+                return
+            pct = int(copied * 100.0 / total)
+            if pct != state["last"]:
+                state["last"] = pct
+                self.copy_progress.emit(source_path, copied, total)
+
+        return copy_verified(source_path, dest_path, progress_cb=_progress)
 
     def _pick_dump_target(self, camera: str, shoot_date: str,
                           file_size: int):

@@ -21,6 +21,9 @@ class FakeMeta:
             "is_video": True,
         }
 
+    def date_key_for_file(self, path):
+        return "2024-01-02"
+
 
 class TestIngestor(unittest.TestCase):
     def setUp(self):
@@ -76,6 +79,31 @@ class TestIngestor(unittest.TestCase):
         self.assertEqual(row["md5_hash"], self._orig_calc(dest))
         self.assertEqual(row["status"], "completed")
 
+    def test_copy_progress_emitted_by_percent(self):
+        src = self._make_source(size=8192 * 300)  # 300 bloques → enough para throttle
+        progress = []
+        self.ing.copy_progress.connect(lambda sp, c, t: progress.append((c, t)))
+        dest = os.path.join(self.dst_dir, "progress.bin")
+        self.assertTrue(self.ing._copy_verified(src, dest))
+        self.assertTrue(os.path.exists(dest))
+
+        self.assertGreaterEqual(len(progress), 2)
+        self.assertLessEqual(len(progress), 101, "El throttle por % debe limitar las emisiones")
+        pcts = [int(c * 100.0 / t) for c, t in progress if t]
+        self.assertEqual(pcts, sorted(pcts))
+        self.assertEqual(pcts[-1], 100)
+        last_c, last_t = progress[-1]
+        self.assertEqual(last_c, last_t)
+
+    def test_copy_verified_small_file_single_emission(self):
+        src = self._make_source(size=1024)
+        progress = []
+        self.ing.copy_progress.connect(lambda sp, c, t: progress.append((c, t)))
+        dest = os.path.join(self.dst_dir, "small.bin")
+        self.assertTrue(self.ing._copy_verified(src, dest))
+        self.assertGreaterEqual(len(progress), 1)
+        self.assertEqual(progress[-1][0], progress[-1][1])
+
     def test_mismatch_detected_and_dest_removed(self):
         src = self._make_source()
         ingestor_module.calculate_md5 = lambda p: "0" * 32  # dest nunca coincidirá
@@ -127,6 +155,48 @@ class TestIngestor(unittest.TestCase):
             )
         finally:
             ingestor_module._free_space = orig_free
+
+    def test_content_filter_includes_matching(self):
+        ing = Ingestor(1, self.dst_dir, session_id=7,
+                       content_filter={"dates": ["2024-01-02"], "include_nodate": False})
+        ing.handle_new_file(self._make_source())
+        ing.executor.shutdown(wait=True)
+        stats = ing.get_stats()
+        self.assertEqual(stats["processed"], 1)
+        self.assertEqual(stats["skipped"], 0)
+
+    def test_content_filter_skips_out_of_range(self):
+        ing = Ingestor(1, self.dst_dir, session_id=8,
+                       content_filter={"dates": ["2024-06-01"], "include_nodate": False})
+        ing.handle_new_file(self._make_source())
+        ing.executor.shutdown(wait=True)
+        stats = ing.get_stats()
+        self.assertEqual(stats["processed"], 0)
+        self.assertEqual(stats["skipped"], 1)
+
+    def test_content_filter_nodate_included(self):
+        class NoDateMeta(FakeMeta):
+            def date_key_for_file(self, path):
+                return None
+        ingestor_module.metadata_engine = NoDateMeta()
+        ing = Ingestor(1, self.dst_dir, session_id=9,
+                       content_filter={"dates": ["2024-01-02"], "include_nodate": True})
+        ing.handle_new_file(self._make_source())
+        ing.executor.shutdown(wait=True)
+        self.assertEqual(ing.get_stats()["processed"], 1)
+
+    def test_content_filter_nodate_excluded(self):
+        class NoDateMeta(FakeMeta):
+            def date_key_for_file(self, path):
+                return None
+        ingestor_module.metadata_engine = NoDateMeta()
+        ing = Ingestor(1, self.dst_dir, session_id=10,
+                       content_filter={"dates": ["2024-01-02"], "include_nodate": False})
+        ing.handle_new_file(self._make_source())
+        ing.executor.shutdown(wait=True)
+        stats = ing.get_stats()
+        self.assertEqual(stats["processed"], 0)
+        self.assertEqual(stats["skipped"], 1)
 
 
 class TestUtils(unittest.TestCase):

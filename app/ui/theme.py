@@ -90,6 +90,10 @@ QWidget {
     font-size: 12px;
 }
 
+QCalendarWidget {
+    font-size: 10pt;
+}
+
 QLabel {
     color: @text;
     font-size: 11px;

@@ -3,6 +3,7 @@ import threading
 import time
 from typing import Callable, Optional
 from app.core.ingestor import Ingestor
+from app.core.metadata_engine import _is_system_entry
 
 class FileSystemWatcher:
     def __init__(self, source_dir: str, ingestor: Ingestor, status_callback: Optional[Callable[[str], None]] = None):
@@ -30,12 +31,15 @@ class FileSystemWatcher:
             try:
                 current_files = set()
                 for root, dirs, files in os.walk(self.source_dir):
+                    dirs[:] = [d for d in dirs if not _is_system_entry(d)]
                     for file in files:
                         path = os.path.join(root, file)
                         current_files.add(path)
-                        
-                        # Ignore hidden files and specific system files
-                        if path not in scanned_files and not path.startswith('.'):
+
+                        # Ignora archivos del sistema/ocultos: el chequeo debe
+                        # ser sobre el nombre, no sobre la ruta absoluta
+                        # (path.startswith('.') nunca se cumple en Windows).
+                        if path not in scanned_files and not _is_system_entry(file):
                             self.ingestor.handle_new_file(path)
                             scanned_files.add(path)
                 

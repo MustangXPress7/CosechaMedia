@@ -1,5 +1,7 @@
 import sys
 import os
+import json
+import time
 from datetime import datetime
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QLabel, QPushButton, QLineEdit, QProgressBar, QTableWidget,
@@ -75,6 +77,37 @@ def _reorganize_worker(progress, ingestors):
         progress.emit(translator.tr("Reorganizando ingesta %1/%2...").arg(i).arg(len(ingestors)))
         ing.reorganize_by_metadata()
     return True
+
+class _StageWorker(QObject):
+    """Staging incremental de una carpeta de dispositivo MTP en QThread."""
+    progress = Signal(str)
+    done = Signal(bool, object)
+
+    def __init__(self, backend, device_id, device_folder):
+        super().__init__()
+        self._backend = backend
+        self._device_id = device_id
+        self._device_folder = device_folder
+        self._cancel = False
+
+    def cancel(self):
+        self._cancel = True
+
+    def run(self):
+        try:
+            def on_progress(name, current, total):
+                self.progress.emit(
+                    translator.tr("Sincronizando %1 (%2/%3)…").arg(name).arg(current).arg(total)
+                )
+            result = self._backend.stage(
+                self._device_id,
+                self._device_folder,
+                on_progress=on_progress,
+                cancel=lambda: self._cancel,
+            )
+            self.done.emit(True, result)
+        except Exception as e:
+            self.done.emit(False, str(e))
 
 class DashboardBackground(QWidget):
     def paintEvent(self, event):
@@ -166,6 +199,52 @@ class MainWindow(QMainWindow):
 
         if getattr(sys, "frozen", False) and settings.value("checkUpdatesOnStart", True, type=bool):
             QTimer.singleShot(3000, self._run_startup_update_check)
+
+        self._last_device_sync = {}
+        self._sync_timer = QTimer(self)
+        self._sync_timer.setInterval(5000)
+        self._sync_timer.timeout.connect(self._auto_sync_check)
+        self._sync_timer.start()
+
+    def _auto_sync_check(self):
+        """Auto-sync MTP/FTP: si un dispositivo con sesiones guardadas aparece
+        disponible, lanza el staging incremental (una vez por minuto por
+        dispositivo)."""
+        if getattr(self, "_stage_thread", None) and self._stage_thread.isRunning():
+            return
+        if self.current_project_id is None:
+            return
+        sessions = [s for s in db.get_sessions(self.current_project_id) if s.get("device_id")]
+        if not sessions:
+            return
+        from app.core import mtp
+        from app.core.ftp import FtpBackend
+        try:
+            mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
+        except Exception:
+            mtp_connected = set()
+        ftp_backend = FtpBackend()
+        now = time.time()
+        for s in sessions:
+            did = s["device_id"]
+            is_ftp = str(did).startswith("ftp:")
+            if is_ftp:
+                if not ftp_backend.is_reachable(did):
+                    continue
+            elif did not in mtp_connected:
+                continue
+            if now - self._last_device_sync.get(did, 0) < 60:
+                continue
+            self._last_device_sync[did] = now
+            cache_dir = s.get("source_path") or mtp.device_cache_dir(did, s.get("device_folder") or "")
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except OSError:
+                continue
+            self._stage_device_in_background(
+                did, s.get("device_folder") or "", s["id"], cache_dir,
+                backend=ftp_backend if is_ftp else None, silent=is_ftp)
+            return
 
     def setup_views(self):
         self.dashboard_view = DashboardBackground()
@@ -280,15 +359,23 @@ class MainWindow(QMainWindow):
         self.btn_browse_source.clicked.connect(self.select_source_path)
         src_top.addWidget(self.btn_browse_source)
 
+        self.btn_receive_wifi = QPushButton(self.tr("WiFi…"))
+        self.btn_receive_wifi.setToolTip(self.tr("Recibir archivos de un móvil por WiFi (QR o FTP)"))
+        self.btn_receive_wifi.clicked.connect(self._pick_wifi_source)
+        src_top.addWidget(self.btn_receive_wifi)
+
         left_col.addLayout(src_top)
 
         self.source_list = QTableWidget()
-        self.source_list.setColumnCount(2)
-        self.source_list.setHorizontalHeaderLabels([self.tr("Ruta de origen"), self.tr("Cámara")])
+        self.source_list.setColumnCount(3)
+        self.source_list.setHorizontalHeaderLabels(
+            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido")])
         self.source_list.horizontalHeader().setStretchLastSection(False)
         self.source_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.source_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
         self.source_list.horizontalHeader().resizeSection(1, 140)
+        self.source_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
+        self.source_list.horizontalHeader().resizeSection(2, 180)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -311,6 +398,7 @@ class MainWindow(QMainWindow):
         self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
+
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
 
@@ -473,14 +561,18 @@ class MainWindow(QMainWindow):
         left_col.addStretch()
 
         # --- Files table ---
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels([self.tr("Archivo"), self.tr("Cámara"), self.tr("Estado"), self.tr("Destino")])
+        self.table = QTableWidget(0, 5)
+        self.table.setHorizontalHeaderLabels([
+            self.tr("Archivo"), self.tr("Cámara"), self.tr("Estado"),
+            self.tr("Progreso"), self.tr("Destino"),
+        ])
         th = self.table.horizontalHeader()
         th.setSectionResizeMode(QHeaderView.Interactive)
         th.setStretchLastSection(True)
         th.resizeSection(0, 280)
         th.resizeSection(1, 130)
         th.resizeSection(2, 110)
+        th.resizeSection(3, 90)
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(True)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -785,6 +877,78 @@ class MainWindow(QMainWindow):
             None,
         )
         metadata_engine.refresh_file_types()
+
+    def _manage_devices(self):
+        """Lista dispositivos MTP/FTP guardados y permite borrarlos (con sus sesiones)."""
+        from app.core import ftp
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Dispositivos guardados"))
+        dialog.setMinimumWidth(460)
+        dialog.setMinimumHeight(300)
+        layout = QVBoxLayout(dialog)
+        layout.setSpacing(8)
+        layout.setContentsMargins(16, 12, 16, 12)
+
+        hint = QLabel(self.tr("Eliminar un dispositivo borra también sus sesiones y archivos registrados."))
+        hint.setWordWrap(True)
+        hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
+        layout.addWidget(hint)
+
+        listw = QListWidget()
+        layout.addWidget(listw, 1)
+
+        def refresh():
+            listw.clear()
+            for dev in db.get_devices():
+                did = dev["device_id"]
+                if str(did).startswith("ftp:"):
+                    pid = ftp.profile_id_from_device_key(did)
+                    prof = db.get_ftp_profile(pid) if pid is not None else None
+                    name = (prof or {}).get("name") or (prof or {}).get("host") or did
+                    host = (prof or {}).get("host") or ""
+                    label = f"{name} ({host}) — {dev['device_folder'] or '/'} ({dev['session_count']} sesiones)"
+                else:
+                    label = f"{did[-24:]} — {dev['device_folder'] or '/'} ({dev['session_count']} sesiones)"
+                listw.addItem(label)
+                listw.item(listw.count() - 1).setData(Qt.UserRole, did)
+            if listw.count():
+                listw.setCurrentRow(0)
+
+        refresh()
+
+        def _del():
+            item = listw.currentItem()
+            if not item:
+                return
+            device_id = item.data(Qt.UserRole)
+            reply = QMessageBox.question(
+                dialog, self.tr("Eliminar dispositivo"),
+                self.tr("¿Eliminar este dispositivo y todas sus sesiones?"),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+            if str(device_id).startswith("ftp:"):
+                pid = ftp.profile_id_from_device_key(device_id)
+                if pid is not None:
+                    db.delete_ftp_profile(pid)
+            db.delete_device(device_id)
+            refresh()
+            self._populate_source_paths_from_sessions()
+            self._refresh_source_list()
+            self._refresh_sessions_combo()
+            self.update_start_button_state()
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_del = QPushButton(self.tr("Eliminar"))
+        btn_del.clicked.connect(_del)
+        btn_close = QPushButton(self.tr("Cerrar"))
+        btn_close.clicked.connect(dialog.accept)
+        btn_row.addWidget(btn_del)
+        btn_row.addWidget(btn_close)
+        layout.addLayout(btn_row)
+        dialog.exec()
 
     def _manage_dump_locations(self):
         if self.current_project_id is None:
@@ -1232,6 +1396,14 @@ class MainWindow(QMainWindow):
             s_delicate = sess.get("delicate_mode")
             s_delicate = self.project_delicate_mode if s_delicate is None else s_delicate
 
+            s_content_filter = None
+            try:
+                raw_filter = sess.get("content_filter")
+                if raw_filter:
+                    s_content_filter = json.loads(raw_filter)
+            except (TypeError, ValueError):
+                s_content_filter = None
+
             dest_root = sess.get("destination_override") or self.dest_root
             sess_targets = None
             if not sess.get("destination_override"):
@@ -1255,8 +1427,10 @@ class MainWindow(QMainWindow):
                 manual_date=self.project_date.toString("yyyy-MM-dd"),
                 dump_targets=sess_targets,
                 project_master_root=self.dest_root,
+                content_filter=s_content_filter,
             )
             ing.file_started.connect(self.on_file_started)
+            ing.copy_progress.connect(self.on_copy_progress)
             ing.file_finished.connect(
                 lambda sp, dp, ok, md, i=ing: self.on_file_finished(sp, dp, ok, md, ingestor=i)
             )
@@ -1326,14 +1500,28 @@ class MainWindow(QMainWindow):
         status_item.setFlags(status_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 2, status_item)
 
+        progress_item = QTableWidgetItem("0%")
+        progress_item.setFlags(progress_item.flags() & ~Qt.ItemIsEditable)
+        self.table.setItem(row, 3, progress_item)
+
         dest_item = QTableWidgetItem("")
         dest_item.setFlags(dest_item.flags() & ~Qt.ItemIsEditable)
-        self.table.setItem(row, 3, dest_item)
+        self.table.setItem(row, 4, dest_item)
 
         self._file_row_map[source_path] = row
         self._total_files += 1
         self.progress_bar.setMaximum(self._total_files)
         self.ingest_status_label.setText(self.tr("Procesando: %1").arg(os.path.basename(source_path)))
+
+    def on_copy_progress(self, source_path, copied_bytes, total_bytes):
+        row = self._file_row_map.get(source_path)
+        if row is None or not total_bytes:
+            return
+        pct = int(copied_bytes * 100.0 / total_bytes)
+        pct = max(0, min(100, pct))
+        progress_item = QTableWidgetItem(f"{pct}%")
+        progress_item.setFlags(progress_item.flags() & ~Qt.ItemIsEditable)
+        self.table.setItem(row, 3, progress_item)
 
     def on_file_finished(self, source_path, dest_path, success, metadata=None, ingestor=None):
         row = self._file_row_map.get(source_path)
@@ -1353,9 +1541,14 @@ class MainWindow(QMainWindow):
             status_item.setForeground(text_color)
             self.table.setItem(row, 2, status_item)
 
+            progress_item = QTableWidgetItem("100%" if success else "0%")
+            progress_item.setForeground(text_color if success else QColor(theme.color("danger")))
+            progress_item.setFlags(progress_item.flags() & ~Qt.ItemIsEditable)
+            self.table.setItem(row, 3, progress_item)
+
             if dest_path:
                 dest_item = QTableWidgetItem(dest_path)
-                self.table.setItem(row, 3, dest_item)
+                self.table.setItem(row, 4, dest_item)
 
         if success and dest_path:
             ftype = metadata_engine.get_file_type_info(dest_path)
@@ -1621,8 +1814,36 @@ class MainWindow(QMainWindow):
                 self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_name.strip()))
 
     def _on_source_double_clicked(self, item):
-        if item.column() == 1:
+        if item.column() == 0:
+            self._prompt_change_source_path(item.row())
+        elif item.column() == 1:
             self._prompt_rename_camera(item.row())
+
+    def _prompt_change_source_path(self, row):
+        path_item = self.source_list.item(row, 0)
+        if not path_item:
+            return
+        old = path_item.text()
+        start = old if os.path.isdir(old) else os.path.expanduser("~")
+        new = QFileDialog.getExistingDirectory(
+            self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start)
+        if not new or new == old:
+            return
+        if new in self._source_paths:
+            QMessageBox.information(
+                self, self.tr("Aviso"),
+                self.tr("El origen '%1' ya está en la lista.").arg(new))
+            return
+        if 0 <= row < len(self._source_paths):
+            self._source_paths[row] = new
+        if self.current_project_id is not None:
+            for s in db.get_sessions(self.current_project_id):
+                if s.get("source_path") == old:
+                    db.update_session_config(s["id"], source_path=new)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        self.ingest_status_label.setText(self.tr("Origen cambiado: %1").arg(new))
 
     def _prompt_rename_camera(self, row):
         if self.current_project_id is None:
@@ -1669,7 +1890,37 @@ class MainWindow(QMainWindow):
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
+            # Column 2: content filter
+            self.source_list.setCellWidget(row, 2, self._build_content_button(row, s))
         self.source_list.blockSignals(False)
+
+    def _build_content_button(self, row, session):
+        from app.ui.selective_dump import content_summary
+        filt = None
+        if session:
+            try:
+                raw = session.get("content_filter")
+                if raw:
+                    filt = json.loads(raw)
+            except (TypeError, ValueError):
+                filt = None
+        text = content_summary(filt)
+        btn = QPushButton(text)
+        btn.setToolTip(text)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet(
+            "QPushButton { border: none; text-align: left; padding: 2px 6px;"
+            " color: %s; font-size: 11px; }"
+            "QPushButton:hover { color: %s; }"
+            "QPushButton:disabled { color: %s; }"
+            % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
+        )
+        if not session:
+            btn.setEnabled(False)
+            btn.setToolTip(self.tr("Activa el origen para configurar su contenido."))
+        else:
+            btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
+        return btn
 
     @staticmethod
     def _drive_label(path):
@@ -2096,6 +2347,9 @@ class MainWindow(QMainWindow):
         m_routes.addAction(act_dump_targets)
 
         m_detection = menu_bar.addMenu(self.tr("&Detección"))
+        self.act_pick_device = QAction(self.tr("Importar desde dispositivo (MTP)…"), self)
+        self.act_pick_device.triggered.connect(self._pick_device_source)
+        m_detection.addAction(self.act_pick_device)
         act_cam_detect = QAction(self.tr("Configurar detección de &cámara..."), self)
         act_cam_detect.triggered.connect(self._show_camera_detection_dialog)
         m_detection.addAction(act_cam_detect)
@@ -2110,6 +2364,9 @@ class MainWindow(QMainWindow):
         act_containers = QAction(self.tr("Personalizar &contenedores de archivos..."), self)
         act_containers.triggered.connect(self._manage_containers)
         m_custom.addAction(act_containers)
+        act_devices = QAction(self.tr("Dispositivos guardados..."), self)
+        act_devices.triggered.connect(self._manage_devices)
+        m_custom.addAction(act_devices)
 
         self._view_menu = menu_bar.addMenu(self.tr("&Vista"))
         self._theme_menu = self._view_menu.addMenu(self.tr("Tema"))
@@ -2224,6 +2481,181 @@ class MainWindow(QMainWindow):
             self._refresh_source_list()
             self._refresh_sessions_combo()
             self.update_start_button_state()
+
+    def _pick_device_source(self):
+        from app.ui.device_picker import DevicePickerDialog
+        from app.core import mtp
+        dialog = DevicePickerDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        if not dialog.device_id or not dialog.device_folder:
+            return
+        if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona o crea un proyecto antes de elegir un dispositivo.")
+            )
+            return
+        cache_dir = mtp.device_cache_dir(dialog.device_id, dialog.device_folder)
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except OSError:
+            cache_dir = mtp.device_cache_dir(dialog.device_id, "")
+            os.makedirs(cache_dir, exist_ok=True)
+        self._register_device_source(
+            cache_dir, dialog.device_id, dialog.device_folder, dialog.device_name
+        )
+
+    def _pick_wifi_source(self):
+        from app.ui.wifi_picker import WifiMethodDialog
+        dialog = WifiMethodDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        if dialog.method == "ftp":
+            self._pick_ftp_source()
+        elif dialog.method == "pairdrop":
+            self._open_shoot_inbox()
+
+    def _open_shoot_inbox(self):
+        from app.ui.shoot_inbox import ShootInboxDialog
+        if self.current_project_id is not None:
+            from app.core.shoot_inbox import inbox_root
+            self._register_inbox_source(inbox_root())
+        dlg = ShootInboxDialog(self)
+        dlg.exec()
+
+    def _register_inbox_source(self, path):
+        os.makedirs(path, exist_ok=True)
+        sessions = db.get_sessions(self.current_project_id)
+        existing = next((s for s in sessions if s.get("source_path") == path), None)
+        if existing:
+            db.update_session_config(existing["id"], source_path=path)
+        else:
+            no_source = [s for s in sessions if not s.get("source_path")]
+            if no_source:
+                sid = no_source[0]["id"]
+                db.update_session_config(
+                    sid, source_path=path, name=self.tr("Inbox WiFi"))
+            else:
+                sid = db.create_session(
+                    self.current_project_id, self.tr("Inbox WiFi"),
+                    QDate.currentDate().toString("yyyy-MM-dd"), "active",
+                    source_path=path)
+        if path not in self._source_paths:
+            self._source_paths.append(path)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+
+    def _pick_ftp_source(self):
+        from app.ui.ftp_picker import FtpPickerDialog
+        from app.core import mtp, ftp
+        dialog = FtpPickerDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        if not dialog.device_id or not dialog.device_folder:
+            return
+        if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona o crea un proyecto antes de elegir un dispositivo.")
+            )
+            return
+        cache_dir = mtp.device_cache_dir(dialog.device_id, dialog.device_folder)
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except OSError:
+            cache_dir = mtp.device_cache_dir(dialog.device_id, "")
+            os.makedirs(cache_dir, exist_ok=True)
+        self._register_device_source(
+            cache_dir, dialog.device_id, dialog.device_folder, dialog.device_name,
+            backend=ftp.FtpBackend(),
+        )
+
+    def _register_device_source(self, cache_dir, device_id, device_folder, device_name, backend=None):
+        if cache_dir not in self._source_paths:
+            self._source_paths.append(cache_dir)
+            self.source_input.setCurrentText("")
+        sessions = db.get_sessions(self.current_project_id)
+        existing = next((s for s in sessions if s.get("source_path") == cache_dir), None)
+        if existing:
+            db.update_session_config(
+                existing["id"],
+                device_id=device_id, device_folder=device_folder,
+                source_path=cache_dir,
+            )
+            sid = existing["id"]
+        else:
+            base = device_name or self._drive_label(cache_dir)
+            no_source = [s for s in sessions if not s.get("source_path")]
+            if no_source:
+                sid = no_source[0]["id"]
+                db.update_session_config(
+                    sid, source_path=cache_dir, name=f"Auto ({base})",
+                    device_id=device_id, device_folder=device_folder,
+                )
+            else:
+                sid = db.create_session(
+                    self.current_project_id, f"Auto ({base})",
+                    QDate.currentDate().toString("yyyy-MM-dd"), "active",
+                    source_path=cache_dir,
+                )
+                db.update_session_config(sid, device_id=device_id, device_folder=device_folder)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        self._stage_device_in_background(device_id, device_folder, sid, cache_dir, backend=backend)
+
+    def _stage_device_in_background(self, device_id, device_folder, session_id, cache_dir,
+                                    backend=None, silent=False):
+        from app.core import mtp
+        backend = backend or mtp.WpdBackend()
+        worker = _StageWorker(backend, device_id, device_folder)
+        thread = QThread(self)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.progress.connect(self._on_stage_progress)
+        worker.done.connect(lambda ok, res, w=worker, t=thread, sid=session_id, cdir=cache_dir, sil=silent:
+                            self._on_stage_done(ok, res, w, t, sid, cdir, silent=sil))
+        thread.finished.connect(thread.deleteLater)
+        self._stage_thread = thread
+        self._stage_worker = worker
+        self.act_pick_device.setEnabled(False)
+        self.btn_receive_wifi.setEnabled(False)
+        self.ingest_status_label.setText(
+            self.tr("Sincronizando dispositivo (primera pasada)…")
+        )
+        thread.start()
+
+    def _on_stage_progress(self, message):
+        self.ingest_status_label.setText(message)
+
+    def _on_stage_done(self, ok, res, worker, thread, session_id, cache_dir, silent=False):
+        self.act_pick_device.setEnabled(True)
+        self.btn_receive_wifi.setEnabled(True)
+        if not ok:
+            if silent:
+                self.ingest_status_label.setText(self.tr("Dispositivo no disponible"))
+            else:
+                QMessageBox.warning(
+                    self, self.tr("Dispositivo"),
+                    self.tr("No se pudo sincronizar el dispositivo: %1").arg(str(res)),
+                )
+                self.ingest_status_label.setText(self.tr("Listo"))
+            thread.quit()
+            return
+        staged = res.get("staged", 0)
+        skipped = res.get("skipped", 0)
+        errors = res.get("errors", 0)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        self.ingest_status_label.setText(
+            self.tr("Dispositivo sincronizado: %1 nuevos, %2 sin cambios, %3 errores.")
+            .arg(staged).arg(skipped).arg(errors)
+        )
+        self._detect_camera_for_session(session_id, cache_dir)
+        thread.quit()
 
     def select_dest_path(self):
         if self.current_project_id is None:
@@ -2364,6 +2796,49 @@ class MainWindow(QMainWindow):
             self, self.tr("Modo guiado"),
             self.tr("El Modo guiado para volcados rápidos estará disponible próximamente.")
         )
+
+    def _open_selective_dump(self):
+        from app.ui.selective_dump import SelectiveDumpAssistant
+        if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona o crea un proyecto antes de hacer un volcado selectivo."))
+            return
+        source = self.source_input.currentText().strip() or (self._source_paths[0] if self._source_paths else "")
+        project_config = {
+            "dest_root": self.dest_root or "",
+            "folder_name": self.project_folder_name or "Footage",
+            "organization_type": self.project_organization_type,
+            "default_camera": self.project_default_camera or "",
+            "project_id": self.current_project_id,
+            "use_metadata_date": self.project_use_metadata_date,
+        }
+        dialog = SelectiveDumpAssistant(self, source_path=source, project_config=project_config)
+        dialog.exec()
+
+    def _open_content_filter(self, row):
+        from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
+        if self.current_project_id is None:
+            return
+        path_item = self.source_list.item(row, 0)
+        if not path_item:
+            return
+        path = path_item.text()
+        session = next((s for s in db.get_sessions(self.current_project_id)
+                        if s.get("source_path") == path), None)
+        if not session:
+            QMessageBox.information(
+                self, self.tr("Aviso"),
+                self.tr("Activa el origen para configurar su contenido."))
+            return
+        dialog = SelectiveDumpAssistant(self, source_path=path, mode="filter")
+        if dialog.exec() == QDialog.Accepted:
+            filt = dialog.content_filter
+            db.update_session_config(
+                session["id"], content_filter=json.dumps(filt) if filt else None)
+            self._refresh_source_list()
+            self.ingest_status_label.setText(
+                self.tr("Contenido del origen %1: %2").arg(path).arg(dialog.content_text))
 
     def _check_for_updates(self):
         AboutDialog(self, check_updates=True).exec()

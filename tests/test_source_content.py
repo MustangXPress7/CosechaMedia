@@ -1,0 +1,169 @@
+"""Pruebas de la tabla de orígenes: columna 'Contenido' y cambio de ruta por doble clic."""
+import os
+import json
+import tempfile
+import shutil
+import unittest
+from unittest import mock
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+from PySide6.QtWidgets import QApplication, QFileDialog
+
+import app.ui.main_window as mw
+import app.core.ingestor as ingestor_module
+from app.core.db import DatabaseManager
+
+
+class TestSourceContent(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_src_")
+        self.src = os.path.join(self.tmp, "src")
+        self.dest = os.path.join(self.tmp, "dest")
+        os.makedirs(self.src)
+        os.makedirs(self.dest)
+
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_notif = mw.NotificationManager
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "src.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+
+        class StubNotif:
+            def notify_ingest_complete(self, stats):
+                pass
+
+            def notify_ingest_stopped(self):
+                pass
+
+            def notify_ingest_failed(self, stats=None):
+                pass
+
+        mw.NotificationManager = StubNotif
+
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO projects (name, root_path) VALUES ('P', ?)", (self.dest,))
+        self.pid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+
+        self.sid = self.db.create_session(self.pid, "Sesión", "2024-01-02", "active", self.src)
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.dest_root = self.dest
+        self.window._source_paths = [self.src]
+
+    def tearDown(self):
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        mw.NotificationManager = self._orig_notif
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_source_list_has_content_column_with_button(self):
+        self.window._refresh_source_list()
+        self.assertEqual(self.window.source_list.columnCount(), 3)
+        btn = self.window.source_list.cellWidget(0, 2)
+        self.assertIsNotNone(btn)
+        self.assertEqual(btn.text(), "Todo")
+        self.assertTrue(btn.isEnabled())
+
+    def test_content_button_disabled_without_session(self):
+        other = os.path.join(self.tmp, "other")
+        os.makedirs(other)
+        self.window._source_paths = [self.src, other]
+        self.window._refresh_source_list()
+        btn = self.window.source_list.cellWidget(1, 2)
+        self.assertFalse(btn.isEnabled())
+
+    def test_content_button_shows_summary(self):
+        filt = json.dumps({"dates": ["2025-05-25", "2025-05-26"], "include_nodate": False})
+        self.db.update_session_config(self.sid, content_filter=filt)
+        self.window._refresh_source_list()
+        btn = self.window.source_list.cellWidget(0, 2)
+        self.assertEqual(btn.text(), "del 25-5-25 al 26-5-25")
+
+    def test_change_source_path_updates_session(self):
+        new_src = os.path.join(self.tmp, "new_src")
+        os.makedirs(new_src)
+        self.window._refresh_source_list()
+        with mock.patch.object(QFileDialog, "getExistingDirectory", return_value=new_src):
+            self.window._prompt_change_source_path(0)
+        sessions = self.db.get_sessions(self.pid)
+        self.assertEqual(sessions[0]["source_path"], new_src)
+        self.assertIn(new_src, self.window._source_paths)
+        self.assertNotIn(self.src, self.window._source_paths)
+
+    def test_change_source_path_rejects_duplicate(self):
+        other = os.path.join(self.tmp, "other")
+        os.makedirs(other)
+        self.window._source_paths = [self.src, other]
+        self.window._refresh_source_list()
+        with mock.patch.object(QFileDialog, "getExistingDirectory", return_value=other), \
+             mock.patch.object(mw.QMessageBox, "information") as info:
+            self.window._prompt_change_source_path(0)
+        info.assert_called_once()
+        sessions = self.db.get_sessions(self.pid)
+        self.assertEqual(sessions[0]["source_path"], self.src)
+
+    def test_ingest_table_has_progress_column(self):
+        self.assertEqual(self.window.table.columnCount(), 5)
+        headers = [self.window.table.horizontalHeaderItem(i).text() for i in range(5)]
+        self.assertIn("Progreso", headers)
+
+    def test_selective_dump_button_removed(self):
+        self.assertFalse(hasattr(self.window, "btn_selective_dump"))
+
+    def test_on_copy_progress_updates_cell(self):
+        self.window.on_file_started("clip.mp4")
+        row = self.window._file_row_map["clip.mp4"]
+        self.window.on_copy_progress("clip.mp4", 50, 100)
+        self.assertEqual(self.window.table.item(row, 3).text(), "50%")
+        self.window.on_file_finished("clip.mp4", "/out/clip.mp4", True, {})
+        self.assertEqual(self.window.table.item(row, 3).text(), "100%")
+
+    def test_on_copy_progress_clamped(self):
+        self.window.on_file_started("big.mp4")
+        row = self.window._file_row_map["big.mp4"]
+        self.window.on_copy_progress("big.mp4", 999999, 100)
+        self.assertEqual(self.window.table.item(row, 3).text(), "100%")
+
+    def test_session_custom_destination_override(self):
+        self.window.current_project_id = self.pid
+        self.window._refresh_sessions_combo()
+        idx = self.window.sessions_combo.findData(self.sid)
+        self.assertNotEqual(idx, -1, "La sesión debe aparecer en el combo")
+        self.window.sessions_combo.setCurrentIndex(idx)
+        self.window._on_session_selected(idx)
+        self.assertEqual(self.window.current_session_id, self.sid)
+        self.assertFalse(self.window._btn_browse_sess_src.isHidden())
+
+        custom = os.path.join(self.tmp, "custom_dest")
+        self.window.session_dest_combo.setCurrentIndex(1)  # Personalizado
+        self.window.session_dest_path.setText(custom)
+        self.window._save_session_override()
+        self.assertEqual(self.db.get_session(self.sid)["destination_override"], custom)
+
+        self.window.session_dest_combo.setCurrentIndex(0)  # Por defecto
+        self.window._save_session_override()
+        self.assertIsNone(self.db.get_session(self.sid)["destination_override"])
+
+    @mock.patch.object(mw, "FileSystemWatcher")
+    @mock.patch.object(mw, "Ingestor")
+    def test_start_ingest_passes_content_filter(self, MockIngestor, MockWatcher):
+        self.db.update_session_config(
+            self.sid, content_filter=json.dumps({"dates": ["2024-01-02"], "include_nodate": True}))
+        self.window.start_ingest()
+        kwargs = MockIngestor.call_args.kwargs
+        self.assertEqual(kwargs["content_filter"], {"dates": ["2024-01-02"], "include_nodate": True})
+
+
+if __name__ == "__main__":
+    unittest.main()

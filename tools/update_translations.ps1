@@ -10,7 +10,10 @@ $sources = @(
     (Join-Path $root "main.py"),
     (Join-Path $root "app\ui\main_window.py"),
     (Join-Path $root "app\ui\about_dialog.py"),
+    (Join-Path $root "app\ui\device_picker.py"),
+    (Join-Path $root "app\ui\ftp_picker.py"),
     (Join-Path $root "app\ui\project_wizard.py"),
+    (Join-Path $root "app\ui\selective_dump.py"),
     (Join-Path $root "app\core\notifications.py"),
     (Join-Path $root "app\core\updater.py")
 )

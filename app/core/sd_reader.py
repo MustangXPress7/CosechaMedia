@@ -3,6 +3,8 @@ import json
 from typing import Dict, Optional, List
 from datetime import datetime
 
+from app.core.metadata_engine import metadata_engine
+
 class SDReader:
     CARD_BRANDS = {
         "SanDisk": ["SD", "SDHC", "SDXC", "SDUC"],
@@ -129,56 +131,28 @@ class SDReader:
                     return
     
     def _extract_card_from_video(self, file_path: str, info: Dict):
+        """Extrae marca/modelo/serie de un clip reutilizando el motor de
+        metadatos (que cachea la llamada a ffprobe)."""
         try:
-            import subprocess
-            startupinfo = None
-            if os.name == 'nt':
-                startupinfo = subprocess.STARTUPINFO()
-                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-                startupinfo.wShowWindow = subprocess.SW_HIDE
-            
-            cmd = [
-                "ffprobe",
-                "-v", "quiet",
-                "-print_format", "json",
-                "-show_format",
-                "-show_streams",
-                "-read_intervals", "%+0.5",
-                file_path
-            ]
-            
-            result = subprocess.run(
-                cmd, 
-                capture_output=True, 
-                text=True, 
-                timeout=5,
-                startupinfo=startupinfo
-            )
-            
-            if result.returncode == 0:
-                data = json.loads(result.stdout)
-                
-                format_tags = data.get("format", {}).get("tags", {})
-                stream_tags = data.get("streams", [{}])[0].get("tags", {})
-                
-                for tag_dict in [format_tags, stream_tags]:
-                    if not info["brand"] and tag_dict.get("make"):
-                        make = tag_dict["make"].upper()
-                        for brand in self.CARD_BRANDS.keys():
-                            if brand.upper() in make:
-                                info["brand"] = brand
-                                break
-                    
-                    if tag_dict.get("model"):
-                        info["model"] = tag_dict["model"]
-                    
-                    if not info["serial"] and tag_dict.get("serial"):
-                        info["serial"] = tag_dict["serial"]
-                    
-                    if not info["serial"] and tag_dict.get("UniqueID"):
-                        info["serial"] = tag_dict["UniqueID"]
-                        
-        except:
+            meta = metadata_engine.get_video_metadata(file_path)
+            if not meta:
+                return
+
+            if not info["brand"] and meta.get("camera_make"):
+                make = str(meta["camera_make"]).upper()
+                for brand in self.CARD_BRANDS.keys():
+                    if brand.upper() in make:
+                        info["brand"] = brand
+                        break
+
+            if not info["model"] and meta.get("camera_model"):
+                model = str(meta["camera_model"]).strip()
+                if model and model.lower() not in ("unknown", "n/a", "none"):
+                    info["model"] = model
+
+            if not info["serial"] and meta.get("serial"):
+                info["serial"] = str(meta["serial"])
+        except Exception:
             pass
     
     def get_card_summary(self, sd_path: str) -> str:

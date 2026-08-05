@@ -1,3 +1,4 @@
+import secrets
 import sqlite3
 import os
 import sys
@@ -143,6 +144,9 @@ class DatabaseManager:
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
             ("source_path", "TEXT"),
             ("camera_name", "TEXT"),
+            ("content_filter", "TEXT"),
+            ("device_id", "TEXT"),
+            ("device_folder", "TEXT"),
         ]
         for col_name, col_def in session_migrations:
             if col_name not in sess_cols:
@@ -191,12 +195,35 @@ class DatabaseManager:
         ''')
 
         cursor.execute('''
+            CREATE TABLE IF NOT EXISTS ftp_profiles (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                host TEXT NOT NULL,
+                port INTEGER DEFAULT 21,
+                username TEXT,
+                password TEXT,
+                base_folder TEXT DEFAULT '',
+                passive INTEGER DEFAULT 1,
+                timeout INTEGER DEFAULT 15,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS inbox_senders (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                token TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        cursor.execute('''
             CREATE TABLE IF NOT EXISTS containers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
             )
         ''')
-
         default_containers = [
             ".mp4", ".mov", ".avi", ".mkv", ".mxf", ".mts", ".m2ts", ".ts", ".mpg", ".mpeg",
             ".wav", ".mp3", ".aac", ".flac", ".ogg", ".m4a",
@@ -396,7 +423,8 @@ class DatabaseManager:
         cursor.execute(
             '''SELECT id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
-                      use_metadata_date, delicate_mode, created_at, source_path, camera_name
+                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      content_filter, device_id, device_folder
                FROM sessions WHERE project_id = ? ORDER BY id ASC''',
             (project_id,)
         )
@@ -417,6 +445,9 @@ class DatabaseManager:
                 "created_at": r[11],
                 "source_path": r[12],
                 "camera_name": r[13],
+                "content_filter": r[14],
+                "device_id": r[15],
+                "device_folder": r[16],
             })
         conn.close()
         return rows
@@ -427,7 +458,8 @@ class DatabaseManager:
         cursor.execute(
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
-                      use_metadata_date, delicate_mode, created_at, source_path, camera_name
+                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      content_filter, device_id, device_folder
                FROM sessions WHERE id = ?''',
             (session_id,)
         )
@@ -451,6 +483,9 @@ class DatabaseManager:
             "created_at": r[12],
             "source_path": r[13],
             "camera_name": r[14],
+            "content_filter": r[15],
+            "device_id": r[16],
+            "device_folder": r[17],
         }
 
     def update_session_config(self, session_id: int, **kwargs):
@@ -459,7 +494,8 @@ class DatabaseManager:
         allowed = {"destination_override", "folder_name", "organization_type",
                    "duration_type", "default_camera", "use_metadata_date",
                    "delicate_mode", "name", "shoot_date", "status",
-                   "source_path", "camera_name"}
+                   "source_path", "camera_name", "content_filter",
+                   "device_id", "device_folder"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return
@@ -476,6 +512,189 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute('DELETE FROM files WHERE session_id = ?', (session_id,))
         cursor.execute('DELETE FROM sessions WHERE id = ?', (session_id,))
+        conn.commit()
+        conn.close()
+
+    def get_devices(self):
+        """Devuelve dispositivos guardados (device_id, device_folder) con nº de sesiones."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT device_id, device_folder, COUNT(*) AS session_count
+               FROM sessions
+               WHERE device_id IS NOT NULL AND device_id != ''
+               GROUP BY device_id, device_folder
+               ORDER BY device_id ASC'''
+        )
+        rows = [{
+            "device_id": r[0],
+            "device_folder": r[1] or "",
+            "session_count": r[2],
+        } for r in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def get_sessions_by_device(self, device_id: str):
+        """Devuelve las sesiones asociadas a un dispositivo (para auto-sync)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT id, project_id, name, shoot_date, status, destination_override,
+                      folder_name, organization_type, duration_type, default_camera,
+                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      content_filter, device_id, device_folder
+               FROM sessions WHERE device_id = ? AND device_id != '' ORDER BY id ASC''',
+            (device_id,)
+        )
+        rows = []
+        for r in cursor.fetchall():
+            rows.append({
+                "id": r[0],
+                "project_id": r[1],
+                "name": r[2],
+                "date": r[3],
+                "status": r[4],
+                "destination_override": r[5],
+                "folder_name": r[6],
+                "organization_type": r[7],
+                "duration_type": r[8],
+                "default_camera": r[9],
+                "use_metadata_date": r[10],
+                "delicate_mode": r[11],
+                "created_at": r[12],
+                "source_path": r[13],
+                "camera_name": r[14],
+                "content_filter": r[15],
+                "device_id": r[16],
+                "device_folder": r[17],
+            })
+        conn.close()
+        return rows
+
+    def delete_device(self, device_id: str):
+        """Elimina todas las sesiones (y sus archivos) asociadas a un dispositivo."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT id FROM sessions WHERE device_id = ? AND device_id != ?',
+            (device_id, "")
+        )
+        ids = [r[0] for r in cursor.fetchall()]
+        for sid in ids:
+            cursor.execute('DELETE FROM files WHERE session_id = ?', (sid,))
+        cursor.execute(
+            'DELETE FROM sessions WHERE device_id = ? AND device_id != ?',
+            (device_id, "")
+        )
+        conn.commit()
+        conn.close()
+        return ids
+
+    def add_ftp_profile(self, name: str, host: str, port: int = 21, username: str = "",
+                        password: str = "", base_folder: str = "",
+                        passive: bool = True, timeout: int = 15) -> int:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''INSERT INTO ftp_profiles (name, host, port, username, password, base_folder, passive, timeout)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+            (name, host, int(port), username or "", password or "",
+             base_folder or "", int(bool(passive)), int(timeout or 15))
+        )
+        pid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return pid
+
+    def get_ftp_profile(self, profile_id: int):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
+               FROM ftp_profiles WHERE id = ?''', (profile_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return {
+            "id": row[0], "name": row[1], "host": row[2], "port": row[3],
+            "username": row[4], "password": row[5], "base_folder": row[6],
+            "passive": bool(row[7]), "timeout": row[8],
+        }
+
+    def list_ftp_profiles(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
+               FROM ftp_profiles ORDER BY id ASC'''
+        )
+        rows = [{
+            "id": r[0], "name": r[1], "host": r[2], "port": r[3],
+            "username": r[4], "password": r[5], "base_folder": r[6],
+            "passive": bool(r[7]), "timeout": r[8],
+        } for r in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def update_ftp_profile(self, profile_id: int, **kwargs):
+        allowed = {"name", "host", "port", "username", "password",
+                   "base_folder", "passive", "timeout"}
+        fields = {k: v for k, v in kwargs.items() if k in allowed}
+        if not fields:
+            return
+        set_clause = ", ".join(f"{k} = ?" for k in fields.keys())
+        values = list(fields.values()) + [profile_id]
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(f"UPDATE ftp_profiles SET {set_clause} WHERE id = ?", values)
+        conn.commit()
+        conn.close()
+
+    def delete_ftp_profile(self, profile_id: int):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM ftp_profiles WHERE id = ?', (profile_id,))
+        conn.commit()
+        conn.close()
+
+    def list_inbox_senders(self):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT id, name, token FROM inbox_senders ORDER BY id ASC'''
+        )
+        rows = [{
+            "id": r[0], "name": r[1], "token": r[2],
+        } for r in cursor.fetchall()]
+        conn.close()
+        return rows
+
+    def add_inbox_sender(self, name: str) -> int:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''INSERT INTO inbox_senders (name, token) VALUES (?, ?)''',
+            (name, secrets.token_urlsafe(12))
+        )
+        sid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return sid
+
+    def rename_inbox_sender(self, sender_id: int, name: str):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE inbox_senders SET name = ? WHERE id = ?', (name, sender_id))
+        conn.commit()
+        conn.close()
+
+    def delete_inbox_sender(self, sender_id: int):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM inbox_senders WHERE id = ?', (sender_id,))
         conn.commit()
         conn.close()
 

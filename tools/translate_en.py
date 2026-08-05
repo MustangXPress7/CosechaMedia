@@ -26,6 +26,9 @@ TRANSLATIONS = {
     "E:\\DCIM...": "E:\\DCIM...",
     "Examinar": "Browse",
     "Ruta de origen": "Source path",
+    "No hay un origen configurado para el proyecto.": "No source is configured for the project.",
+    "No hay ruta maestra configurada para el proyecto.": "No master path is configured for the project.",
+    "Progreso": "Progress",
     "Cámara": "Camera",
     "⟳ Detectar": "⟳ Detect",
     "Detectar unidades extraíbles": "Detect removable drives",
@@ -347,6 +350,196 @@ TRANSLATIONS = {
     "No se pudo instalar la actualización: %1": "Could not install the update: %1",
     "Actualización disponible": "Update available",
     "Hay una nueva versión de CosechaMedia disponible: %1. ¿Quieres ver los detalles?": "A new version of CosechaMedia is available: %1. Would you like to see the details?",
+    "Seleccionar carpeta": "Select folder",
+    "📅 Volcado por fecha": "📅 Dump by date",
+    "Volcado selectivo de tarjetas 'sucias' o smartphones agrupado por día de grabación": "Selective dump of 'dirty' cards or smartphones grouped by recording day",
+    "Selecciona o crea un proyecto antes de hacer un volcado selectivo.": "Select or create a project before doing a selective dump.",
+    "Volcado selectivo por fecha": "Selective dump by date",
+    "Para tarjetas que acumulan grabaciones de distintos días (p. ej. smartphones). Escanea el origen, agrupa los archivos por día de grabación y te deja elegir qué días volcar. La copia es verificada por MD5.": "For cards that accumulate recordings from different days (e.g. smartphones). Scans the source, groups files by recording day and lets you choose which days to dump. The copy is verified with MD5.",
+    "Origen": "Source",
+    "Ruta de la tarjeta o del teléfono...": "Card or phone path...",
+    "Destino (organización del proyecto)": "Destination (project organization)",
+    "Carpeta maestra del proyecto...": "Project master folder...",
+    "Los archivos se colocarán bajo %1 en subcarpetas de cámara y día.": "Files will be placed under %1 in camera and day subfolders.",
+    "Escanear": "Scan",
+    "Escaneando...": "Scanning...",
+    "Volcando...": "Dumping...",
+    "Detener": "Stop",
+    "con archivos": "with files",
+    "seleccionado": "selected",
+    "Seleccionar todo": "Select all",
+    "Limpiar": "Clear",
+    "Clic: seleccionar · Ctrl: añadir/quitar · Shift o arrastre: rango": "Click: select · Ctrl: add/remove · Shift or drag: range",
+    "Archivos de los días seleccionados:": "Files from the selected days:",
+    "Fecha": "Date",
+    "Tamaño": "Size",
+    "Tipo": "Type",
+    "Incluir archivos sin fecha (se volcarán con la fecha de hoy)": "Include files without date (they will be dumped with today's date)",
+    "Volcar selección": "Dump selection",
+    "Origen inválido": "Invalid source",
+    "Introduce una carpeta de origen válida.": "Enter a valid source folder.",
+    "Destino inválido": "Invalid destination",
+    "Introduce la carpeta de destino del proyecto.": "Enter the project destination folder.",
+    "No se pudo escanear el origen: %1": "Could not scan the source: %1",
+    "%1 archivos en %2 día(s) de grabación": "%1 files on %2 recording day(s)",
+    "%1 archivos en %2 día(s) de grabación · %3 sin fecha": "%1 files on %2 recording day(s) · %3 without date",
+    "%1 archivos · %2 · %3 día(s) seleccionado(s)": "%1 files · %2 · %3 selected day(s)",
+    "Sin archivos": "No files",
+    "No hay archivos seleccionados para volcar.": "There are no files selected to dump.",
+    "Volcado selectivo %1": "Selective dump %1",
+    "El volcado no pudo completarse: %1": "The dump could not be completed: %1",
+    "Volcado detenido": "Dump stopped",
+    "Cancelando…": "Cancelling…",
+    "Volcado detenido por el usuario.\n%1 procesados, %2 errores.": "Dump stopped by the user.\n%1 processed, %2 errors.",
+    "Volcado completado": "Dump complete",
+    "Volcado selectivo finalizado.\n\n%1 archivos volcados correctamente.\n%2 errores.": "Selective dump finished.\n\n%1 files dumped successfully.\n%2 errors.",
+    "Contenido": "Content",
+    "Todo": "All",
+    "Seleccionar contenido del origen": "Select source content",
+    "Aplicar selección": "Apply selection",
+    "el %1": "the %1",
+    "del %1 al %2": "from %1 to %2",
+    "%1 días": "%1 days",
+    "sin fecha": "without date",
+    "Solo sin fecha": "Only without date",
+    "Activa el origen para configurar su contenido.": "Activate the source to configure its content.",
+    "El origen '%1' ya está en la lista.": "The source '%1' is already in the list.",
+    "Origen cambiado: %1": "Source changed: %1",
+    "Contenido del origen %1: %2": "Content of source %1: %2",
+
+    # --- Dispositivos MTP ---
+    "Dispositivo…": "Device…",
+    "Importar desde dispositivo (MTP)…": "Import from device (MTP)…",
+    "Importar desde un móvil o cámara conectado por USB (MTP)": "Import from a phone or camera connected via USB (MTP)",
+    "Seleccionar carpeta del dispositivo": "Select device folder",
+    "Conecta el móvil o la cámara por USB y elige la carpeta a importar.": "Connect your phone or camera via USB and choose the folder to import.",
+    "Dispositivo:": "Device:",
+    "Dispositivo": "Device",
+    "Actualizar": "Refresh",
+    "Aceptar": "OK",
+    "No se detectó ningún dispositivo. Revisa el cable y pulsa Actualizar.": "No device detected. Check the cable and press Refresh.",
+    "Cargando…": "Loading…",
+    "No se pudo leer el dispositivo: %1": "Could not read the device: %1",
+    "Selecciona o crea un proyecto antes de elegir un dispositivo.": "Select or create a project before choosing a device.",
+    "Sincronizando %1 (%2/%3)…": "Syncing %1 (%2/%3)…",
+    "Sincronizando dispositivo (primera pasada)…": "Syncing device (first pass)…",
+    "No se pudo sincronizar el dispositivo: %1": "Could not sync the device: %1",
+    "Dispositivo sincronizado: %1 nuevos, %2 sin cambios, %3 errores.": "Device synced: %1 new, %2 unchanged, %3 errors.",
+    "Dispositivos guardados...": "Saved devices...",
+    "Dispositivos guardados": "Saved devices",
+    "Eliminar un dispositivo borra también sus sesiones y archivos registrados.": "Deleting a device also removes its sessions and registered files.",
+    "Eliminar dispositivo": "Delete device",
+    "¿Eliminar este dispositivo y todas sus sesiones?": "Delete this device and all its sessions?",
+
+    # --- Ingesta por WiFi (FTP) ---
+    "Importar por WiFi (FTP)": "Import via WiFi (FTP)",
+    "Conecta el móvil o la cámara al mismo WiFi que el ordenador, "
+    "inicia el servidor FTP en el dispositivo y configura la conexión.": "Connect your phone or camera to the same WiFi as this computer, "
+    "start the FTP server on the device and set up the connection.",
+    "Servidor guardado:": "Saved server:",
+    "Nombre:": "Name:",
+    "Servidor (IP):": "Server (IP):",
+    "Puerto:": "Port:",
+    "Usuario:": "User:",
+    "Contraseña:": "Password:",
+    "(opcional)": "(optional)",
+    "Carpeta base:": "Base folder:",
+    "Conectar": "Connect",
+    "Cómo conectar (guía paso a paso)": "How to connect (step-by-step guide)",
+    "Guía de conexión (apps FTP recomendadas)": "Connection guide (recommended FTP apps)",
+    "— Añadir nuevo servidor —": "— Add new server —",
+    "Introduce la IP o nombre del servidor.": "Enter the server IP or hostname.",
+    "No se pudo guardar el perfil: %1": "Could not save the profile: %1",
+    "Conectando…": "Connecting…",
+    "No se pudo conectar: %1": "Could not connect: %1",
+    "Conectado. Elige la carpeta a importar.": "Connected. Choose the folder to import.",
+    "WiFi (FTP)…": "WiFi (FTP)…",
+    "Importar desde un móvil o cámara por WiFi (FTP)": "Import from a phone or camera via WiFi (FTP)",
+    "Dispositivo no disponible": "Device not available",
+    "Modo pasivo (recomendado)": "Passive mode (recommended)",
+    "Detectar en la red…": "Detect on the network…",
+    "Busca servidores FTP en tu red WiFi": "Search for FTP servers on your WiFi network",
+    "Escaneando la red…": "Scanning the network…",
+    "No se encontraron servidores FTP en la red. Comprueba que el servidor está iniciado.": "No FTP servers found on the network. Check that the server is running.",
+    "Servidores FTP encontrados": "FTP servers found",
+    "Elige tu dispositivo:": "Choose your device:",
+    "Servidor encontrado: %1": "Server found: %1",
+    "Conectado en modo activo. Elige la carpeta a importar.": "Connected in active mode. Choose the folder to import.",
+    "Conectado en modo pasivo. Elige la carpeta a importar.": "Connected in passive mode. Choose the folder to import.",
+    "Android — Primitive FTPd (recomendada):\n"
+    "1. Instala Primitive FTPd desde F-Droid o github.com/wolpi/prim-ftpd "
+    "(gratis, código abierto; ya no está en Google Play).\n"
+    "2. Ábrela y pulsa ▶ para iniciar el servidor. Concede el acceso a los "
+    "archivos si el sistema lo pide.\n"
+    "3. La pantalla principal muestra la dirección, p. ej. "
+    "ftp://192.168.1.5:2221, y el usuario (por defecto «user»).\n"
+    "4. Para poner contraseña, ajústala en los ajustes (engranaje) antes de "
+    "iniciar el servidor.\n\n"
+    "iOS — GoFTP Server (App Store):\n"
+    "1. Instala GoFTP Server desde la App Store y ábrela.\n"
+    "2. Pulsa Start. Anota la dirección, el puerto, el usuario y la "
+    "contraseña que muestra.\n\n"
+    "En CosechaMedia:\n"
+    "• Pulsa 'Detectar en la red…' para encontrar el servidor, o escribe la "
+    "IP y el puerto.\n"
+    "• Introduce usuario y contraseña y pulsa Conectar.\n"
+    "• Elige la carpeta (p. ej. DCIM) y pulsa Aceptar.\n"
+    "Mantén la pantalla del dispositivo encendida durante la transferencia.": "Android — Primitive FTPd (recommended):\n"
+    "1. Install Primitive FTPd from F-Droid or github.com/wolpi/prim-ftpd "
+    "(free, open source; no longer on Google Play).\n"
+    "2. Open it and press ▶ to start the server. Grant file access if the "
+    "system asks.\n"
+    "3. The main screen shows the address, e.g. ftp://192.168.1.5:2221, and "
+    "the user (default \"user\").\n"
+    "4. To set a password, adjust it in Settings (gear) before starting the "
+    "server.\n\n"
+    "iOS — GoFTP Server (App Store):\n"
+    "1. Install GoFTP Server from the App Store and open it.\n"
+    "2. Press Start. Note the address, port, user and password it shows.\n\n"
+    "In CosechaMedia:\n"
+    "• Press 'Detect on the network…' to find the server, or type the IP and "
+    "port.\n"
+    "• Enter user and password and press Connect.\n"
+    "• Choose the folder (e.g. DCIM) and press OK.\n"
+    "Keep the device screen on during the transfer.",
+
+    # --- Recepción por WiFi (buzón QR) ---
+    "Recibir por WiFi": "Receive via WiFi",
+    "¿Cómo quieres recibir los archivos de los móviles?": "How do you want to receive files from the phones?",
+    "PairDrop": "PairDrop",
+    "Compatible con Android/iOS. Sin instalar nada en el móvil: "
+    "escanea el código QR y envía los archivos.": "Works with Android/iOS. Nothing to install on the phone: "
+    "scan the QR code and send the files.",
+    "FTP Clásico": "Classic FTP",
+    "Avanzado. El dispositivo ejecuta un servidor FTP "
+    "(requiere una app y configuración en el móvil).": "Advanced. The device runs an FTP server "
+    "(requires an app and setup on the phone).",
+    "WiFi…": "WiFi…",
+    "Recibir archivos de un móvil por WiFi (QR o FTP)": "Receive files from a phone over WiFi (QR or FTP)",
+    "Inbox WiFi": "WiFi Inbox",
+    "Recibir por WiFi (PairDrop)": "Receive via WiFi (PairDrop)",
+    "Cada persona escanea su código QR desde el móvil y envía "
+    "los archivos sin instalar nada. Al llegar, CosechaMedia "
+    "los recibe en su carpeta inbox.": "Each person scans their QR code from their phone and sends "
+    "the files without installing anything. When they arrive, "
+    "CosechaMedia receives them in its inbox folder.",
+    "Remitentes:": "Senders:",
+    "Añadir": "Add",
+    "Renombrar": "Rename",
+    "Eliminar": "Delete",
+    "Copiar enlace": "Copy link",
+    "Abrir carpeta inbox": "Open inbox folder",
+    "Recibidos:": "Received:",
+    "Cerrar": "Close",
+    "No se pudo iniciar el servidor: %1": "Could not start the server: %1",
+    "Servidor activo. Comparte esta dirección con los móviles: "
+    "%1": "Server active. Share this address with the phones: %1",
+    "Añadir remitente": "Add sender",
+    "Nombre de la persona (aparecerá en el código QR):": "Person's name (it will appear in the QR code):",
+    "Nuevo nombre:": "New name:",
+    "¿Eliminar a %1?": "Delete %1?",
+    "Enlace copiado al portapapeles.": "Link copied to clipboard.",
+    "Recibido de %1: %2 (%3). Ya puedes ingerir la carpeta inbox.": "Received from %1: %2 (%3). You can now ingest the inbox folder.",
 }
 
 
