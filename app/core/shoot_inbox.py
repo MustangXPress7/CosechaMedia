@@ -49,8 +49,8 @@ _PAGE_TEMPLATE = """<!doctype html>
 <h1>Enviar a CosechaMedia</h1>
 <p>Estás enviando a: <span class="alias">{alias}</span></p>
 <div class="card">
-  <label>Selecciona los archivos (o una carpeta en Android)</label>
-  <input id="pick" type="file" multiple webkitdirectory>
+  <label>Selecciona los archivos que quieres enviar</label>
+  <input id="pick" type="file" multiple>
   <ul id="files"></ul>
   <button id="send" class="btn" disabled>Enviar</button>
   <progress id="bar" value="0" max="100" hidden></progress>
@@ -88,10 +88,9 @@ _PAGE_TEMPLATE = """<!doctype html>
   function sendOne(file) {{
     return new Promise(function (resolve, reject) {{
       const xhr = new XMLHttpRequest();
-      const fname = file.webkitRelativePath || file.name;
       const url = "/upload?src=" + encodeURIComponent(src) +
                   "&token=" + encodeURIComponent(token) +
-                  "&name=" + encodeURIComponent(fname);
+                  "&name=" + encodeURIComponent(file.name);
       xhr.open("POST", url);
       xhr.responseType = "json";
       xhr.upload.onprogress = function (e) {{

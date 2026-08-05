@@ -50,10 +50,10 @@ Una vez registrado el origen, la app reescanea el dispositivo automáticamente (
 
 1. En CosechaMedia pulsa *WiFi…* → *PairDrop*. Se abre el panel con el servidor y un código QR por persona.
 2. Añade una persona (p. ej. el nombre del actor) y escanea su QR con el móvil.
-3. El móvil se conecta al ordenador (misma red WiFi) y muestra una página para elegir los archivos o la carpeta completa.
+3. El móvil se conecta al ordenador (misma red WiFi) y muestra una página para elegir los archivos a enviar.
 4. Los archivos caen en la carpeta *inbox* (una subcarpeta por persona y fecha) y CosechaMedia los registra al momento. Usa *Iniciar Ingesta* para volcarlos al proyecto.
 
-> En Android (Chrome) se puede elegir una carpeta entera; en iPhone, Safari no permite carpetas completas y se seleccionan los archivos uno a uno. El móvil y el ordenador deben estar en la misma red WiFi; la primera vez Windows puede pedir permiso de red para el servidor.
+> El móvil y el ordenador deben estar en la misma red WiFi; la primera vez Windows puede pedir permiso de red para el servidor.
 
 ### Aplicaciones FTP recomendadas
 

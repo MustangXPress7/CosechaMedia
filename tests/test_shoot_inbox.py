@@ -60,7 +60,8 @@ class TestShootInboxServer(unittest.TestCase):
     def test_serves_page_with_alias(self):
         body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
         self.assertIn("Alice".encode(), body)
-        self.assertIn("webkitdirectory".encode(), body)
+        self.assertIn(b"type=\"file\" multiple", body)
+        self.assertNotIn(b"webkitdirectory", body)
 
     def test_health(self):
         body = urlopen(f"{self.base}/health", timeout=10).read()
