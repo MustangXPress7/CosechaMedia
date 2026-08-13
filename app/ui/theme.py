@@ -91,7 +91,7 @@ QWidget {
 }
 
 QCalendarWidget {
-    font-size: 10pt;
+    font-size: 13px;
 }
 
 QLabel {

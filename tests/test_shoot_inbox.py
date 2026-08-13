@@ -1,7 +1,11 @@
+import contextlib
+import io
 import json
 import os
 import shutil
+import socket
 import tempfile
+import time
 import unittest
 from urllib.request import Request, urlopen, HTTPError
 
@@ -29,40 +33,24 @@ class TestSanitizers(unittest.TestCase):
         self.assertEqual(inboxmod.sanitize_relative_path("DCIM/VID_1.mp4"), "DCIM/VID_1.mp4")
 
 
-class TestResolveTargetDir(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="target_")
-        self.sender = {"name": "Laura", "location": ""}
+class TestWifiCacheDir(unittest.TestCase):
+    def test_cache_dir_under_inbox(self):
+        tmp = tempfile.mkdtemp(prefix="cache_")
+        try:
+            dbm = DatabaseManager(db_path=os.path.join(tmp, "test.db"))
+            out = inboxmod.wifi_cache_dir("Alice Gómez", db=dbm)
+            self.assertEqual(out, os.path.join(tmp, "inbox", "Alice Gómez"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def test_no_location_uses_master_root_camera_first(self):
-        out = inboxmod.resolve_target_dir(
-            self.sender, self.tmp, "Footage", 0, fallback_root=self.tmp)
-        parts = os.path.normpath(out).split(os.sep)
-        self.assertEqual(parts[-3:], ["Footage", "Laura", parts[-1]])
-        self.assertTrue(os.path.isdir(out))
-
-    def test_absolute_location_overrides_master_root(self):
-        loc = os.path.join(self.tmp, "Clase")
-        out = inboxmod.resolve_target_dir(
-            self.sender | {"location": loc}, self.tmp, "Footage", 0,
-            fallback_root=self.tmp)
-        self.assertTrue(out.startswith(loc))
-        self.assertIn("Laura", out)
-
-    def test_date_first_order(self):
-        out = inboxmod.resolve_target_dir(
-            self.sender, self.tmp, "Footage", 1, fallback_root=self.tmp)
-        parts = os.path.normpath(out).split(os.sep)
-        self.assertEqual(parts[-3], "Footage")
-        self.assertEqual(parts[-1], "Laura")
-
-    def test_flat_order(self):
-        out = inboxmod.resolve_target_dir(
-            self.sender, self.tmp, "Footage", 3, fallback_root=self.tmp)
-        self.assertEqual(os.path.normpath(out), os.path.join(self.tmp, "Footage"))
+    def test_cache_dir_sanitizes_dangerous_name(self):
+        tmp = tempfile.mkdtemp(prefix="cache_")
+        try:
+            dbm = DatabaseManager(db_path=os.path.join(tmp, "test.db"))
+            out = inboxmod.wifi_cache_dir("../evil", db=dbm)
+            self.assertNotIn("..", os.path.basename(out))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 class TestShootInboxServer(unittest.TestCase):
@@ -110,18 +98,37 @@ class TestShootInboxServer(unittest.TestCase):
         body = urlopen(f"{self.base}/health", timeout=10).read()
         self.assertEqual(json.loads(body)["ok"], True)
 
-    def test_upload_stores_file_with_project_structure(self):
+    def test_client_reset_connection_is_silent(self):
+        """Un cliente que aborta la conexión a mitad de un request no debe
+        imprimir tracebacks en stderr (ni tumbar el servidor)."""
+        for _ in range(3):
+            s = socket.create_connection(("127.0.0.1", self.server.port), timeout=5)
+            s.sendall(b"G")  # línea de request incompleta
+            # Abort close (RST): el servidor verá ConnectionResetError al leer.
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                         b"\x01\x00\x00\x00\x00\x00\x00\x00")
+            s.close()
+            time.sleep(0.2)
+        captured = io.StringIO()
+        with contextlib.redirect_stderr(captured):
+            self.assertEqual(
+                json.loads(urlopen(f"{self.base}/health", timeout=10).read())["ok"],
+                True)
+        self.assertNotIn("Traceback", captured.getvalue())
+        self.assertNotIn("Exception occurred", captured.getvalue())
+
+    def test_upload_stores_file_in_sender_cache(self):
         resp = self._upload(self.alice["name"], self.alice["token"], "VID_1.mp4", b"content")
         self.assertEqual(resp.status, 200)
         data = json.loads(resp.read())
         self.assertTrue(data["ok"])
-        import glob
-        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "VID_1.mp4"))
-        self.assertEqual(len(hits), 1)
-        with open(hits[0], "rb") as f:
+        expected_dir = inboxmod.wifi_cache_dir("Alice", db=self.db)
+        expected = os.path.join(expected_dir, "VID_1.mp4")
+        self.assertTrue(os.path.exists(expected), expected)
+        with open(expected, "rb") as f:
             self.assertEqual(f.read(), b"content")
-        self.assertFalse(os.path.exists(hits[0] + ".part"))
-        self.assertEqual(self.received, [("Alice", hits[0], len(b"content"))])
+        self.assertFalse(os.path.exists(expected + ".part"))
+        self.assertEqual(self.received, [("Alice", expected, len(b"content"))])
 
     def test_upload_rejects_bad_token(self):
         with self.assertRaises(HTTPError) as ctx:
@@ -135,74 +142,76 @@ class TestShootInboxServer(unittest.TestCase):
 
     def test_upload_sanitizes_filename(self):
         self._upload(self.alice["name"], self.alice["token"], "../escape.mp4", b"y")
-        import glob
-        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "escape.mp4"))
-        self.assertEqual(len(hits), 1)
+        expected_dir = inboxmod.wifi_cache_dir("Alice", db=self.db)
+        self.assertTrue(os.path.exists(os.path.join(expected_dir, "escape.mp4")))
 
-    def test_upload_uses_absolute_sender_location(self):
-        loc = os.path.join(self.tmp, "Clase")
-        self.db.update_inbox_sender(self.alice_id, "Alice", loc)
-        self._upload(self.alice["name"], self.alice["token"], "VID_2.mp4", b"z")
-        import glob
-        hits = glob.glob(os.path.join(loc, "Footage", "Alice", "????-??-??", "VID_2.mp4"))
-        self.assertEqual(len(hits), 1)
-        self.assertEqual(self.received[0][0], "Alice")
-
-    def test_upload_uses_project_master_root(self):
-        master = os.path.join(self.tmp, "Rodaje")
-        srv = inboxmod.ShootInboxServer(
-            root=self.root, db=self.db, host="127.0.0.1", port=0,
-            project_context={
-                "master_root": master,
-                "folder_name": "Footage",
-                "organization_type": 0,
-            },
-        )
-        srv.start()
-        self.addCleanup(srv.stop)
-        url = (f"http://127.0.0.1:{srv.port}/upload?src={self.alice['name']}"
-               f"&token={self.alice['token']}&name=VID_3.mp4")
-        req = Request(url, data=b"w", method="POST")
+    def test_upload_preserves_relative_path_in_folder_mode(self):
+        self.server.folder_mode = True
+        url = (f"{self.base}/upload?src={self.alice['name']}"
+               f"&token={self.alice['token']}"
+               f"&name={('DCIM/100MEDIA/VID_5.mp4').replace('/', '%2F')}")
+        req = Request(url, data=b"f", method="POST")
         req.add_header("Content-Type", "application/octet-stream")
         self.assertEqual(urlopen(req, timeout=10).status, 200)
-        import glob
-        hits = glob.glob(os.path.join(master, "Footage", "Alice", "????-??-??", "VID_3.mp4"))
-        self.assertEqual(len(hits), 1)
-
-    def test_upload_respects_date_first_organization(self):
-        master = os.path.join(self.tmp, "Rodaje2")
-        srv = inboxmod.ShootInboxServer(
-            root=self.root, db=self.db, host="127.0.0.1", port=0,
-            project_context={
-                "master_root": master,
-                "folder_name": "Footage",
-                "organization_type": 1,
-            },
-        )
-        srv.start()
-        self.addCleanup(srv.stop)
-        url = (f"http://127.0.0.1:{srv.port}/upload?src={self.alice['name']}"
-               f"&token={self.alice['token']}&name=VID_4.mp4")
-        req = Request(url, data=b"w", method="POST")
-        req.add_header("Content-Type", "application/octet-stream")
-        self.assertEqual(urlopen(req, timeout=10).status, 200)
-        import glob
-        hits = glob.glob(os.path.join(master, "Footage", "????-??-??", "Alice", "VID_4.mp4"))
-        self.assertEqual(len(hits), 1)
+        expected = os.path.join(
+            inboxmod.wifi_cache_dir("Alice", db=self.db),
+            "DCIM", "100MEDIA", "VID_5.mp4")
+        self.assertTrue(os.path.exists(expected), expected)
 
     def test_duplicate_names_get_unique_suffix(self):
         for _ in range(2):
             self._upload(self.alice["name"], self.alice["token"], "same.mp4", b"a")
-        import glob
-        hits = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "same.mp4"))
-        plus = glob.glob(os.path.join(self.root, "Footage", "Alice", "????-??-??", "same (1).mp4"))
-        self.assertEqual(len(hits), 1)
-        self.assertEqual(len(plus), 1)
+        expected_dir = inboxmod.wifi_cache_dir("Alice", db=self.db)
+        self.assertTrue(os.path.exists(os.path.join(expected_dir, "same.mp4")))
+        self.assertTrue(os.path.exists(os.path.join(expected_dir, "same (1).mp4")))
 
     def test_url_for_sender_contains_token(self):
         url = self.server.url_for_sender("Alice")
         self.assertIn("src=Alice", url)
         self.assertIn(f"token={self.alice['token']}", url)
+
+
+class TestUploadHandlerConnectionErrors(unittest.TestCase):
+    """``_UploadHandler.handle`` debe tragar los errores de conexión que el
+    navegador provoca al abortar la descarga (ConnectionResetError /
+    BrokenPipeError / timeout), que si no se convierten en tracebacks de
+    "Exception occurred during processing of request"."""
+
+    def _handler_with_failing_read(self, exc):
+        handler = inboxmod._UploadHandler.__new__(inboxmod._UploadHandler)
+
+        class FakeServer:
+            pass
+
+        handler.server = FakeServer()
+        handler.connection = object()
+        handler.close_connection = True
+        handler.log_message = lambda *a, **k: None
+
+        def boom():
+            raise exc
+
+        handler.handle_one_request = boom
+        return handler
+
+    def test_connection_reset_is_swallowed(self):
+        h = self._handler_with_failing_read(
+            ConnectionResetError(10054, "Se ha forzado la interrupción"))
+        h.handle()  # no debe propagar
+
+    def test_broken_pipe_is_swallowed(self):
+        h = self._handler_with_failing_read(
+            BrokenPipeError(32, "Broken pipe"))
+        h.handle()
+
+    def test_socket_timeout_is_swallowed(self):
+        h = self._handler_with_failing_read(socket.timeout("timed out"))
+        h.handle()
+
+    def test_other_errors_still_propagate(self):
+        h = self._handler_with_failing_read(RuntimeError("real error"))
+        with self.assertRaises(RuntimeError):
+            h.handle()
 
 
 class TestInboxRoot(unittest.TestCase):
@@ -212,6 +221,67 @@ class TestInboxRoot(unittest.TestCase):
             dbm = DatabaseManager(db_path=os.path.join(tmp, "test.db"))
             self.assertEqual(
                 inboxmod.inbox_root(dbm), os.path.join(tmp, "inbox"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+class TestShootInboxLateCallback(unittest.TestCase):
+    """El callback debe registrarse aunque sea después de ``start()`` (así lo
+    hace la ventana principal con ``attach_server``)."""
+
+    def test_callback_attached_after_start_still_receives(self):
+        tmp = tempfile.mkdtemp(prefix="inbox_late_")
+        try:
+            dbm = DatabaseManager(db_path=os.path.join(tmp, "test.db"))
+            alice_id = dbm.add_inbox_sender("Alice")
+            alice = next(s for s in dbm.list_inbox_senders() if s["id"] == alice_id)
+            received = []
+            server = inboxmod.ShootInboxServer(
+                root=os.path.join(tmp, "inbox"), db=dbm,
+                host="127.0.0.1", port=0)
+            server.start()
+            server.on_file_received = lambda a, p, s: received.append((a, p, s))
+            base = f"http://127.0.0.1:{server.port}"
+            try:
+                url = (f"{base}/upload?src={alice['name']}"
+                       f"&token={alice['token']}&name=VID.mp4")
+                req = Request(url, data=b"data", method="POST")
+                req.add_header("Content-Type", "application/octet-stream")
+                self.assertEqual(urlopen(req, timeout=10).status, 200)
+            finally:
+                server.stop()
+            self.assertEqual(len(received), 1)
+            self.assertEqual(received[0][0], "Alice")
+            self.assertTrue(os.path.exists(received[0][1]))
+            self.assertEqual(received[0][2], len(b"data"))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_callback_replaced_live_takes_effect(self):
+        tmp = tempfile.mkdtemp(prefix="inbox_live_")
+        try:
+            dbm = DatabaseManager(db_path=os.path.join(tmp, "test.db"))
+            alice_id = dbm.add_inbox_sender("Alice")
+            alice = next(s for s in dbm.list_inbox_senders() if s["id"] == alice_id)
+            first = []
+            second = []
+            server = inboxmod.ShootInboxServer(
+                root=os.path.join(tmp, "inbox"), db=dbm,
+                on_file_received=lambda a, p, s: first.append(a),
+                host="127.0.0.1", port=0)
+            server.start()
+            server.on_file_received = lambda a, p, s: second.append(a)
+            base = f"http://127.0.0.1:{server.port}"
+            try:
+                url = (f"{base}/upload?src={alice['name']}"
+                       f"&token={alice['token']}&name=VID.mp4")
+                req = Request(url, data=b"data", method="POST")
+                req.add_header("Content-Type", "application/octet-stream")
+                self.assertEqual(urlopen(req, timeout=10).status, 200)
+            finally:
+                server.stop()
+            self.assertEqual(first, [])
+            self.assertEqual(second, ["Alice"])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

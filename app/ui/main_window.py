@@ -14,7 +14,7 @@ from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap, 
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
 from app.core.ingestor import Ingestor, DumpTarget
 from app.core.watcher import FileSystemWatcher
-from app.core.db import db
+from app.core.db import db, WIFI_DEVICE_ID
 from app.core.notifications import NotificationManager
 from app.core.sd_reader import sd_reader
 from app.core.ffmpeg_utils import ffmpeg
@@ -175,6 +175,10 @@ class MainWindow(QMainWindow):
         self._background_tasks = []
 
         self.notification_manager = NotificationManager()
+
+        self._wifi_server = None
+        self._wifi_panel = None
+        self._wifi_ingestors = {}  # session_id -> Ingestor
 
         self.build_menu()
         self.central_widget = QWidget()
@@ -384,6 +388,9 @@ class MainWindow(QMainWindow):
         self.source_list.setMaximumHeight(120)
         self.source_list.itemChanged.connect(self._on_source_check_changed)
         self.source_list.itemDoubleClicked.connect(self._on_source_double_clicked)
+        self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.source_list.customContextMenuRequested.connect(
+            self._show_source_context_menu)
         left_col.addWidget(self.source_list)
 
         src_scan_row = QHBoxLayout()
@@ -935,10 +942,12 @@ class MainWindow(QMainWindow):
                     db.delete_ftp_profile(pid)
             db.delete_device(device_id)
             refresh()
-            self._populate_source_paths_from_sessions()
-            self._refresh_source_list()
-            self._refresh_sessions_combo()
-            self.update_start_button_state()
+        self._populate_source_paths_from_sessions()
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        if self._wifi_panel is not None:
+            self._wifi_panel.refresh()
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
@@ -1044,6 +1053,9 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def closeEvent(self, event):
+        self._stop_wifi_reception()
+        if self._wifi_panel is not None:
+            self._wifi_panel.close()
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         settings.setValue("geometry", self.saveGeometry())
         settings.setValue("windowState", self.saveState())
@@ -1075,6 +1087,7 @@ class MainWindow(QMainWindow):
                 self.project_combo.setCurrentIndex(idx)
 
     def on_project_selected(self, index):
+        self._reset_wifi_ingestors()
         project_id = self.project_combo.itemData(index)
         if project_id is None:
             self.current_project_id = None
@@ -1216,8 +1229,10 @@ class MainWindow(QMainWindow):
             return
         sessions = db.get_sessions(self.current_project_id)
         self.btn_start.setEnabled(
-            any(s.get("source_path") and os.path.isdir(s["source_path"]) for s in sessions)
+            any(s.get("source_path") and os.path.isdir(s["source_path"])
+                and s.get("enabled", True) for s in sessions)
         )
+        self._update_format_sources_state()
 
     def _refresh_recent_paths(self):
         source_paths = db.get_recent_paths("source")
@@ -1340,6 +1355,7 @@ class MainWindow(QMainWindow):
             active = [
                 s for s in sessions
                 if s.get("source_path") and os.path.isdir(s["source_path"])
+                and s.get("enabled", True)
             ]
 
         if not active:
@@ -1360,6 +1376,7 @@ class MainWindow(QMainWindow):
             db.add_footage_folder(folder_name)
 
         self.table.setRowCount(0)
+        self.table.setSortingEnabled(False)
         self.progress_bar.setValue(0)
         self._file_row_map = {}
         self._processed_count = 0
@@ -1432,8 +1449,12 @@ class MainWindow(QMainWindow):
                 project_master_root=self.dest_root,
                 content_filter=s_content_filter,
             )
-            ing.file_started.connect(self.on_file_started)
-            ing.copy_progress.connect(self.on_copy_progress)
+            ing.file_started.connect(
+                lambda sp, i=ing: self.on_file_started(sp, ingestor=i)
+            )
+            ing.copy_progress.connect(
+                lambda sp, cb, tb, i=ing: self.on_copy_progress(sp, cb, tb, ingestor=i)
+            )
             ing.file_finished.connect(
                 lambda sp, dp, ok, md, i=ing: self.on_file_finished(sp, dp, ok, md, ingestor=i)
             )
@@ -1474,13 +1495,17 @@ class MainWindow(QMainWindow):
         self.btn_start.setText(self.tr("Iniciar Ingesta"))
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
+        self.table.setSortingEnabled(True)
         self.ingest_status_label.setText(self.tr("Ingesta detenida por el usuario"))
         self._set_status_color("danger", 6)
         self.status_text.setText(self.tr("Detenido"))
 
         self.notification_manager.notify_ingest_stopped()
 
-    def on_file_started(self, source_path):
+    def on_file_started(self, source_path, ingestor=None):
+        was_sorted = self.table.isSortingEnabled()
+        if was_sorted:
+            self.table.setSortingEnabled(False)
         row = self.table.rowCount()
         self.table.insertRow(row)
 
@@ -1511,15 +1536,27 @@ class MainWindow(QMainWindow):
         dest_item.setFlags(dest_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 4, dest_item)
 
-        self._file_row_map[source_path] = row
+        if was_sorted:
+            self.table.setSortingEnabled(True)
+
+        # Con el mismo origen compartido por varias sesiones (fan-out WiFi),
+        # cada ingestor tiene su propia fila; si no hay ingestor (llamadas
+        # externas/directas) se indexa solo por ruta como antes.
+        key = self._file_row_key(source_path, ingestor)
+        self._file_row_map[key] = filename_item
         self._total_files += 1
         self.progress_bar.setMaximum(self._total_files)
         self.ingest_status_label.setText(self.tr("Procesando: %1").arg(os.path.basename(source_path)))
 
-    def on_copy_progress(self, source_path, copied_bytes, total_bytes):
-        row = self._file_row_map.get(source_path)
-        if row is None or not total_bytes:
+    @staticmethod
+    def _file_row_key(source_path, ingestor):
+        return (id(ingestor), source_path) if ingestor is not None else source_path
+
+    def on_copy_progress(self, source_path, copied_bytes, total_bytes, ingestor=None):
+        item = self._file_row_map.get(self._file_row_key(source_path, ingestor))
+        if item is None or not total_bytes:
             return
+        row = self.table.indexFromItem(item).row()
         pct = int(copied_bytes * 100.0 / total_bytes)
         pct = max(0, min(100, pct))
         progress_item = QTableWidgetItem(f"{pct}%")
@@ -1527,8 +1564,9 @@ class MainWindow(QMainWindow):
         self.table.setItem(row, 3, progress_item)
 
     def on_file_finished(self, source_path, dest_path, success, metadata=None, ingestor=None):
-        row = self._file_row_map.get(source_path)
-        if row is not None:
+        item = self._file_row_map.get(self._file_row_key(source_path, ingestor))
+        if item is not None:
+            row = self.table.indexFromItem(item).row()
             if self.project_camera_detection_mode != "manual" and metadata and metadata.get("camera_model") != "Unknown":
                 camera_item = QTableWidgetItem(metadata["camera_model"])
                 self.table.setItem(row, 1, camera_item)
@@ -1558,6 +1596,10 @@ class MainWindow(QMainWindow):
             if ftype.get("type") == "video":
                 root = ingestor.destination_root if ingestor else self.dest_root
                 self._ingested_videos.append((dest_path, root))
+            # Un archivo recibido por WiFi ya está en su destino: lo sacamos de
+            # la caché para que no se vuelva a ingerir en la próxima pasada.
+            if self._is_inbox_cache_path(source_path):
+                self._remove_ingested_wifi_source(source_path)
 
         self._processed_count += 1
         self.progress_bar.setValue(self._processed_count)
@@ -1609,6 +1651,13 @@ class MainWindow(QMainWindow):
 
             self._refresh_sessions_combo()
             self._post_ingest_rename_dialog()
+            self.table.setSortingEnabled(True)
+
+            if total_errors == 0:
+                # Limpia la caché WiFi que haya quedado (ya ingerida).
+                for ing in self._ingestors:
+                    if ing.session_id is not None:
+                        self._clear_wifi_cache(ing.session_id)
 
             can_destroy = total_errors == 0
             blocked = []
@@ -1656,6 +1705,45 @@ class MainWindow(QMainWindow):
             if started:
                 return
 
+    def _is_managed_source_path(self, path):
+        """True si ``path`` es una caché gestionada (WiFi/FTP/MTP), no editable
+        por el usuario y nunca formateable."""
+        if not path:
+            return False
+        p = os.path.normpath(os.path.abspath(path))
+        data_root = os.path.normpath(os.path.abspath(os.path.dirname(db.db_path)))
+        for sub in ("inbox", "device_cache"):
+            root = os.path.join(data_root, sub)
+            if p.startswith(root + os.sep) or p == root:
+                return True
+        return False
+
+    def _is_managed_session(self, session):
+        """True si la sesión es auto-gestionada (WiFi/FTP/MTP): su origen es la
+        caché local del dispositivo, no un destino elegido por el usuario."""
+        did = (session or {}).get("device_id") or ""
+        if did.startswith("wifi:") or did.startswith("ftp:"):
+            return True
+        return self._is_managed_source_path((session or {}).get("source_path"))
+
+    def _format_candidate_paths(self):
+        """Rutas de unidades extraíbles reales y no gestionadas: las únicas que
+        tiene sentido formatear al acabar la ingesta."""
+        if self.current_project_id is None:
+            return []
+        return [p for p in self._source_paths
+                if is_removable_drive(p) and not self._is_managed_source_path(p)]
+
+    def _update_format_sources_state(self):
+        """Desactiva «Formatear orígenes» cuando no hay ninguna unidad extraíble
+        formateable (p. ej. proyectos solo-WiFi)."""
+        has_candidates = bool(self._format_candidate_paths())
+        self.chk_format_sources.setEnabled(has_candidates)
+        if not has_candidates and self.chk_format_sources.isChecked():
+            self.chk_format_sources.setChecked(False)
+        self.combo_format_mode.setEnabled(
+            has_candidates and self.chk_format_sources.isChecked())
+
     def _format_sources_after_ingest(self) -> bool:
         if sys.platform != "win32":
             QMessageBox.information(
@@ -1668,8 +1756,8 @@ class MainWindow(QMainWindow):
             return False
         mode_idx = self.combo_format_mode.currentIndex()
         mode = self.tr("completo") if mode_idx == 1 else self.tr("rápido")
-        removable = [p for p in self._source_paths if is_removable_drive(p)]
-        skipped = [p for p in self._source_paths if not is_removable_drive(p)]
+        removable = self._format_candidate_paths()
+        skipped = [p for p in self._source_paths if p not in removable]
         if not removable:
             QMessageBox.warning(
                 self, self.tr("Formatear orígenes"),
@@ -1763,12 +1851,26 @@ class MainWindow(QMainWindow):
 
     def _show_table_context_menu(self, pos):
         row = self.table.rowAt(pos.y())
-        if row < 0:
-            return
         context_menu = QMenu(self)
-        rename_action = context_menu.addAction(self.tr("Renombrar cámara..."))
-        rename_action.triggered.connect(lambda: self._rename_camera_dialog(row))
+        clear_action = context_menu.addAction(self.tr("Eliminar completados"))
+        clear_action.triggered.connect(self._clear_completed_rows)
+        if row >= 0:
+            rename_action = context_menu.addAction(self.tr("Renombrar cámara..."))
+            rename_action.triggered.connect(lambda: self._rename_camera_dialog(row))
         context_menu.exec(self.table.viewport().mapToGlobal(pos))
+
+    def _clear_completed_rows(self):
+        """Quita de la tabla de ingesta las filas cuyo estado es «Completado»."""
+        done_text = self.tr("Completado")
+        was_sorted = self.table.isSortingEnabled()
+        self.table.setSortingEnabled(False)
+        try:
+            for r in range(self.table.rowCount() - 1, -1, -1):
+                status_item = self.table.item(r, 2)
+                if status_item and status_item.text() == done_text:
+                    self.table.removeRow(r)
+        finally:
+            self.table.setSortingEnabled(was_sorted)
 
     def _rename_camera_dialog(self, row):
         old_name_item = self.table.item(row, 1)
@@ -1877,28 +1979,65 @@ class MainWindow(QMainWindow):
             self.source_list.blockSignals(False)
             return
         sessions = db.get_sessions(self.current_project_id)
-        auto_sources = {s["source_path"]: s for s in sessions if s.get("source_path")}
+        by_path = {}
+        for s in sessions:
+            sp = s.get("source_path")
+            if sp:
+                by_path.setdefault(sp, []).append(s)
         for row, path in enumerate(self._source_paths):
             self.source_list.insertRow(row)
             # Column 0: source path with checkbox
             item = QTableWidgetItem(path)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-            item.setCheckState(Qt.Checked if path in auto_sources else Qt.Unchecked)
+            path_sessions = by_path.get(path) or []
+            sess = path_sessions[0] if path_sessions else None
+            any_enabled = any(s.get("enabled", True) for s in path_sessions)
+            item.setCheckState(
+                Qt.Checked if (sess is not None and any_enabled)
+                else Qt.Unchecked)
             self.source_list.setItem(row, 0, item)
             # Column 1: camera name
-            s = auto_sources.get(path)
-            cam = s.get("camera_name") if s else None
+            cam = sess.get("camera_name") if sess else None
             cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
             cam_item = QTableWidgetItem(cam_text)
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
             # Column 2: content filter
-            self.source_list.setCellWidget(row, 2, self._build_content_button(row, s))
+            self.source_list.setCellWidget(row, 2, self._build_content_button(row, sess))
         self.source_list.blockSignals(False)
+        self._update_format_sources_state()
 
     def _build_content_button(self, row, session):
         from app.ui.selective_dump import content_summary
+        from app.core.db import WIFI_DEVICE_ID
+        device_id = (session or {}).get("device_id") or ""
+        is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
+        is_ftp = bool(session) and device_id.startswith("ftp:")
+        if is_wifi or is_ftp:
+            # Origen remoto (WiFi/FTP): el contenido es la conexión/QR.
+            text = self.tr("QR") if is_wifi else self.tr("FTP")
+            tip = (self.tr("Mostrar el código QR de este dispositivo")
+                   if is_wifi else self.tr("Configurar este origen FTP"))
+            btn = QPushButton(text)
+            btn.setToolTip(tip)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet(
+                "QPushButton { border: none; text-align: left; padding: 2px 6px;"
+                " color: %s; font-size: 11px; }"
+                "QPushButton:hover { color: %s; }"
+                "QPushButton:disabled { color: %s; }"
+                % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
+            )
+            if is_wifi:
+                sender_name = (session.get("camera_name")
+                               or session.get("device_folder") or "")
+                btn.clicked.connect(
+                    lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
+            else:
+                btn.clicked.connect(
+                    lambda _=False, s=session: self._reconfigure_ftp_source(s))
+            return btn
         filt = None
         if session:
             try:
@@ -1924,6 +2063,25 @@ class MainWindow(QMainWindow):
         else:
             btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
         return btn
+
+    def _show_wifi_qr_for_sender(self, sender_name):
+        """Abre la ventana QR mostrando el dispositivo de un origen WiFi."""
+        if self.current_project_id is None:
+            return
+        if not self._ensure_wifi_server():
+            return
+        self._sync_wifi_sessions()
+        self._show_wifi_panel()
+        if self._wifi_panel is not None:
+            self._wifi_panel.select_sender(sender_name)
+        self._ensure_wifi_ingestion()
+
+    def _reconfigure_ftp_source(self, session):
+        """Reabre el selector FTP con el perfil de este origen preseleccionado."""
+        from app.core import ftp as ftpmod
+        profile_id = ftpmod.profile_id_from_device_key(
+            session.get("device_id") or "")
+        self._pick_ftp_source(preset_profile_id=profile_id)
 
     @staticmethod
     def _drive_label(path):
@@ -2074,6 +2232,73 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
 
+    def _show_source_context_menu(self, pos):
+        row = self.source_list.rowAt(pos.y())
+        menu = QMenu(self)
+        add_action = menu.addAction(self.tr("Añadir dispositivo WiFi…"))
+        add_action.triggered.connect(lambda: self._prompt_wifi_sender())
+        menu.addSeparator()
+        if row >= 0:
+            delete_action = menu.addAction(self.tr("Eliminar origen"))
+            delete_action.triggered.connect(
+                lambda: self._delete_source_at_row(row))
+        menu.exec(self.source_list.viewport().mapToGlobal(pos))
+
+    def _delete_source_at_row(self, row):
+        item = self.source_list.item(row, 0)
+        if item is None:
+            return
+        path = item.text()
+        if self.current_project_id is None:
+            return
+        sessions = [s for s in db.get_sessions(self.current_project_id)
+                    if s.get("source_path") == path]
+        if not sessions:
+            return
+        names = ", ".join(s["name"] for s in sessions)
+        reply = QMessageBox.question(
+            self, self.tr("Eliminar origen"),
+            self.tr("¿Eliminar el origen '%1' y sus sesiones (%2)?")
+            .arg(path).arg(names),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self._remove_source_path(path)
+
+    def _remove_source_path(self, path):
+        """Borra las sesiones de un origen y, si es WiFi, también su remitente."""
+        sessions = [s for s in db.get_sessions(self.current_project_id)
+                    if s.get("source_path") == path]
+        for s in sessions:
+            sid = s["id"]
+            ing = self._wifi_ingestors.pop(sid, None)
+            if ing is not None:
+                try:
+                    ing.stop()
+                except Exception:
+                    pass
+            db.delete_session(sid)
+            # Si es un origen WiFi, elimina el remitente asociado para que
+            # _sync_wifi_sessions no lo recree.
+            if s.get("device_id") == "wifi:pairdrop":
+                from app.core import shoot_inbox as inboxmod
+                folder = s.get("device_folder") or ""
+                for sender in db.list_inbox_senders():
+                    if (inboxmod.sanitize_alias(sender["name"]) == folder):
+                        db.delete_inbox_sender(sender["id"])
+                        break
+        if path in self._source_paths:
+            self._source_paths.remove(path)
+        self._populate_source_paths_from_sessions()
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        if self._wifi_panel is not None:
+            self._wifi_panel.refresh()
+        self.ingest_status_label.setText(
+            self.tr("Origen eliminado: %1").arg(path))
+
     def _on_source_check_changed(self, item):
         if self.current_project_id is None:
             return
@@ -2084,10 +2309,10 @@ class MainWindow(QMainWindow):
             return
         path = item.text()
         checked = item.checkState() == Qt.Checked
+        existing = db.get_sessions(self.current_project_id)
+        with_path = [s for s in existing if s.get("source_path") == path]
         if checked:
-            existing = db.get_sessions(self.current_project_id)
-            already = any(s.get("source_path") == path for s in existing)
-            if not already:
+            if not with_path:
                 no_source = [s for s in existing if not s.get("source_path")]
                 base = self._drive_label(path)
                 name = f"Auto ({base})"
@@ -2104,15 +2329,15 @@ class MainWindow(QMainWindow):
                     self.ingest_status_label.setText(self.tr("Sesión auto creada para %1").arg(path))
                 self.current_session_id = sid
                 self._detect_camera_for_session(sid, path)
+            else:
+                for s in with_path:
+                    db.update_session_config(s["id"], enabled=1)
+                self.ingest_status_label.setText(self.tr("Origen habilitado: %1").arg(path))
         else:
-            sessions = db.get_sessions(self.current_project_id)
-            for s in sessions:
-                if s.get("source_path") == path:
-                    if s["id"] == self.current_session_id:
-                        self.current_session_id = None
-                    db.delete_session(s["id"])
-                    self.ingest_status_label.setText(self.tr("Sesión de %1 eliminada.").arg(path))
-                    break
+            if with_path:
+                for s in with_path:
+                    db.update_session_config(s["id"], enabled=0)
+                self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
         self._refresh_sessions_combo()
         self.update_start_button_state()
 
@@ -2170,14 +2395,26 @@ class MainWindow(QMainWindow):
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
         self._update_wifi_button_state()
-        self._btn_browse_sess_src.setVisible(True)
-        self.session_dest_combo.setVisible(True)
         session = db.get_session(session_id)
         if not session:
             return
+        managed = self._is_managed_session(session)
+        # El origen de cualquier sesión se puede cambiar desde el selector
+        # (otro remitente WiFi, una carpeta…), también en las gestionadas.
+        self._btn_browse_sess_src.setVisible(True)
+        self.session_dest_combo.setVisible(True)
         src = session.get("source_path") or ""
-        text = (self.tr("Origen: %1").arg(src) if src
-                else self.tr("Origen: sin origen (no se ejecutará)"))
+        if managed and src:
+            name = None
+            if session.get("device_id") == WIFI_DEVICE_ID:
+                name = session.get("camera_name") or session.get("device_folder") or ""
+            if name:
+                text = self.tr("Origen automático: %1").arg("📶 " + name)
+            else:
+                text = self.tr("Origen automático: %1").arg(src)
+        else:
+            text = (self.tr("Origen: %1").arg(src) if src
+                    else self.tr("Origen: sin origen (no se ejecutará)"))
         from PySide6.QtGui import QFontMetrics
         fm = QFontMetrics(self.session_src_label.font())
         self.session_src_label.setText(fm.elidedText(text, Qt.ElideMiddle, 240))
@@ -2276,21 +2513,23 @@ class MainWindow(QMainWindow):
     def _browse_session_src(self):
         if self.current_session_id is None:
             return
-        path = QFileDialog.getExistingDirectory(
-            self, self.tr("Seleccionar origen de sesión"),
-            os.path.expanduser("~")
-        )
-        if path:
-            session = db.get_session(self.current_session_id)
-            if session and session.get("source_path") != path:
-                base = self._drive_label(path)
-                db.update_session_config(
-                    self.current_session_id,
-                    source_path=path,
-                    name=f"Auto ({base})"
-                )
-            self._refresh_sessions_combo()
-            self.update_start_button_state()
+        choice = self._pick_source_entry()
+        if choice is None:
+            return
+        kind, value = choice
+        if kind == "browse":
+            path = QFileDialog.getExistingDirectory(
+                self, self.tr("Seleccionar origen de sesión"),
+                os.path.expanduser("~")
+            )
+            if path:
+                self._assign_session_folder(self.current_session_id, path)
+        elif kind == "folder":
+            self._assign_session_folder(self.current_session_id, value)
+        elif kind == "sender":
+            self._bind_wifi_sender(value, session_id=self.current_session_id)
+        elif kind == "ftp_profile":
+            self._pick_ftp_source(preset_profile_id=value)
 
     def build_menu(self):
         menu_bar = self.menuBar()
@@ -2466,32 +2705,192 @@ class MainWindow(QMainWindow):
                 self._source_paths.append(sp)
 
     def select_source_path(self):
-        start_dir = self.source_input.currentText().strip() or os.path.expanduser("~")
-        path = QFileDialog.getExistingDirectory(
-            self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start_dir
-        )
-        if path:
+        choice = self._pick_source_entry()
+        if choice is None:
+            return
+        kind, value = choice
+        if kind == "browse":
+            start_dir = self.source_input.currentText().strip() or os.path.expanduser("~")
+            path = QFileDialog.getExistingDirectory(
+                self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start_dir
+            )
+            if path:
+                self._assign_folder_source(path)
+        elif kind == "folder":
+            self._assign_folder_source(value)
+        elif kind == "sender":
+            self._bind_wifi_sender(value)
+        elif kind == "ftp_profile":
+            self._pick_ftp_source(preset_profile_id=value)
+
+    def _pick_source_entry(self):
+        """Abre el selector unificado de orígenes guardados.
+
+        Devuelve una tupla ``(kind, value)`` o ``None`` si se cancela.
+        ``kind`` puede ser ``"folder"``, ``"sender"`` o ``"ftp_profile"``
+        (origen guardado) o ``"browse"`` (el usuario quiere explorar).
+        """
+        from app.ui.source_picker import SourcePickerDialog
+        from app.core import shoot_inbox as inboxmod
+        if self.current_project_id is None:
+            return None
+        sessions = db.get_sessions(self.current_project_id)
+        folders = []
+        for p in db.get_recent_paths("source"):
+            if p not in folders:
+                folders.append(p)
+        for s in sessions:
+            sp = s.get("source_path")
+            if sp and not self._is_managed_source_path(sp) and sp not in folders:
+                folders.append(sp)
+        used = {s.get("device_folder") for s in sessions
+                if (s.get("device_id") or "").startswith("wifi:")}
+        senders = [{"name": s["name"],
+                    "used": inboxmod.sanitize_alias(s["name"]) in used}
+                   for s in db.list_inbox_senders()]
+        profiles = db.list_ftp_profiles()
+        dialog = SourcePickerDialog(self, folders=folders, senders=senders,
+                                    ftp_profiles=profiles)
+        if dialog.exec() != QDialog.Accepted:
+            return None
+        if dialog.kind is None:
+            return None
+        return (dialog.kind, dialog.value)
+
+    def _assign_folder_source(self, path):
+        """Asigna un folder real como nuevo origen (nunca una caché gestionada)."""
+        if self._is_managed_source_path(path):
+            self._warn_managed_source(path)
+            return
+        if path not in self._source_paths:
+            self._source_paths.append(path)
+            self.source_input.setCurrentText("")
+            if self.current_project_id:
+                sessions = db.get_sessions(self.current_project_id)
+                if not any(s.get("source_path") == path for s in sessions):
+                    base = self._drive_label(path)
+                    no_source = [s for s in sessions if not s.get("source_path")]
+                    if no_source:
+                        db.update_session_config(
+                            no_source[0]["id"], source_path=path, name=f"Auto ({base})")
+                        sid = no_source[0]["id"]
+                    else:
+                        sid = db.create_session(
+                            self.current_project_id, f"Auto ({base})",
+                            QDate.currentDate().toString("yyyy-MM-dd"), "active",
+                            source_path=path)
+                    self._detect_camera_for_session(sid, path)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+
+    def _assign_session_folder(self, session_id, path):
+        """Asigna un folder real como origen de una sesión concreta.
+
+        Si la sesión estaba ligada a un dispositivo gestionado (WiFi/FTP/MTP),
+        se desliga primero: pasa a ser un origen manual.
+        """
+        if self._is_managed_source_path(path):
+            self._warn_managed_source(path)
+            return
+        session = db.get_session(session_id)
+        if session is None:
+            return
+        if session.get("source_path") != path:
             if path not in self._source_paths:
                 self._source_paths.append(path)
-                self.source_input.setCurrentText("")
-                if self.current_project_id:
-                    sessions = db.get_sessions(self.current_project_id)
-                    if not any(s.get("source_path") == path for s in sessions):
-                        base = self._drive_label(path)
-                        no_source = [s for s in sessions if not s.get("source_path")]
-                        if no_source:
-                            db.update_session_config(no_source[0]["id"], source_path=path, name=f"Auto ({base})")
-                            sid = no_source[0]["id"]
-                        else:
-                            sid = db.create_session(
-                                self.current_project_id, f"Auto ({base})",
-                                QDate.currentDate().toString("yyyy-MM-dd"), "active",
-                                source_path=path
-                            )
-                        self._detect_camera_for_session(sid, path)
-            self._refresh_source_list()
-            self._refresh_sessions_combo()
-            self.update_start_button_state()
+            base = self._drive_label(path)
+            db.update_session_config(session_id, source_path=path, name=f"Auto ({base})")
+        if session.get("device_id"):
+            db.update_session_config(session_id, device_id="", device_folder="")
+            self._detect_camera_for_session(session_id, path)
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+
+    def _warn_managed_source(self, path):
+        sessions = (db.get_sessions(self.current_project_id)
+                    if self.current_project_id else [])
+        owner = next((s for s in sessions
+                      if s.get("source_path")
+                      and os.path.normpath(s["source_path"]) == os.path.normpath(path)),
+                     None)
+        if owner is not None:
+            QMessageBox.information(
+                self, self.tr("Origen gestionado"),
+                self.tr("Ese origen ya está asignado a la sesión #%1.").arg(owner["id"]))
+        else:
+            QMessageBox.warning(
+                self, self.tr("Origen gestionado"),
+                self.tr("No puedes usar una caché gestionada como origen manual."))
+
+    def _bind_wifi_sender(self, sender_name, session_id=None):
+        """Convierte una sesión en la sesión gestionada de un remitente WiFi.
+
+        El binding es aditivo: el mismo remitente puede volcar en varias
+        sesiones del proyecto (cada una con su propio destino/configuración).
+        Con ``session_id`` (selector de sesión) convierte esa sesión concreta;
+        sin él (origen nuevo) reutiliza una sesión sin origen o crea la WiFi.
+        """
+        from app.core import shoot_inbox as inboxmod
+        from app.core.db import WIFI_DEVICE_ID
+        if self.current_project_id is None:
+            return
+        if sender_name not in {s["name"] for s in db.list_inbox_senders()}:
+            return
+        alias = inboxmod.sanitize_alias(sender_name)
+        cache = inboxmod.wifi_cache_dir(sender_name)
+        sessions = db.get_sessions(self.current_project_id)
+
+        def _wifi_sessions():
+            return [s for s in db.get_sessions(self.current_project_id)
+                    if (s.get("device_id") or "").startswith("wifi:")
+                    and s.get("device_folder") == alias]
+
+        existing = _wifi_sessions()
+        if session_id is None:
+            if existing:
+                session_id = existing[0]["id"]
+            else:
+                no_source = next((s for s in sessions if not s.get("source_path")), None)
+                if no_source is not None:
+                    session_id = no_source["id"]
+                else:
+                    session_id = db.get_or_create_wifi_session(
+                        self.current_project_id, sender_name, cache, "")
+                    self._after_bind(session_id)
+                    return
+        target = next((s for s in sessions if s["id"] == session_id), None)
+        if target is None:
+            return
+        # Cambio de origen: si la sesión estaba ligada a OTRO remitente, se
+        # desliga de él (sus demás sesiones no se tocan) antes de ligar el nuevo.
+        cur_did = target.get("device_id") or ""
+        cur_folder = target.get("device_folder") or ""
+        if cur_did.startswith("wifi:") and cur_folder and cur_folder != alias:
+            db.update_session_config(session_id, device_id="", device_folder="",
+                                     camera_name=None)
+        other = next((s for s in _wifi_sessions() if s["id"] != session_id), None)
+        if other is not None:
+            QMessageBox.information(
+                self, self.tr("Origen compartido"),
+                self.tr("El remitente '%1' ya está asignado a la sesión #%2.\n"
+                        "Se añadirá también a la sesión #%3.")
+                .arg(sender_name).arg(other["id"]).arg(session_id))
+        db.update_session_config(
+            session_id, device_id=WIFI_DEVICE_ID, device_folder=alias,
+            camera_name=sender_name, source_path=cache, enabled=1)
+        self._after_bind(session_id)
+
+    def _after_bind(self, session_id):
+        self._populate_source_paths_from_sessions()
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        idx = self.sessions_combo.findData(session_id)
+        if idx >= 0:
+            self.sessions_combo.setCurrentIndex(idx)
+        self.update_start_button_state()
+        self.ingest_status_label.setText(
+            self.tr("Origen WiFi asignado a la sesión #%1").arg(session_id))
 
     def _pick_device_source(self):
         from app.ui.device_picker import DevicePickerDialog
@@ -2525,31 +2924,361 @@ class MainWindow(QMainWindow):
         if dialog.method == "ftp":
             self._pick_ftp_source()
         elif dialog.method == "pairdrop":
-            self._open_shoot_inbox()
+            self._open_wifi_panel(force_new_sender=True)
 
     def _update_wifi_button_state(self):
-        """WiFi… solo está disponible dentro de una sesión concreta."""
-        self.btn_receive_wifi.setEnabled(
-            self.current_project_id is not None
-            and self.current_session_id is not None
-        )
+        """WiFi… disponible siempre que haya un proyecto (crea sus sesiones)."""
+        enabled = self.current_project_id is not None
+        self.btn_receive_wifi.setEnabled(enabled)
 
-    def _open_shoot_inbox(self):
-        from app.ui.shoot_inbox import ShootInboxDialog
-        if self.current_project_id is None or self.current_session_id is None:
+    # -- WiFi / PairDrop: origen en la tabla + ventana flotante QR --------
+
+    def _open_wifi_panel(self, force_new_sender: bool = False):
+        """Configura un QR (nuevo remitente) y abre la ventana flotante.
+
+        Con ``force_new_sender`` (botón WiFi…) siempre pide crear un nuevo
+        remitente (un QR nuevo), en vez de reabrir el existente.
+        """
+        if self.current_project_id is None:
             return
-        project_context = {
-            "master_root": self.dest_root or "",
-            "folder_name": self.project_folder_name or "Footage",
-            "organization_type": self.project_organization_type,
-        }
-        dlg = ShootInboxDialog(self, project_context=project_context)
-        dlg.exec()
+        if not self._ensure_wifi_server():
+            return
+        if force_new_sender:
+            sender = self._prompt_wifi_sender()
+            if sender is None:
+                return
+        elif not db.list_inbox_senders():
+            # Si no hay remitentes, pide crear el primero (un origen WiFi más).
+            if self._prompt_wifi_sender() is None:
+                return
+            sender = db.list_inbox_senders()[-1]["name"]
+        else:
+            sender = None
+        self._sync_wifi_sessions()
+        self._show_wifi_panel()
+        if self._wifi_panel is not None and sender:
+            self._wifi_panel.select_sender(sender)
+        self._ensure_wifi_ingestion()
 
-    def _pick_ftp_source(self):
+    def _prompt_wifi_sender(self):
+        """Abre el diálogo de nuevo remitente; devuelve su nombre o None."""
+        if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona un proyecto primero."))
+            return None
+        from app.ui.wifi_panel import SenderEditDialog
+        dlg = SenderEditDialog(
+            self,
+            title=self.tr("Añadir dispositivo WiFi"),
+            name_label=self.tr(
+                "Nombre del dispositivo (aparecerá en el código QR):"),
+            name_hint=self.tr("Ej.: Móvil de Joan"),
+        )
+        if dlg.exec() != QDialog.Accepted:
+            return None
+        name = dlg.name_edit.text().strip()
+        if not name:
+            return None
+        db.add_inbox_sender(name)
+        self._sync_wifi_sessions()
+        return name
+
+    def _ensure_wifi_server(self) -> bool:
+        if self._wifi_server is not None and self._wifi_server.running:
+            return True
+        from app.core import shoot_inbox as inboxmod
+        self._wifi_server = inboxmod.ShootInboxServer()
+        try:
+            self._wifi_server.start()
+        except OSError as e:
+            QMessageBox.warning(
+                self, self.tr("WiFi"),
+                self.tr("No se pudo iniciar el servidor: %1").arg(str(e)))
+            self._wifi_server = None
+            return False
+        return True
+
+    def _show_wifi_panel(self):
+        if self._wifi_panel is None:
+            from app.ui.wifi_panel import ShootInboxPanel
+            self._wifi_panel = ShootInboxPanel(self)
+            self._wifi_panel.received.connect(self._on_wifi_file_received)
+            self._wifi_panel.stop_requested.connect(self._stop_wifi_reception)
+            self._wifi_panel.resume_requested.connect(self._resume_wifi_reception)
+        if self._wifi_server is not None and self._wifi_server.running:
+            self._wifi_panel.attach_server(self._wifi_server)
+        self._wifi_panel.refresh()
+        self._wifi_panel.show()
+        self._wifi_panel.raise_()
+        self._wifi_panel.activateWindow()
+
+    def _sync_wifi_sessions(self):
+        """Crea/elimina las sesiones fuente WiFi del proyecto (una por remitente)
+        y refresca la tabla de orígenes."""
+        if self.current_project_id is None:
+            return
+        from app.core import shoot_inbox as inboxmod
+        senders = db.list_inbox_senders()
+        existing = [(s["device_folder"], s["id"])
+                    for s in db.list_wifi_sessions(self.current_project_id)]
+        keep = set()
+        for s in senders:
+            folder = inboxmod.sanitize_alias(s["name"])
+            cache = inboxmod.wifi_cache_dir(s["name"])
+            # La ubicación/destino del dispositivo NO se propaga entre
+            # proyectos: cada proyecto vuelca a su propia ruta maestra.
+            sid = db.get_or_create_wifi_session(
+                self.current_project_id, s["name"], cache, "")
+            keep.add(folder)
+            if cache not in self._source_paths:
+                self._source_paths.append(cache)
+        # Elimina TODAS las sesiones de remitentes que ya no existen (un
+        # remitente puede estar compartido por varias sesiones del proyecto).
+        for folder, sid in existing:
+            if folder not in keep:
+                db.delete_session(sid)
+                ing = self._wifi_ingestors.pop(sid, None)
+                if ing is not None:
+                    ing.stop()
+        self._populate_source_paths_from_sessions()
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+
+    def _ingestor_for_wifi_session(self, session) -> "Ingestor":
+        """Construye un Ingestor configurado para una sesión WiFi concreta."""
+        sid = session["id"]
+        s_folder = session.get("folder_name") or self.project_folder_name or "Footage"
+        s_org_raw = session.get("organization_type")
+        s_org = self.project_organization_type if s_org_raw is None else s_org_raw
+        s_dur = session.get("duration_type")
+        s_dur = self.project_duration_type if s_dur is None else s_dur
+        s_cam = session.get("default_camera")
+        s_cam = self.project_default_camera if s_cam is None else s_cam
+        s_use_meta = session.get("use_metadata_date")
+        s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
+        s_delicate = session.get("delicate_mode")
+        s_delicate = self.project_delicate_mode if s_delicate is None else s_delicate
+        s_content_filter = None
+        try:
+            raw_filter = session.get("content_filter")
+            if raw_filter:
+                s_content_filter = json.loads(raw_filter)
+        except (TypeError, ValueError):
+            s_content_filter = None
+        dest_root = session.get("destination_override") or self.dest_root
+        sess_targets = None
+        if not session.get("destination_override"):
+            sess_targets = [DumpTarget(l["id"], l["path"], l["include_date"], l["include_camera"])
+                            for l in db.dump_locations(self.current_project_id)
+                            if l["path"] and os.path.isdir(l["path"])] or None
+        camera_map = getattr(self, "_current_camera_map", None) or {}
+        camera_map = dict(camera_map)
+        # El origen WiFi se etiqueta con la cámara del remitente (su nombre),
+        # aunque nunca se haya pulsado «Iniciar Ingesta» (que es donde se
+        # construye el mapa global). Así los subdirectorios de la caché del
+        # remitente no caen en "Unknown".
+        sp = session.get("source_path")
+        cn = session.get("camera_name")
+        if sp and cn:
+            camera_map[os.path.normpath(sp)] = cn
+        ing = Ingestor(
+            self.current_project_id, dest_root,
+            folder_name=s_folder, use_metadata_date=bool(s_use_meta),
+            order_type=ORG_TYPE_MAP.get(s_org, "camera_first"),
+            duration_type=s_dur, default_camera=s_cam,
+            delicate_mode=bool(s_delicate), session_id=sid,
+            camera_map=camera_map,
+            manual_date=self.project_date.toString("yyyy-MM-dd"),
+            dump_targets=sess_targets, project_master_root=self.dest_root,
+            content_filter=s_content_filter,
+        )
+        ing.file_started.connect(
+            lambda sp, i=ing: self.on_file_started(sp, ingestor=i)
+        )
+        ing.copy_progress.connect(
+            lambda sp, cb, tb, i=ing: self.on_copy_progress(sp, cb, tb, ingestor=i)
+        )
+        ing.file_finished.connect(
+            lambda sp, dp, ok, md, i=ing: self.on_file_finished(sp, dp, ok, md, ingestor=i)
+        )
+        ing.ingest_complete.connect(
+            lambda stats, i=ing: self._on_wifi_ingestor_complete(stats, i)
+        )
+        ing.camera_rename_needed.connect(self._on_camera_rename_needed)
+        return ing
+
+    def _on_wifi_ingestor_complete(self, stats, ingestor):
+        """Al terminar la ingesta WiFi de un remitente sin errores, vacía la
+        caché que quede (archivos ya ingeridos en pasadas anteriores).
+
+        Solo se vacía cuando es el último ingestor activo del remitente: con
+        el mismo origen compartido por varias sesiones, la primera en terminar
+        no puede borrar la caché antes de que las demás la hayan ingerido.
+        """
+        if ingestor.session_id is not None and (stats.get("errors") or 0) == 0:
+            if self._wifi_cache_safe_to_clear(ingestor):
+                self._clear_wifi_cache(ingestor.session_id)
+
+    def _wifi_cache_safe_to_clear(self, ingestor):
+        """True si ningún otro ingestor del mismo remitente sigue activo."""
+        sid = ingestor.session_id
+        if sid is None or self.current_project_id is None:
+            return True
+        session = next((s for s in db.list_wifi_sessions(self.current_project_id)
+                        if s["id"] == sid), None)
+        if not session:
+            return True
+        folder = session["device_folder"]
+        for s in db.list_wifi_sessions(self.current_project_id):
+            if s["device_folder"] != folder or s["id"] == sid:
+                continue
+            other = self._wifi_ingestors.get(s["id"])
+            if other is not None and not other.is_idle():
+                return False
+        return True
+
+    def _start_wifi_ingestor(self, sid):
+        if sid in self._wifi_ingestors:
+            return self._wifi_ingestors[sid]
+        session = db.get_session(sid)
+        if not session or not session.get("source_path"):
+            return None
+        if not session.get("enabled", True):
+            return None
+        ing = self._ingestor_for_wifi_session(session)
+        self._wifi_ingestors[sid] = ing
+        self._scan_wifi_cache(sid, session["source_path"])
+        return ing
+
+    def _scan_wifi_cache(self, sid, cache_dir):
+        """Ingiere los archivos ya presentes en la caché del remitente."""
+        if not cache_dir or not os.path.isdir(cache_dir):
+            return
+        ing = self._wifi_ingestors.get(sid)
+        if ing is None:
+            return
+        from app.core.metadata_engine import _is_system_entry
+        for root, dirs, files in os.walk(cache_dir):
+            dirs[:] = [d for d in dirs if not _is_system_entry(d)]
+            for f in files:
+                if _is_system_entry(f) or f.startswith("."):
+                    continue
+                ing.handle_new_file(os.path.join(root, f))
+
+    def _ensure_wifi_ingestion(self):
+        """Arranca un Ingestor por cada sesión WiFi y escanea la caché."""
+        if self.current_project_id is None:
+            return
+        for s in db.list_wifi_sessions(self.current_project_id):
+            self._start_wifi_ingestor(s["id"])
+
+    def _is_inbox_cache_path(self, path):
+        """True si ``path`` está dentro de la caché WiFi (``data/inbox``)."""
+        from app.core import shoot_inbox as inboxmod
+        root = os.path.abspath(inboxmod.inbox_root(db))
+        npath = os.path.abspath(path)
+        return npath != root and npath.startswith(root + os.sep)
+
+    def _remove_ingested_wifi_source(self, source_path):
+        """Borra de la caché un archivo recibido por WiFi ya ingerido y poda
+        las carpetas vacías hasta la caché de su remitente."""
+        if not self._is_inbox_cache_path(source_path):
+            return
+        try:
+            if os.path.isfile(source_path):
+                os.remove(source_path)
+        except OSError:
+            return
+        from app.core import shoot_inbox as inboxmod
+        root = os.path.abspath(inboxmod.inbox_root(db))
+        parent = os.path.dirname(os.path.abspath(source_path))
+        while parent and parent != root and os.path.isdir(parent):
+            try:
+                os.rmdir(parent)
+            except OSError:
+                break
+            parent = os.path.dirname(parent)
+
+    def _clear_wifi_cache(self, session_id):
+        """Borra los archivos restantes de la caché de un remitente (ya
+        ingeridos en una pasada anterior) y poda sus directorios vacíos."""
+        sessions = db.list_wifi_sessions(self.current_project_id) \
+            if self.current_project_id is not None else []
+        session = next((s for s in sessions if s["id"] == session_id), None)
+        cache = (session or {}).get("source_path")
+        if not cache or not os.path.isdir(cache):
+            return
+        root = os.path.abspath(cache)
+        for base, dirs, files in os.walk(root, topdown=False):
+            for f in files:
+                try:
+                    os.remove(os.path.join(base, f))
+                except OSError:
+                    pass
+            try:
+                os.rmdir(base)
+            except OSError:
+                pass
+
+    def _on_wifi_file_received(self, alias, path, size):
+        if self.current_project_id is None:
+            return
+        for s in db.list_wifi_sessions(self.current_project_id):
+            if s["device_folder"] != alias:
+                continue
+            if s["id"] not in self._wifi_ingestors:
+                self._start_wifi_ingestor(s["id"])
+            ing = self._wifi_ingestors.get(s["id"])
+            if ing is not None:
+                ing.handle_new_file(path)
+
+    def _stop_wifi_reception(self):
+        for ing in self._wifi_ingestors.values():
+            try:
+                ing.stop()
+            except Exception:
+                pass
+        self._wifi_ingestors = {}
+        if self._wifi_server is not None:
+            try:
+                self._wifi_server.stop()
+            except Exception:
+                pass
+            self._wifi_server = None
+        if self._wifi_panel is not None:
+            self._wifi_panel.refresh()
+            self._wifi_panel.set_server_status(
+                self.tr("Recepción detenida. Pulsa «Reanudar» para continuar."))
+        self.ingest_status_label.setText(self.tr("Recepción WiFi detenida."))
+
+    def _resume_wifi_reception(self):
+        if self.current_project_id is None:
+            return
+        if not self._ensure_wifi_server():
+            return
+        self._show_wifi_panel()
+        self._ensure_wifi_ingestion()
+        if self._wifi_panel is not None:
+            self._wifi_panel.refresh()
+            self._wifi_panel.set_server_status(
+                self.tr("Recepción WiFi reanudada."))
+        self.ingest_status_label.setText(self.tr("Recepción WiFi reanudada."))
+
+    def _reset_wifi_ingestors(self):
+        for ing in self._wifi_ingestors.values():
+            try:
+                ing.stop()
+            except Exception:
+                pass
+        self._wifi_ingestors = {}
+
+
+    def _pick_ftp_source(self, preset_profile_id=None):
         from app.ui.ftp_picker import FtpPickerDialog
         from app.core import mtp, ftp
-        dialog = FtpPickerDialog(self)
+        dialog = FtpPickerDialog(self, preset_profile_id=preset_profile_id)
         if dialog.exec() != QDialog.Accepted:
             return
         if not dialog.device_id or not dialog.device_folder:
@@ -2668,6 +3397,8 @@ class MainWindow(QMainWindow):
             self.dest_root or os.path.expanduser("~")
         )
         if path:
+            if os.path.abspath(path) == os.path.abspath(self.dest_root or ""):
+                return
             self._save_project_root(path)
 
     def _save_project_root(self, new_root):
@@ -2675,15 +3406,19 @@ class MainWindow(QMainWindow):
             return
         try:
             os.makedirs(new_root, exist_ok=True)
+            new_root = os.path.abspath(new_root)
+            old_root = os.path.abspath(self.dest_root) if self.dest_root else ""
+            if old_root and old_root != new_root:
+                self._handle_completed_files_on_root_change(old_root, new_root)
             conn = db.get_connection()
             cursor = conn.cursor()
             cursor.execute(
                 'UPDATE projects SET root_path = ? WHERE id = ?',
-                (os.path.abspath(new_root), self.current_project_id)
+                (new_root, self.current_project_id)
             )
             conn.commit()
             conn.close()
-            self.dest_root = os.path.abspath(new_root)
+            self.dest_root = new_root
             self.project_path_label.setText(f"→ {self.dest_root}")
             self.ingest_status_label.setText(self.tr("Destino maestro actualizado: %1").arg(self.dest_root))
             db.save_recent_path(self.dest_root, "dest")
@@ -2700,6 +3435,114 @@ class MainWindow(QMainWindow):
                 source_path="")
             self.current_session_id = sid
         self._refresh_sessions_combo()
+
+    def _completed_files_under_root(self, old_root):
+        """Archivos 'completed' del proyecto cuyo destino está bajo ``old_root``."""
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT id, dest_path FROM files
+               WHERE session_id IN (SELECT id FROM sessions WHERE project_id = ?)
+                 AND status = 'completed' ''',
+            (self.current_project_id,)
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        old = old_root.replace("\\", "/").rstrip("/") + "/"
+        return [r for r in rows
+                if r["dest_path"] and r["dest_path"].replace("\\", "/").startswith(old)]
+
+    def _handle_completed_files_on_root_change(self, old_root, new_root):
+        """Pregunta qué hacer con los archivos completados de la ubicación
+        anterior al mover la carpeta maestra: moverlos, borrarlos de la tabla
+        de ingesta, o dejarlos como están."""
+        affected = self._completed_files_under_root(old_root)
+        if not affected:
+            return
+        msg = QMessageBox(self)
+        msg.setWindowTitle(self.tr("Cambiar carpeta maestra"))
+        msg.setText(
+            self.tr("La carpeta maestra tiene %1 archivo(s) completado(s) en "
+                    "la ubicación anterior (%2).").arg(len(affected)).arg(old_root))
+        msg.setInformativeText(self.tr("¿Qué quieres hacer con ellos?"))
+        btn_move = msg.addButton(
+            self.tr("Mover a la nueva ubicación"), QMessageBox.ActionRole)
+        btn_delete = msg.addButton(
+            self.tr("Eliminar de la tabla de ingesta"), QMessageBox.DestructiveRole)
+        btn_leave = msg.addButton(
+            self.tr("Dejar como están"), QMessageBox.ActionRole)
+        msg.setDefaultButton(btn_move)
+        msg.exec()
+        clicked = msg.clickedButton()
+        if clicked == btn_move:
+            moved, failed = self._move_completed_files(affected, old_root, new_root)
+            self.ingest_status_label.setText(
+                self.tr("Archivos movidos a la nueva carpeta maestra: %1 "
+                        "(%2 con errores).").arg(moved).arg(failed))
+        elif clicked == btn_delete:
+            self._delete_completed_file_records(affected)
+            self.ingest_status_label.setText(
+                self.tr("Archivos completados eliminados de la tabla de "
+                        "ingesta: %1.").arg(len(affected)))
+
+    def _move_completed_files(self, rows, old_root, new_root):
+        """Mueve físicamente los archivos manteniendo la estructura relativa y
+        actualiza sus rutas en la tabla ``files``."""
+        import shutil
+        moved = 0
+        failed = 0
+        old = old_root.replace("\\", "/").rstrip("/") + "/"
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        for r in rows:
+            dest = r["dest_path"]
+            npath = dest.replace("\\", "/")
+            if not npath.startswith(old):
+                continue
+            rel = npath[len(old):]
+            new_dest = os.path.join(new_root, *rel.split("/"))
+            try:
+                if not os.path.exists(dest):
+                    continue
+                os.makedirs(os.path.dirname(new_dest), exist_ok=True)
+                if os.path.exists(new_dest):
+                    base, ext = os.path.splitext(new_dest)
+                    n = 1
+                    alt = f"{base} ({n}){ext}"
+                    while os.path.exists(alt):
+                        n += 1
+                        alt = f"{base} ({n}){ext}"
+                    new_dest = alt
+                shutil.move(dest, new_dest)
+                cursor.execute(
+                    "UPDATE files SET dest_path = ? WHERE id = ?",
+                    (new_dest, r["id"]))
+                moved += 1
+            except Exception as e:
+                print(f"Error moviendo {dest}: {e}")
+                failed += 1
+        conn.commit()
+        conn.close()
+        self._prune_empty_dirs(old_root)
+        return moved, failed
+
+    def _delete_completed_file_records(self, rows):
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        for r in rows:
+            cursor.execute("DELETE FROM files WHERE id = ?", (r["id"],))
+        conn.commit()
+        conn.close()
+
+    def _prune_empty_dirs(self, root):
+        """Elimina los directorios vacíos que queden bajo ``root``."""
+        if not root or not os.path.isdir(root):
+            return
+        for base, dirs, files in os.walk(root, topdown=False):
+            try:
+                os.rmdir(base)
+            except OSError:
+                pass
 
     def open_data_folder(self):
         data_dir = os.path.dirname(db.db_path)
@@ -3039,3 +3882,4 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+

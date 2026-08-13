@@ -49,9 +49,9 @@ Una vez registrado el origen, la app reescanea el dispositivo automáticamente (
 ### Recepción por QR (PairDrop, sin instalar nada en el móvil)
 
 1. En CosechaMedia pulsa *WiFi…* → *PairDrop*. Se abre el panel con el servidor y un código QR por persona.
-2. Añade una persona (p. ej. el nombre del actor) y, opcionalmente, una *ubicación* (carpeta de destino dentro de *inbox*). Escanea su QR con el móvil.
+2. Añade una persona (p. ej. el nombre del actor o "Móvil de Joan"). Escanea su QR con el móvil.
 3. El móvil se conecta al ordenador (misma red WiFi) y muestra una página para elegir los archivos a enviar. Si marcas *Enviar una carpeta entera*, el móvil podrá seleccionar una carpeta completa (en Android/Chrome).
-4. Los archivos caen en la carpeta *inbox* (una subcarpeta por ubicación —o por persona si no hay ubicación— y fecha) y CosechaMedia los registra al momento. Usa *Iniciar Ingesta* para volcarlos al proyecto.
+4. Cada persona se registra como un origen de ingesta propio (una sesión). Los archivos caen en su caché local (`data/inbox/<persona>`) y CosechaMedia los vuelca al proyecto al momento, con copia verificada y la organización configurada. Cuando la ingesta termina, la caché se limpia sola.
 
 > El móvil y el ordenador deben estar en la misma red WiFi; la primera vez Windows puede pedir permiso de red para el servidor.
 

@@ -143,6 +143,84 @@ class TestDatabaseManager(unittest.TestCase):
         other = self.db.get_devices()
         self.assertTrue(all(d["device_id"] != "DEV1" for d in other))
 
+    def test_wifi_session_get_or_create(self):
+        from app.core.db import WIFI_DEVICE_ID
+        conn = self.db.get_connection()
+        pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid
+        conn.commit()
+        conn.close()
+
+        sid = self.db.get_or_create_wifi_session(
+            pid, "Alice", source_path="/inbox/Alice", location="/loc")
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess["device_id"], WIFI_DEVICE_ID)
+        self.assertEqual(sess["device_folder"], "Alice")
+        self.assertEqual(sess["camera_name"], "Alice")
+        self.assertEqual(sess["source_path"], "/inbox/Alice")
+        self.assertEqual(sess["destination_override"], "/loc")
+        self.assertIn("Alice", sess["name"])
+
+        # Reuse: same sender -> same session; passing the real cache path keeps
+        # the fields stable (the caller always uses wifi_cache_dir(name)).
+        sid2 = self.db.get_or_create_wifi_session(
+            pid, "Alice", source_path="/inbox/Alice", location="/loc")
+        self.assertEqual(sid2, sid)
+        sess2 = self.db.get_session(sid)
+        self.assertEqual(sess2["source_path"], "/inbox/Alice")
+        self.assertEqual(sess2["destination_override"], "/loc")
+
+        # Different sender -> different session
+        sid3 = self.db.get_or_create_wifi_session(
+            pid, "Bob", source_path="/inbox/Bob")
+        self.assertNotEqual(sid3, sid)
+
+    def test_wifi_session_reuse_keeps_destination_override(self):
+        """Reutilizar la sesión con location vacío no borra el destino
+        personalizado que el usuario haya configurado en la sesión."""
+        conn = self.db.get_connection()
+        pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid
+        conn.commit()
+        conn.close()
+
+        sid = self.db.get_or_create_wifi_session(
+            pid, "Alice", source_path="/inbox/Alice", location="/loc")
+        self.assertEqual(self.db.get_session(sid)["destination_override"], "/loc")
+
+        # Sync posterior sin ubicación: se respeta el override configurado.
+        self.db.get_or_create_wifi_session(
+            pid, "Alice", source_path="/inbox/Alice", location="")
+        self.assertEqual(self.db.get_session(sid)["destination_override"], "/loc")
+
+        # Con ubicación explícita sí se actualiza.
+        self.db.get_or_create_wifi_session(
+            pid, "Alice", source_path="/inbox/Alice", location="/loc2")
+        self.assertEqual(self.db.get_session(sid)["destination_override"], "/loc2")
+
+    def test_wifi_session_list(self):
+        conn = self.db.get_connection()
+        pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid
+        conn.commit()
+        conn.close()
+
+        self.assertEqual(self.db.list_wifi_sessions(pid), [])
+        self.db.get_or_create_wifi_session(pid, "Alice", source_path="/a")
+        self.db.get_or_create_wifi_session(pid, "Bob", source_path="/b")
+        rows = self.db.list_wifi_sessions(pid)
+        self.assertEqual([r["device_folder"] for r in rows], ["Alice", "Bob"])
+        self.assertEqual([r["camera_name"] for r in rows], ["Alice", "Bob"])
+
+    def test_wifi_sessions_are_devices(self):
+        from app.core.db import WIFI_DEVICE_ID
+        conn = self.db.get_connection()
+        pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid
+        conn.commit()
+        conn.close()
+        self.db.get_or_create_wifi_session(pid, "Alice", source_path="/a")
+        devices = self.db.get_devices()
+        wifi = [d for d in devices if d["device_id"] == WIFI_DEVICE_ID]
+        self.assertTrue(wifi)
+        self.assertEqual(wifi[0]["device_folder"], "Alice")
+
 
 if __name__ == "__main__":
     unittest.main()

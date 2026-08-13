@@ -1,12 +1,10 @@
 """Recepción de clips por WiFi mediante un servidor HTTP embebido.
 
 El móvil (Android o iOS) abre una URL/código QR en su navegador, sin instalar
-nada, y sube los archivos. El destino lo decide el contexto de proyecto:
-si el remitente tiene una ubicación (ruta absoluta) los archivos caen en
-``<ubicación>/<folder_name>/<remitente>/<fecha>``; si no, en la ruta maestra
-del proyecto con la misma estructura configurada (cámara primero, fecha
-primero, etc.). ``self.server.root`` (``data/inbox``) solo se usa como
-respaldo cuando no hay proyecto.
+nada, y sube los archivos. Cada envío cae en la caché local del remitente
+(``data/inbox/<remitente>``), que se registra como un origen de ingesta normal
+(una sesión por remitente, ``device_id = "wifi:pairdrop"``). El Ingestor se
+encarga después de volcar los archivos al proyecto con copia verificada.
 
 Cada persona tiene un remitente (tabla ``inbox_senders``) con su propio token;
 el QR de cada remitente lleva ``?src=<nombre>&token=<token>`` para atribuir el
@@ -21,22 +19,14 @@ import html
 import json
 import os
 import re
+import socket
 import threading
-from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Callable, Optional
 from urllib.parse import parse_qs, urlsplit
 
 from app.core.db import db as _default_db
 from app.core.ftp import local_ip
-from app.core.utils import create_folder_structure
-
-_ORG_TYPE_MAP = {
-    0: "camera_first",
-    1: "date_first",
-    2: "camera_only",
-    3: "flat",
-}
 
 _PAGE_TEMPLATE = """<!doctype html>
 <html lang="es">
@@ -152,6 +142,15 @@ def inbox_root(db=None) -> str:
     return os.path.join(os.path.dirname(db.db_path), "inbox")
 
 
+def wifi_cache_dir(sender_name: str, db=None) -> str:
+    """Carpeta de caché local de un remitente (``data/inbox/<alias>``).
+
+    Se usa como ``source_path`` de la sesión/origen WiFi correspondiente, de
+    modo que la ingesta posterior funciona igual que con una tarjeta SD.
+    """
+    return os.path.join(inbox_root(db), sanitize_alias(sender_name))
+
+
 def sanitize_alias(name: str) -> str:
     """Alias de remitente seguro para usar como nombre de carpeta."""
     if not name:
@@ -187,32 +186,21 @@ def _unique_path(dest: str) -> str:
     return f"{base} ({n}){ext}"
 
 
-def resolve_target_dir(sender: dict, master_root: str, folder_name: str,
-                       organization_type=0, fallback_root: str = "") -> str:
-    """Carpeta destino de un remitente dentro de la estructura del proyecto.
-
-    Base: la ubicación del remitente (ruta absoluta) si la tiene; si no, la
-    ruta maestra del proyecto; como último recurso ``fallback_root``. Después
-    se aplica la estructura del proyecto (folder_name + organización).
-    """
-    location = (sender.get("location") or "").strip()
-    if os.path.isabs(location):
-        base = location
-    elif master_root:
-        base = master_root
-    else:
-        base = fallback_root
-    if not base:
-        base = "."
-    order_type = _ORG_TYPE_MAP.get(organization_type, "camera_first")
-    camera = sanitize_alias(sender["name"])
-    date_dir = datetime.now().strftime("%Y-%m-%d")
-    return create_folder_structure(base, camera, date_dir, order_type,
-                                   folder_name or "Footage")
-
-
 class _UploadHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def handle(self):
+        """Atiende la petición sin propagar errores de conexión del cliente.
+
+        Un navegador que cancela la subida o cierra la conexión a mitad de un
+        request dispara ``ConnectionResetError``/``BrokenPipeError`` dentro de
+        ``http.server``. Son inofensivos, pero sin este override se imprimen
+        como tracebacks de "Exception occurred during processing of request".
+        """
+        try:
+            super().handle()
+        except (ConnectionError, socket.timeout, TimeoutError):
+            pass
 
     def log_message(self, *args):
         pass
@@ -286,19 +274,13 @@ class _UploadHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"ok": False, "error": "sin contenido"})
             return
 
-        ctx = getattr(self.server, "project_context", None) or {}
-        target_dir = resolve_target_dir(
-            sender,
-            master_root=ctx.get("master_root") or "",
-            folder_name=ctx.get("folder_name") or "Footage",
-            organization_type=ctx.get("organization_type", 0),
-            fallback_root=self.server.root,
-        )
+        target_dir = wifi_cache_dir(src, self.server.db)
         os.makedirs(target_dir, exist_ok=True)
         final = _unique_path(os.path.join(target_dir, rel))
         part = final + ".part"
         received = 0
         try:
+            os.makedirs(os.path.dirname(part), exist_ok=True)
             with open(part, "wb") as f:
                 remaining = length
                 while remaining > 0:
@@ -347,15 +329,13 @@ class ShootInboxServer:
     def __init__(self, root: Optional[str] = None, db=None,
                  on_file_received: Optional[Callable[[str, str, int], None]] = None,
                  host: str = "0.0.0.0", port: int = 0,
-                 folder_mode: bool = False,
-                 project_context: Optional[dict] = None):
+                 folder_mode: bool = False):
         self.root = root or inbox_root(db)
         self.db = db or _default_db
         self.on_file_received = on_file_received
         self.host = host
         self.port = port
         self.folder_mode = folder_mode
-        self.project_context = project_context
         self._httpd = None
         self._thread = None
 
@@ -365,14 +345,25 @@ class ShootInboxServer:
         os.makedirs(self.root, exist_ok=True)
         httpd = ThreadingHTTPServer((self.host, self.port), _UploadHandler)
         httpd.root = self.root
+        httpd.db = self.db
         httpd.senders = lambda: self.db.list_inbox_senders()
         httpd.owner = self
-        httpd.project_context = self.project_context
-        httpd.callback = self.on_file_received
+        httpd.callback = self._dispatch_file_received
         self._httpd = httpd
         self.port = httpd.server_address[1]
         self._thread = threading.Thread(target=httpd.serve_forever, daemon=True)
         self._thread.start()
+
+    def _dispatch_file_received(self, alias: str, path: str, size: int):
+        """Reenvía cada archivo recibido al callback actual.
+
+        Se lee ``self.on_file_received`` en el momento de la llamada (no al
+        arrancar), de modo que la ventana principal puede registrarse después
+        de ``start()`` y seguir recibiendo los envíos en vivo.
+        """
+        callback = self.on_file_received
+        if callback is not None:
+            callback(alias, path, size)
 
     def stop(self):
         if self._httpd is not None:
@@ -386,9 +377,8 @@ class ShootInboxServer:
         return self._httpd is not None
 
     def base_dir(self) -> str:
-        """Carpeta base efectiva: ruta maestra del proyecto o el inbox de respaldo."""
-        ctx = self.project_context or {}
-        return (ctx.get("master_root") or "").strip() or self.root
+        """Carpeta base de la caché de recepción WiFi (``data/inbox``)."""
+        return self.root
 
     def base_url(self) -> str:
         ip = local_ip() or "127.0.0.1"

@@ -123,7 +123,8 @@ class TestSourceContent(unittest.TestCase):
 
     def test_on_copy_progress_updates_cell(self):
         self.window.on_file_started("clip.mp4")
-        row = self.window._file_row_map["clip.mp4"]
+        item = self.window._file_row_map["clip.mp4"]
+        row = self.window.table.indexFromItem(item).row()
         self.window.on_copy_progress("clip.mp4", 50, 100)
         self.assertEqual(self.window.table.item(row, 3).text(), "50%")
         self.window.on_file_finished("clip.mp4", "/out/clip.mp4", True, {})
@@ -131,7 +132,8 @@ class TestSourceContent(unittest.TestCase):
 
     def test_on_copy_progress_clamped(self):
         self.window.on_file_started("big.mp4")
-        row = self.window._file_row_map["big.mp4"]
+        item = self.window._file_row_map["big.mp4"]
+        row = self.window.table.indexFromItem(item).row()
         self.window.on_copy_progress("big.mp4", 999999, 100)
         self.assertEqual(self.window.table.item(row, 3).text(), "100%")
 

@@ -79,6 +79,19 @@ class TestIngestor(unittest.TestCase):
         self.assertEqual(row["md5_hash"], self._orig_calc(dest))
         self.assertEqual(row["status"], "completed")
 
+    def test_camera_map_prefix_matches_subfolders_not_siblings(self):
+        root = os.path.join(self.tmp, "inbox", "Alice")
+        ing = Ingestor(1, self.dst_dir, session_id=2,
+                       camera_map={root: "Alice"})
+        self.assertEqual(
+            ing._get_camera_for_file(os.path.join(root, "DCIM", "x.mp4")),
+            "Alice")
+        self.assertEqual(ing._get_camera_for_file(root), "Alice")
+        # Un directorio hermano con nombre similar no debe emparejarse.
+        self.assertEqual(
+            ing._get_camera_for_file(os.path.join(self.tmp, "inbox", "Alice2", "x.mp4")),
+            "Unknown_Camera")
+
     def test_copy_progress_emitted_by_percent(self):
         src = self._make_source(size=8192 * 300)  # 300 bloques → enough para throttle
         progress = []

@@ -15,6 +15,7 @@ dist/
 # Datos de ejecucion (no versionar)
 data/
 _reference/
+Footage/
 .sdimport_session.json
 *.sdimport_session_*.json
 

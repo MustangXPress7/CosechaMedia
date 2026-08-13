@@ -56,11 +56,12 @@ class FtpPickerDialog(QDialog):
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
 
-    def __init__(self, parent=None, backend=None):
+    def __init__(self, parent=None, backend=None, preset_profile_id=None):
         super().__init__(parent)
         self._backend = backend or ftpmod.FtpBackend()
         self._profiles = []
         self._current_profile_id = None
+        self._preset_profile_id = preset_profile_id
         self._detect_thread = None
         self.profile_id = None
         self.device_id = ""
@@ -189,6 +190,10 @@ class FtpPickerDialog(QDialog):
         for p in self._profiles:
             label = p["name"] or f"{p['host']}:{p['port']}"
             self.profile_combo.addItem(label, p["id"])
+        if self._preset_profile_id is not None:
+            idx = self.profile_combo.findData(self._preset_profile_id)
+            if idx >= 0:
+                self.profile_combo.setCurrentIndex(idx)
         self.profile_combo.blockSignals(False)
         self._on_profile_changed()
 

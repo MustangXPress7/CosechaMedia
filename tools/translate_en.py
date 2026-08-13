@@ -25,6 +25,19 @@ TRANSLATIONS = {
     "Orígenes:": "Sources:",
     "E:\\DCIM...": "E:\\DCIM...",
     "Examinar": "Browse",
+    "Seleccionar origen": "Select source",
+    "Elige un origen guardado para la sesión o explora una carpeta:": "Choose a saved source for the session or browse a folder:",
+    "Carpetas guardadas": "Saved folders",
+    "Remitentes WiFi": "WiFi senders",
+    "Dispositivos FTP guardados": "Saved FTP devices",
+    "(vacío)": "(empty)",
+    "(ya asignado)": "(already assigned)",
+    "Origen gestionado": "Managed source",
+    "Ese origen ya está asignado a la sesión #%1.": "That source is already assigned to session #%1.",
+    "No puedes usar una caché gestionada como origen manual.": "You cannot use a managed cache as a manual source.",
+    "Origen compartido": "Shared source",
+    "El remitente '%1' ya está asignado a la sesión #%2.\nSe añadirá también a la sesión #%3.": "Sender '%1' is already assigned to session #%2.\nIt will also be added to session #%3.",
+    "Origen WiFi asignado a la sesión #%1": "WiFi source assigned to session #%1",
     "Ruta de origen": "Source path",
     "No hay un origen configurado para el proyecto.": "No source is configured for the project.",
     "No hay ruta maestra configurada para el proyecto.": "No master path is configured for the project.",
@@ -203,6 +216,7 @@ TRANSLATIONS = {
     "Sesión de %1 eliminada.": "Session for %1 deleted.",
     "(Sin sesiones)": "(No sessions)",
     "Origen: %1": "Source: %1",
+    "Origen automático: %1": "Automatic source: %1",
     "Origen: sin origen (no se ejecutará)": "Source: no source (will not run)",
     "Nueva Sesión manual": "New Manual Session",
     "Nombre de la sesión:": "Session name:",
@@ -520,38 +534,74 @@ TRANSLATIONS = {
     "Recibir por WiFi (PairDrop)": "Receive via WiFi (PairDrop)",
     "Cada persona escanea su código QR desde el móvil y envía "
     "los archivos sin instalar nada. El móvil y el ordenador "
-    "deben estar conectados a la misma red WiFi. Al llegar, "
-    "CosechaMedia los guarda en la ruta maestra del proyecto.": "Each person scans their QR code from their phone and sends "
+    "deben estar en la misma red WiFi. Al llegar, "
+    "CosechaMedia los guarda en la caché del origen y los "
+    "vuelca verificados al proyecto según llegan.": "Each person scans their QR code from their phone and sends "
     "the files without installing anything. The phone and the computer "
-    "must be connected to the same WiFi network. When they arrive, "
-    "CosechaMedia saves them to the project master path.",
-    "Remitentes:": "Senders:",
+    "must be on the same WiFi network. When they arrive, "
+    "CosechaMedia saves them to the source cache and dumps them to the "
+    "project (verified) as they come in.",
+    "Escanea este código QR desde el móvil para enviar "
+    "archivos sin instalar nada. El móvil y el ordenador "
+    "deben estar en la misma red WiFi.": "Scan this QR code from your phone to send "
+    "files without installing anything. The phone and the computer "
+    "must be on the same WiFi network.",
+    "Remitente:": "Sender:",
     "Remitente": "Sender",
     "Ubicación": "Location",
     "Añadir": "Add",
     "Editar": "Edit",
     "Eliminar": "Delete",
     "Enviar una carpeta entera (modo carpeta)": "Send a whole folder (folder mode)",
-    "Copiar enlace": "Copy link",
-    "Abrir carpeta destino": "Open destination folder",
-    "Recibidos:": "Received:",
     "Cerrar": "Close",
+    "Detener": "Stop",
+    "El servidor no está activo.": "The server is not active.",
     "No se pudo iniciar el servidor: %1": "Could not start the server: %1",
     "Servidor activo. Comparte esta dirección con los móviles: "
     "%1": "Server active. Share this address with the phones: %1",
-    "Añadir remitente": "Add sender",
-    "Editar remitente": "Edit sender",
-    "Eliminar remitente": "Delete sender",
+    "Añadir remitente WiFi": "Add WiFi sender",
+    "Añadir remitente WiFi…": "Add WiFi sender…",
     "Nombre de la persona (aparecerá en el código QR):": "Person's name (it will appear in the QR code):",
-    "Ubicación (carpeta donde se guardarán sus archivos; "
-    "en blanco usa la ruta maestra del proyecto):": "Location (folder where their files will be saved; "
+    "Ubicación (destino personalizado de la ingesta; "
+    "en blanco usa la ruta maestra del proyecto):": "Location (custom ingest destination; "
     "blank uses the project master path):",
     "En blanco: ruta maestra del proyecto": "Blank: project master path",
     "Examinar…": "Browse…",
     "Seleccionar ubicación": "Select location",
-    "¿Eliminar a %1?": "Delete %1?",
-    "Enlace copiado al portapapeles.": "Link copied to clipboard.",
+    "Eliminar origen": "Delete source",
+    "¿Eliminar el origen '%1' y sus sesiones (%2)?": "Delete the source '%1' and its sessions (%2)?",
+    "Origen eliminado: %1": "Source deleted: %1",
     "Recibido de %1: %2 (%3).": "Received from %1: %2 (%3).",
+    "Recepción detenida. Pulsa «WiFi…» para reanudarla.": "Reception stopped. Press “WiFi…” to resume.",
+    "Recepción detenida. Pulsa «Reanudar» para continuar.": "Reception stopped. Press “Resume” to continue.",
+    "Recepción WiFi detenida.": "WiFi reception stopped.",
+    "Recepción WiFi reanudada.": "WiFi reception resumed.",
+    "Reanudar": "Resume",
+    "Añadir dispositivo WiFi": "Add WiFi device",
+    "Añadir dispositivo WiFi…": "Add WiFi device…",
+    "Nombre del dispositivo (aparecerá en el código QR):": "Device name (it will appear in the QR code):",
+    "Ej.: Móvil de Joan": "E.g. Joan's phone",
+    "Mostrar el código QR de este dispositivo": "Show the QR code for this device",
+    "Configurar este origen FTP": "Configure this FTP source",
+    "FTP": "FTP",
+    "QR": "QR",
+    "Origen habilitado: %1": "Source enabled: %1",
+    "Origen deshabilitado: %1": "Source disabled: %1",
+    "Eliminar completados": "Delete completed",
+    "Eliminar de la tabla de ingesta": "Remove from the ingest table",
+    "Archivos completados eliminados de la tabla de ingesta: %1.": "Completed files removed from the ingest table: %1.",
+    "Cambiar carpeta maestra": "Change master folder",
+    "Mover a la nueva ubicación": "Move to the new location",
+    "Dejar como están": "Leave as is",
+    "¿Qué quieres hacer con ellos?": "What do you want to do with them?",
+    "La carpeta maestra tiene %1 archivo(s) completado(s) en la ubicación anterior (%2).": "The master folder has %1 completed file(s) in the previous location (%2).",
+    "Archivos movidos a la nueva carpeta maestra: %1 (%2 con errores).": "Files moved to the new master folder: %1 (%2 with errors).",
+    "WiFi": "WiFi",
+    "Proyecto por defecto": "Default project",
+    "Proyecto creado automáticamente": "Project created automatically",
+    "Proyecto por defecto creado con sesión inicial.": "Default project created with initial session.",
+    "Sesión 1": "Session 1",
+    "No se pudo crear el proyecto por defecto: %1": "Could not create the default project: %1",
 }
 
 

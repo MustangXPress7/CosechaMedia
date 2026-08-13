@@ -41,8 +41,8 @@ class TestMtpLive(unittest.TestCase):
         cls.storages = []
 
     def test_device_connected(self):
-        self.assertIsNotNone(self.device,
-                             "No se detectó ningún dispositivo MTP conectado (test omitido si es el caso)")
+        if self.device is None:
+            self.skipTest("sin dispositivo MTP conectado")
 
     def test_storages_listed(self):
         if self.device is None or not self.storages:

@@ -466,10 +466,12 @@ class Ingestor(QObject):
             cam = self._camera_mapping.get(file_path)
             if cam:
                 return cam
+            npath = file_path.replace("\\", "/")
             for src_root, cam_name in self._source_camera_map.items():
-                npath = file_path.replace("\\", "/")
                 nroot = src_root.replace("\\", "/")
-                if npath.startswith(nroot):
+                # Empareja solo la raíz y sus subdirectorios (no "Joan2"
+                # cuando la raíz es "Joan").
+                if npath == nroot or npath.startswith(nroot.rstrip("/") + "/"):
                     return cam_name
             return "Unknown_Camera"
 

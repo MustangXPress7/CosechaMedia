@@ -14,6 +14,9 @@ def _resolve_db_path() -> str:
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "sd_import.db")
 
+
+WIFI_DEVICE_ID = "wifi:pairdrop"
+
 class DatabaseManager:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or _resolve_db_path()
@@ -147,6 +150,7 @@ class DatabaseManager:
             ("content_filter", "TEXT"),
             ("device_id", "TEXT"),
             ("device_folder", "TEXT"),
+            ("enabled", "INTEGER DEFAULT 1"),
         ]
         for col_name, col_def in session_migrations:
             if col_name not in sess_cols:
@@ -430,7 +434,7 @@ class DatabaseManager:
             '''SELECT id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
                       use_metadata_date, delicate_mode, created_at, source_path, camera_name,
-                      content_filter, device_id, device_folder
+                      content_filter, device_id, device_folder, enabled
                FROM sessions WHERE project_id = ? ORDER BY id ASC''',
             (project_id,)
         )
@@ -454,6 +458,7 @@ class DatabaseManager:
                 "content_filter": r[14],
                 "device_id": r[15],
                 "device_folder": r[16],
+                "enabled": r[17],
             })
         conn.close()
         return rows
@@ -465,7 +470,7 @@ class DatabaseManager:
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
                       use_metadata_date, delicate_mode, created_at, source_path, camera_name,
-                      content_filter, device_id, device_folder
+                      content_filter, device_id, device_folder, enabled
                FROM sessions WHERE id = ?''',
             (session_id,)
         )
@@ -492,6 +497,7 @@ class DatabaseManager:
             "content_filter": r[15],
             "device_id": r[16],
             "device_folder": r[17],
+            "enabled": r[18],
         }
 
     def update_session_config(self, session_id: int, **kwargs):
@@ -501,7 +507,7 @@ class DatabaseManager:
                    "duration_type", "default_camera", "use_metadata_date",
                    "delicate_mode", "name", "shoot_date", "status",
                    "source_path", "camera_name", "content_filter",
-                   "device_id", "device_folder"}
+                   "device_id", "device_folder", "enabled"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return
@@ -704,6 +710,87 @@ class DatabaseManager:
         cursor.execute('DELETE FROM inbox_senders WHERE id = ?', (sender_id,))
         conn.commit()
         conn.close()
+
+    def get_or_create_wifi_session(self, project_id: int, sender_name: str,
+                                   source_path: str, location: str = "") -> int:
+        """Devuelve/crea la sesión de ingesta WiFi de un remitente.
+
+        Cada remitente de PairDrop es una sesión con ``device_id =
+        'wifi:pairdrop'`` y ``device_folder = sanitize_alias(sender_name)``.
+        La ubicación del remitente (opcional) se traduce al
+        ``destination_override`` de la sesión, de modo que la ingesta posterior
+        respete ese destino. El ``source_path`` apunta a la caché local de
+        recepción (``data/inbox/<alias>``).
+        """
+        from datetime import datetime as _dt
+        from app.core.shoot_inbox import sanitize_alias
+        alias = sanitize_alias(sender_name)
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM sessions WHERE project_id = ? AND device_id = ? AND device_folder = ?",
+            (project_id, WIFI_DEVICE_ID, alias),
+        )
+        row = cursor.fetchone()
+        if row is not None:
+            sid = row[0]
+            if location:
+                # Si el remitente tiene ubicación se aplica; si no, se respeta
+                # el destination_override que el usuario haya configurado.
+                cursor.execute(
+                    "UPDATE sessions SET source_path = ?, camera_name = ?, "
+                    "destination_override = ? WHERE id = ?",
+                    (source_path, sender_name, location, sid),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE sessions SET source_path = ?, camera_name = ? "
+                    "WHERE id = ?",
+                    (source_path, sender_name, sid),
+                )
+            conn.commit()
+            conn.close()
+            return sid
+        cursor.execute(
+            "INSERT INTO sessions (project_id, name, shoot_date, status, "
+            "source_path, camera_name, device_id, device_folder, destination_override) "
+            "VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
+            (
+                project_id,
+                f"WiFi ({sender_name})",
+                _dt.now().strftime("%Y-%m-%d"),
+                source_path,
+                sender_name,
+                WIFI_DEVICE_ID,
+                alias,
+                location or None,
+            ),
+        )
+        sid = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return sid
+
+    def list_wifi_sessions(self, project_id: int):
+        """Devuelve las sesiones WiFi (PairDrop) de un proyecto."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id, name, device_folder, source_path, camera_name, "
+            "destination_override FROM sessions "
+            "WHERE project_id = ? AND device_id = ? ORDER BY id ASC",
+            (project_id, WIFI_DEVICE_ID),
+        )
+        rows = [{
+            "id": r[0],
+            "name": r[1],
+            "device_folder": r[2],
+            "source_path": r[3],
+            "camera_name": r[4],
+            "destination_override": r[5],
+        } for r in cursor.fetchall()]
+        conn.close()
+        return rows
 
     def dump_locations(self, project_id: int):
         conn = self.get_connection()
