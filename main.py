@@ -12,7 +12,7 @@ def main():
     app.setFont(QFont("Segoe UI", 9))
     app.setApplicationName("CosechaMedia")
     app.setOrganizationName("Audiovisual Production")
-    app.setApplicationVersion("1.2.0")
+    app.setApplicationVersion("1.2.1")
 
     translator.load_translation()
 

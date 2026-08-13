@@ -23,10 +23,10 @@ Ciclo de vida:
 
 import os
 
-from PySide6.QtCore import QObject, Qt, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QFormLayout,
+    QApplication, QCheckBox, QDialog, QDialogButtonBox, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -106,11 +106,23 @@ class ShootInboxPanel(QWidget):
             "border: 1px solid #333; border-radius: 6px; background: #ffffff;")
         layout.addWidget(self.qr_label, 0, Qt.AlignHCenter)
 
+        url_row = QHBoxLayout()
+        url_row.setSpacing(6)
         self.url_label = QLabel("")
         self.url_label.setWordWrap(True)
         self.url_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        self.url_label.setAlignment(Qt.AlignCenter)
-        layout.addWidget(self.url_label)
+        self.url_label.setTextFormat(Qt.PlainText)
+        self.url_label.setStyleSheet(
+            "font-family: 'Cascadia Mono', Consolas, monospace; font-size: 10px;"
+            "color: {}; background: {}; border: 1px solid {}; border-radius: 4px;"
+            "padding: 3px 6px;".format(
+                theme.color("text"), theme.color("bg"), theme.color("border")))
+        url_row.addWidget(self.url_label, 1)
+        self.copy_btn = QPushButton(self.tr("Copiar"))
+        self.copy_btn.setToolTip(self.tr("Copiar enlace"))
+        self.copy_btn.clicked.connect(self._copy_url)
+        url_row.addWidget(self.copy_btn)
+        layout.addLayout(url_row)
 
         self.status_label = QLabel("")
         self.status_label.setWordWrap(True)
@@ -205,11 +217,26 @@ class ShootInboxPanel(QWidget):
             return
         url = self._server.url_for_sender(name)
         self.url_label.setText(url)
+        self.copy_btn.setEnabled(True)
         self.qr_label.setPixmap(self._render_qr(url))
 
     def _clear_qr(self):
         self.qr_label.clear()
         self.url_label.setText("")
+        self.copy_btn.setEnabled(False)
+
+    def _copy_url(self):
+        url = self.url_label.text()
+        if not url:
+            return
+        QApplication.clipboard().setText(url)
+        self.copy_btn.setText(self.tr("Copiado"))
+        self.copy_btn.setEnabled(False)
+        QTimer.singleShot(1500, self._restore_copy_btn)
+
+    def _restore_copy_btn(self):
+        self.copy_btn.setText(self.tr("Copiar"))
+        self.copy_btn.setEnabled(True)
 
     def _render_qr(self, url):
         try:

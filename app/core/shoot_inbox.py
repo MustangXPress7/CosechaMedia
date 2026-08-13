@@ -36,62 +36,138 @@ _PAGE_TEMPLATE = """<!doctype html>
 <title>Enviar a CosechaMedia</title>
 <style>
   body {{ font-family: system-ui, -apple-system, sans-serif; background: #111;
-         color: #eee; margin: 0; padding: 24px; }}
+         color: #eee; margin: 0 auto; padding: 24px; max-width: 560px; }}
   h1 {{ font-size: 20px; margin: 0 0 6px; }}
   .alias {{ color: #7ee787; font-weight: 700; }}
+  .sub {{ font-size: 12px; color: #888; }}
   .card {{ background: #1c1c1c; border: 1px solid #333; border-radius: 12px;
           padding: 16px; margin: 16px 0; }}
+  .row {{ display: flex; gap: 8px; flex-wrap: wrap; }}
   .btn {{ background: #2ea043; color: #fff; border: 0; border-radius: 8px;
-         padding: 12px 18px; font-size: 15px; }}
-  .btn:disabled {{ opacity: .5; }}
+         padding: 12px 18px; font-size: 15px; cursor: pointer; }}
+  .btn:disabled {{ opacity: .5; cursor: default; }}
+  .btn.ghost {{ background: transparent; border: 1px solid #444;
+               color: #bbb; }}
   progress {{ width: 100%; margin: 8px 0; }}
-  #files {{ list-style: none; padding: 0; font-size: 13px; }}
+  #files {{ list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }}
   #files li {{ margin: 4px 0; }}
-  #status {{ font-size: 13px; color: #bbb; }}
+  #files li.pending {{ color: #d0d7de; }}
+  #files li.ok {{ color: #7ee787; }}
+  #files li.err {{ color: #f85149; }}
+  #status {{ font-size: 13px; color: #bbb; min-height: 18px; }}
+  #status.ok {{ color: #7ee787; }}
+  #status.err {{ color: #f85149; }}
+  .sub strong {{ color: #eee; }}
 </style>
 </head>
 <body>
 <h1>Enviar a CosechaMedia</h1>
-<p>Estás enviando a: <span class="alias">{alias}</span></p>
-<p style="font-size: 12px; color: #888;">Este móvil y el ordenador deben estar
-conectados a la misma red WiFi.</p>
+<p>Estás enviando desde: <span class="alias">{alias}</span></p>
+<p class="sub">Destino: CosechaMedia en <strong>{host}</strong>. Este móvil y el
+ordenador deben estar conectados a la misma red WiFi.</p>
 <div class="card">
-  <label>{pick_label}</label>
+  <label for="pick">{pick_label}</label>
   <input id="pick" type="file" {pick_attr}>
-  <ul id="files"></ul>
-  <button id="send" class="btn" disabled>Enviar</button>
+  <div class="row">
+    <button id="send" class="btn" disabled>Enviar</button>
+    <button id="cancel" class="btn ghost" hidden>Cancelar</button>
+  </div>
   <progress id="bar" value="0" max="100" hidden></progress>
   <p id="status"></p>
+  <ul id="files"></ul>
 </div>
 <script>
   const q = new URLSearchParams(location.search);
   const src = q.get("src");
   const token = q.get("token");
-  let queue = [];
+  let pending = [];
+  let sent = [];
+  let lastFiles = [];
+  let sending = false;
+  let cancel = false;
   const input = document.getElementById("pick");
   const list = document.getElementById("files");
   const sendBtn = document.getElementById("send");
+  const cancelBtn = document.getElementById("cancel");
   const bar = document.getElementById("bar");
   const statusEl = document.getElementById("status");
+
   input.addEventListener("change", function () {{
-    queue = Array.from(input.files);
-    render();
+    lastFiles = Array.from(input.files);
+    pending = lastFiles.slice();
+    sent = [];
+    cancel = false;
+    input.value = "";
+    update();
   }});
+
   function fmt(n) {{
+    if (typeof n !== "number" || !isFinite(n)) return "";
     if (n >= 1024 * 1024 * 1024) return (n / 1024 / 1024 / 1024).toFixed(1) + " GB";
     if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + " MB";
     if (n >= 1024) return (n / 1024).toFixed(1) + " KB";
     return n + " B";
   }}
-  function render() {{
+
+  function renderList() {{
     list.innerHTML = "";
-    queue.forEach(function (f, i) {{
+    pending.forEach(function (f, i) {{
       const li = document.createElement("li");
+      li.className = "pending";
       li.textContent = (i + 1) + ". " + f.name + " (" + fmt(f.size) + ")";
       list.appendChild(li);
     }});
-    sendBtn.disabled = queue.length === 0;
+    sent.forEach(function (s) {{
+      const li = document.createElement("li");
+      li.className = s.ok ? "ok" : "err";
+      let txt = (s.ok ? "✓ " : "✗ ") + (s.name || "") + " (" + fmt(s.size) + ")";
+      if (s.error) txt = txt + " — " + s.error;
+      li.textContent = txt;
+      list.appendChild(li);
+    }});
   }}
+
+  function failedFiles() {{
+    const out = [];
+    sent.forEach(function (s) {{ if (!s.ok) out.push(s.file); }});
+    return out;
+  }}
+
+  function update() {{
+    renderList();
+    bar.hidden = !sending;
+    if (sending) {{
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Enviando…";
+      cancelBtn.hidden = false;
+      statusEl.className = "";
+    }} else {{
+      cancelBtn.hidden = true;
+      const fails = failedFiles();
+      const attempted = sent.length;
+      if (pending.length > 0) {{
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Enviar";
+      }} else if (attempted > 0) {{
+        sendBtn.disabled = false;
+        sendBtn.textContent = fails.length > 0
+            ? "Reintentar (" + fails.length + ")"
+            : "Volver a enviar";
+        const ok = attempted - fails.length;
+        statusEl.textContent = fails.length > 0
+            ? "Listo: " + ok + "/" + attempted + " enviados. "
+              + fails.length + " con error."
+            : "Listo: " + attempted + "/" + attempted + " enviados.";
+        statusEl.className = fails.length > 0 ? "err" : "ok";
+      }} else {{
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Enviar";
+        statusEl.textContent = "";
+        statusEl.className = "";
+      }}
+    }}
+  }}
+
   function sendOne(file) {{
     return new Promise(function (resolve, reject) {{
       const xhr = new XMLHttpRequest();
@@ -112,24 +188,46 @@ conectados a la misma red WiFi.</p>
       xhr.send(file);
     }});
   }}
-  sendBtn.addEventListener("click", async function () {{
-    sendBtn.disabled = true;
-    bar.hidden = false;
-    bar.value = 0;
-    let ok = 0;
-    for (let i = 0; i < queue.length; i++) {{
-      statusEl.textContent = "Enviando " + (i + 1) + "/" + queue.length +
-                             ": " + queue[i].name;
+
+  async function run() {{
+    sending = true;
+    cancel = false;
+    update();
+    const total = pending.length;
+    while (pending.length > 0 && !cancel) {{
+      const file = pending[0];
+      const idx = total - pending.length + 1;
+      statusEl.className = "";
+      statusEl.textContent = "Enviando " + idx + "/" + total + ": " + file.name;
+      bar.value = 0;
       try {{
-        await sendOne(queue[i]);
-        ok++;
+        await sendOne(file);
+        sent.push({{file: file, ok: true, error: "",
+                    name: file.name, size: file.size}});
       }} catch (e) {{
-        statusEl.textContent = "Error en " + queue[i].name + ": " + e.message;
+        sent.push({{file: file, ok: false, error: e.message,
+                    name: file.name, size: file.size}});
       }}
+      pending.shift();
+      update();
     }}
-    statusEl.textContent = "Listo: " + ok + "/" + queue.length + " enviados.";
-    sendBtn.disabled = false;
+    if (cancel) statusEl.textContent = "Envío cancelado.";
+    sending = false;
+    update();
+  }}
+
+  sendBtn.addEventListener("click", async function () {{
+    if (sending) return;
+    if (pending.length === 0) {{
+      const fails = failedFiles();
+      pending = fails.length > 0 ? fails : lastFiles.slice();
+      sent = [];
+      if (pending.length === 0) return;
+    }}
+    await run();
   }});
+
+  cancelBtn.addEventListener("click", function () {{ cancel = true; }});
 </script>
 </body>
 </html>
@@ -219,6 +317,7 @@ class _UploadHandler(BaseHTTPRequestHandler):
         folder_mode = bool(getattr(self.server.owner, "folder_mode", False))
         page = _PAGE_TEMPLATE.format(
             alias=alias,
+            host=f"{(local_ip() or '127.0.0.1')}:{self.server.owner.port}",
             pick_label=("Selecciona la carpeta que quieres enviar"
                         if folder_mode else
                         "Selecciona los archivos que quieres enviar"),

@@ -87,12 +87,25 @@ class TestShootInboxServer(unittest.TestCase):
         self.assertIn(b"type=\"file\" multiple", body)
         self.assertNotIn(b"webkitdirectory", body)
         self.assertIn("misma red WiFi".encode(), body)
+        self.assertIn("Estás enviando desde".encode(), body)
+        self.assertIn(b"Destino: CosechaMedia en", body)
+        self.assertIn(f":{self.server.port}".encode(), body)
 
     def test_folder_mode_page_offers_whole_folder(self):
         self.server.folder_mode = True
         body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
         self.assertIn(b"webkitdirectory", body)
         self.assertIn(b"carpeta", body)
+
+    def test_page_has_resend_and_cancel_controls(self):
+        """La página ofrece volver a enviar tras completar, reintento de
+        fallidos y botón de cancelar."""
+        body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
+        self.assertIn(b'id="send"', body)
+        self.assertIn(b'id="cancel"', body)
+        self.assertIn(b"Volver a enviar", body)
+        self.assertIn(b"Reintentar (", body)
+        self.assertIn(b"Cancelar", body)
 
     def test_health(self):
         body = urlopen(f"{self.base}/health", timeout=10).read()

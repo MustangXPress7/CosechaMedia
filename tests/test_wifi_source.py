@@ -106,6 +106,24 @@ class TestWifiSource(unittest.TestCase):
         self.assertTrue(bool(panel.windowFlags() & Qt.Window))
         self.assertFalse(panel.isModal())
 
+    def test_panel_shows_sender_url_and_copy_button_copies_it(self):
+        from PySide6.QtWidgets import QApplication
+        from app.ui.wifi_panel import ShootInboxPanel
+        panel = ShootInboxPanel(self.window)
+        panel.attach_server(self._fake_server)
+        panel.select_sender("Alice")
+        expected = self._fake_server.url_for_sender("Alice")
+        self.assertEqual(panel.url_label.text(), expected)
+        self.assertTrue(panel.copy_btn.isEnabled())
+        panel.copy_btn.click()
+        self.assertEqual(QApplication.clipboard().text(), expected)
+
+    def test_copy_button_disabled_without_url(self):
+        from app.ui.wifi_panel import ShootInboxPanel
+        panel = ShootInboxPanel(self.window)
+        panel._clear_qr()
+        self.assertFalse(panel.copy_btn.isEnabled())
+
     def test_sync_wifi_sessions_creates_one_per_sender(self):
         from app.core import shoot_inbox as inboxmod
         self.window._open_wifi_panel()
