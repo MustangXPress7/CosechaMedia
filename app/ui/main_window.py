@@ -27,6 +27,16 @@ from app.ui import theme
 from app.ui.about_dialog import AboutDialog
 from app.ui.wheat_field import paint_wheat_field
 import app.ui.wheat_field as wheat_field
+from app.core import ftp, mtp
+from app.core import shoot_inbox as inboxmod
+from app.core.ftp import FtpBackend
+from app.core.metadata_engine import _is_system_entry
+from app.ui.device_picker import DevicePickerDialog
+from app.ui.ftp_picker import FtpPickerDialog
+from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
+from app.ui.source_picker import SourcePickerDialog
+from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
+from app.ui.wifi_picker import WifiMethodDialog
 
 ORG_TYPE_MAP = {
     0: "camera_first",
@@ -190,8 +200,8 @@ class MainWindow(QMainWindow):
         self.setup_views()
 
         settings = QSettings("Audiovisual Production", "CosechaMedia")
-        settings.setValue("camera_detection_mode", "manual")
-        self.project_camera_detection_mode = "manual"
+        stored_mode = settings.value("camera_detection_mode", "manual")
+        self.project_camera_detection_mode = stored_mode if stored_mode in ("manual", "auto") else "manual"
         self.project_camera_detection_timeout = settings.value("camera_detection_timeout", 5, type=int)
         self._update_detect_button_state()
         geometry = settings.value("geometry", type=QByteArray)
@@ -221,8 +231,6 @@ class MainWindow(QMainWindow):
         sessions = [s for s in db.get_sessions(self.current_project_id) if s.get("device_id")]
         if not sessions:
             return
-        from app.core import mtp
-        from app.core.ftp import FtpBackend
         try:
             mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
         except Exception:
@@ -398,10 +406,6 @@ class MainWindow(QMainWindow):
         self.btn_detect_drives.setToolTip(self.tr("Detectar unidades extraíbles"))
         self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)
         src_scan_row.addWidget(self.btn_detect_drives)
-        self.btn_guided_mode = QPushButton(self.tr("Modo guiado"))
-        self.btn_guided_mode.setToolTip(self.tr("Asistente guiado para volcados rápidos (próximamente)"))
-        self.btn_guided_mode.clicked.connect(self._show_guided_mode_stub)
-        src_scan_row.addWidget(self.btn_guided_mode)
         self.btn_scan_cameras = QPushButton(self.tr("📷 Escanear cámaras"))
         self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
@@ -717,11 +721,11 @@ class MainWindow(QMainWindow):
         mode_group = QGroupBox(self.tr("Modo"))
         mode_layout = QVBoxLayout(mode_group)
         mode_combo = QComboBox()
-        mode_combo.addItems([self.tr("Manual"), self.tr("Automático (próximamente)")])
-        mode_combo.setCurrentIndex(0)
-        mode_model = mode_combo.model()
-        mode_model.item(1).setEnabled(False)
-        mode_combo.setToolTip(self.tr("El modo automático estará disponible próximamente."))
+        mode_combo.addItems([self.tr("Manual"), self.tr("Automático (experimental)")])
+        mode_combo.setCurrentIndex(0 if self.project_camera_detection_mode != "auto" else 1)
+        mode_combo.setToolTip(
+            self.tr("El modo automático es experimental: detecta la cámara desde un archivo de muestra "
+                    "y puede no funcionar en todas las tarjetas."))
         mode_layout.addWidget(mode_combo)
         layout.addWidget(mode_group)
 
@@ -729,12 +733,16 @@ class MainWindow(QMainWindow):
         timeout_layout = QHBoxLayout(timeout_group)
         timeout_spin = QSpinBox()
         timeout_spin.setRange(5, 30)
-        timeout_spin.setValue(settings.value("camera_detection_timeout", 5, type=int))
-        timeout_spin.setEnabled(False)
-        timeout_spin.setToolTip(self.tr("Solo aplica al modo automático, disponible próximamente."))
+        timeout_spin.setValue(self.project_camera_detection_timeout)
+        timeout_spin.setEnabled(mode_combo.currentIndex() == 1)
+        timeout_spin.setToolTip(self.tr("Segundos que espera el modo automático antes de preguntar por la cámara."))
         timeout_layout.addWidget(timeout_spin)
         timeout_layout.addStretch()
         layout.addWidget(timeout_group)
+
+        def _on_mode_changed(index):
+            timeout_spin.setEnabled(index == 1)
+        mode_combo.currentIndexChanged.connect(_on_mode_changed)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
@@ -743,9 +751,10 @@ class MainWindow(QMainWindow):
         btn_save = QPushButton(self.tr("Guardar"))
         btn_save.setObjectName("PrimaryAction")
         def _save():
-            settings.setValue("camera_detection_mode", "manual")
+            selected = "auto" if mode_combo.currentIndex() == 1 else "manual"
+            settings.setValue("camera_detection_mode", selected)
             settings.setValue("camera_detection_timeout", timeout_spin.value())
-            self.project_camera_detection_mode = "manual"
+            self.project_camera_detection_mode = selected
             self.project_camera_detection_timeout = timeout_spin.value()
             self._update_detect_button_state()
             self._refresh_source_list()
@@ -888,7 +897,6 @@ class MainWindow(QMainWindow):
 
     def _manage_devices(self):
         """Lista dispositivos MTP/FTP guardados y permite borrarlos (con sus sesiones)."""
-        from app.core import ftp
         dialog = QDialog(self)
         dialog.setWindowTitle(self.tr("Dispositivos guardados"))
         dialog.setMinimumWidth(460)
@@ -2009,8 +2017,6 @@ class MainWindow(QMainWindow):
         self._update_format_sources_state()
 
     def _build_content_button(self, row, session):
-        from app.ui.selective_dump import content_summary
-        from app.core.db import WIFI_DEVICE_ID
         device_id = (session or {}).get("device_id") or ""
         is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
         is_ftp = bool(session) and device_id.startswith("ftp:")
@@ -2078,8 +2084,7 @@ class MainWindow(QMainWindow):
 
     def _reconfigure_ftp_source(self, session):
         """Reabre el selector FTP con el perfil de este origen preseleccionado."""
-        from app.core import ftp as ftpmod
-        profile_id = ftpmod.profile_id_from_device_key(
+        profile_id = ftp.profile_id_from_device_key(
             session.get("device_id") or "")
         self._pick_ftp_source(preset_profile_id=profile_id)
 
@@ -2282,7 +2287,6 @@ class MainWindow(QMainWindow):
             # Si es un origen WiFi, elimina el remitente asociado para que
             # _sync_wifi_sessions no lo recree.
             if s.get("device_id") == "wifi:pairdrop":
-                from app.core import shoot_inbox as inboxmod
                 folder = s.get("device_folder") or ""
                 for sender in db.list_inbox_senders():
                     if (inboxmod.sanitize_alias(sender["name"]) == folder):
@@ -2730,8 +2734,6 @@ class MainWindow(QMainWindow):
         ``kind`` puede ser ``"folder"``, ``"sender"`` o ``"ftp_profile"``
         (origen guardado) o ``"browse"`` (el usuario quiere explorar).
         """
-        from app.ui.source_picker import SourcePickerDialog
-        from app.core import shoot_inbox as inboxmod
         if self.current_project_id is None:
             return None
         sessions = db.get_sessions(self.current_project_id)
@@ -2831,8 +2833,6 @@ class MainWindow(QMainWindow):
         Con ``session_id`` (selector de sesión) convierte esa sesión concreta;
         sin él (origen nuevo) reutiliza una sesión sin origen o crea la WiFi.
         """
-        from app.core import shoot_inbox as inboxmod
-        from app.core.db import WIFI_DEVICE_ID
         if self.current_project_id is None:
             return
         if sender_name not in {s["name"] for s in db.list_inbox_senders()}:
@@ -2893,8 +2893,6 @@ class MainWindow(QMainWindow):
             self.tr("Origen WiFi asignado a la sesión #%1").arg(session_id))
 
     def _pick_device_source(self):
-        from app.ui.device_picker import DevicePickerDialog
-        from app.core import mtp
         dialog = DevicePickerDialog(self)
         if dialog.exec() != QDialog.Accepted:
             return
@@ -2917,7 +2915,6 @@ class MainWindow(QMainWindow):
         )
 
     def _pick_wifi_source(self):
-        from app.ui.wifi_picker import WifiMethodDialog
         dialog = WifiMethodDialog(self)
         if dialog.exec() != QDialog.Accepted:
             return
@@ -2967,7 +2964,6 @@ class MainWindow(QMainWindow):
                 self, self.tr("Sin proyecto"),
                 self.tr("Selecciona un proyecto primero."))
             return None
-        from app.ui.wifi_panel import SenderEditDialog
         dlg = SenderEditDialog(
             self,
             title=self.tr("Añadir dispositivo WiFi"),
@@ -2987,7 +2983,6 @@ class MainWindow(QMainWindow):
     def _ensure_wifi_server(self) -> bool:
         if self._wifi_server is not None and self._wifi_server.running:
             return True
-        from app.core import shoot_inbox as inboxmod
         self._wifi_server = inboxmod.ShootInboxServer()
         try:
             self._wifi_server.start()
@@ -3001,7 +2996,6 @@ class MainWindow(QMainWindow):
 
     def _show_wifi_panel(self):
         if self._wifi_panel is None:
-            from app.ui.wifi_panel import ShootInboxPanel
             self._wifi_panel = ShootInboxPanel(self)
             self._wifi_panel.received.connect(self._on_wifi_file_received)
             self._wifi_panel.stop_requested.connect(self._stop_wifi_reception)
@@ -3018,7 +3012,6 @@ class MainWindow(QMainWindow):
         y refresca la tabla de orígenes."""
         if self.current_project_id is None:
             return
-        from app.core import shoot_inbox as inboxmod
         senders = db.list_inbox_senders()
         existing = [(s["device_folder"], s["id"])
                     for s in db.list_wifi_sessions(self.current_project_id)]
@@ -3159,7 +3152,6 @@ class MainWindow(QMainWindow):
         ing = self._wifi_ingestors.get(sid)
         if ing is None:
             return
-        from app.core.metadata_engine import _is_system_entry
         for root, dirs, files in os.walk(cache_dir):
             dirs[:] = [d for d in dirs if not _is_system_entry(d)]
             for f in files:
@@ -3176,7 +3168,6 @@ class MainWindow(QMainWindow):
 
     def _is_inbox_cache_path(self, path):
         """True si ``path`` está dentro de la caché WiFi (``data/inbox``)."""
-        from app.core import shoot_inbox as inboxmod
         root = os.path.abspath(inboxmod.inbox_root(db))
         npath = os.path.abspath(path)
         return npath != root and npath.startswith(root + os.sep)
@@ -3191,7 +3182,6 @@ class MainWindow(QMainWindow):
                 os.remove(source_path)
         except OSError:
             return
-        from app.core import shoot_inbox as inboxmod
         root = os.path.abspath(inboxmod.inbox_root(db))
         parent = os.path.dirname(os.path.abspath(source_path))
         while parent and parent != root and os.path.isdir(parent):
@@ -3276,8 +3266,6 @@ class MainWindow(QMainWindow):
 
 
     def _pick_ftp_source(self, preset_profile_id=None):
-        from app.ui.ftp_picker import FtpPickerDialog
-        from app.core import mtp, ftp
         dialog = FtpPickerDialog(self, preset_profile_id=preset_profile_id)
         if dialog.exec() != QDialog.Accepted:
             return
@@ -3336,7 +3324,6 @@ class MainWindow(QMainWindow):
 
     def _stage_device_in_background(self, device_id, device_folder, session_id, cache_dir,
                                     backend=None, silent=False):
-        from app.core import mtp
         backend = backend or mtp.WpdBackend()
         worker = _StageWorker(backend, device_id, device_folder)
         thread = QThread(self)
@@ -3675,14 +3662,7 @@ class MainWindow(QMainWindow):
     def show_about(self):
         AboutDialog(self).exec()
 
-    def _show_guided_mode_stub(self):
-        QMessageBox.information(
-            self, self.tr("Modo guiado"),
-            self.tr("El Modo guiado para volcados rápidos estará disponible próximamente.")
-        )
-
     def _open_selective_dump(self):
-        from app.ui.selective_dump import SelectiveDumpAssistant
         if self.current_project_id is None:
             QMessageBox.information(
                 self, self.tr("Sin proyecto"),
@@ -3701,7 +3681,6 @@ class MainWindow(QMainWindow):
         dialog.exec()
 
     def _open_content_filter(self, row):
-        from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
         if self.current_project_id is None:
             return
         path_item = self.source_list.item(row, 0)

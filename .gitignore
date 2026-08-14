@@ -2,6 +2,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+.pytest_cache/
 .venv/
 venv/
 env/
@@ -18,6 +19,11 @@ _reference/
 Footage/
 .sdimport_session.json
 *.sdimport_session_*.json
+
+# Herramientas locales
+.opencode/
+.planning/
+graphify-out/
 
 # Sistema
 Thumbs.db

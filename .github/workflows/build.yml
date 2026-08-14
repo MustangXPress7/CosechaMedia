@@ -20,6 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate version tag
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          APP_VERSION="$(python -c 'import sys; sys.path.insert(0, "."); from app import __version__; print(__version__)')"
+          if [ "$TAG_VERSION" != "$APP_VERSION" ]; then
+            echo "ERROR: tag v$TAG_VERSION no coincide con __version__ ($APP_VERSION)" >&2
+            exit 1
+          fi
+
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
@@ -46,9 +56,10 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         run: |
+          VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p "dist/CosechaMedia.app/Contents/MacOS"
           mv dist/CosechaMedia "dist/CosechaMedia.app/Contents/MacOS/CosechaMedia"
-          cat > "dist/CosechaMedia.app/Contents/Info.plist" <<'PLIST'
+          cat > "dist/CosechaMedia.app/Contents/Info.plist" <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -56,8 +67,8 @@ jobs:
             <key>CFBundleExecutable</key><string>CosechaMedia</string>
             <key>CFBundleIdentifier</key><string>com.jmwstudio.CosechaMedia</string>
             <key>CFBundleName</key><string>CosechaMedia</string>
-            <key>CFBundleVersion</key><string>1.2.1</string>
-            <key>CFBundleShortVersionString</key><string>1.2.1</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
             <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
             <key>CFBundlePackageType</key><string>APPL</string>
             <key>NSHighResolutionCapable</key><true/>

@@ -1,3 +1,4 @@
+from app import __version__
 from app.ui.main_window import MainWindow
 from app.ui import theme
 from app.core.utils import resource_path
@@ -12,7 +13,7 @@ def main():
     app.setFont(QFont("Segoe UI", 9))
     app.setApplicationName("CosechaMedia")
     app.setOrganizationName("Audiovisual Production")
-    app.setApplicationVersion("1.2.1")
+    app.setApplicationVersion(__version__)
 
     translator.load_translation()
 
