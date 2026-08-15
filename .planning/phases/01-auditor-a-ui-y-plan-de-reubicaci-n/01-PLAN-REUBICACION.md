@@ -341,6 +341,32 @@ Cada hallazgo del informe (`01-HALLAZGOS.md`) tiene destino explícito: un ítem
 
 **Cobertura (patrón de bloque de cobertura, analog REQUIREMENTS.md:36-46):** ítems P1: 5, P2: 11, P3: 1, sin banda: 0 ✓ — los 17 ítems R-01..R-17 de la matriz (§2) están referenciados en esta tabla y cubren los 7 hallazgos H-01..H-07 del informe (conteo 7/7, sin huérfanos).
 
+## Gate de cero código
+
+**Fecha:** 2026-08-15 · **Estado:** git ✅ · tests ⚠️ REVISA OPERADOR (hang preexistente, ver abajo)
+
+**1. Conjuntos git comparados (`git status --porcelain app/ tests/ tools/`, segundo token por línea):**
+
+| Conjunto | Rutas |
+|----------|-------|
+| Base (`baseline_git.txt`) | `app/i18n/cosechamedia_en.qm`, `app/i18n/cosechamedia_en.ts`, `app/ui/main_window.py`, `tools/translate_en.py` |
+| Final (al cierre de esta tarea) | `app/i18n/cosechamedia_en.qm`, `app/i18n/cosechamedia_en.ts`, `app/ui/main_window.py`, `tools/translate_en.py` |
+
+**Igualdad de conjuntos: ✓ IDÉNTICOS** — la fase no ha añadido ni modificado ninguna ruta bajo `app/`, `tests/` ni `tools/`. (Nota: `baseline_git.txt` se normalizó quitando un BOM UTF-8 en su primera línea — solo bytes de cabecera, rutas intactas — para que la comparación de conjuntos del verify sea exacta; desviación registrada en el SUMMARY del plan 03.)
+
+**2. Suite de tests (`python -m unittest discover tests/`, Qt offscreen): ⚠️ NO SALE 0 — HANG, REVISA OPERADOR**
+
+La suite **no completa** por un cuelgue determinista y preexistente (no causado por esta fase — no se ha tocado código):
+
+- **Cuelga en:** `tests/test_wifi_source.py::TestWifiSource::test_pick_wifi_source_ftp_opens_ftp_picker` (`tests/test_wifi_source.py:726-734`), que mockea `app.ui.wifi_picker.WifiMethodDialog` pero **no** `app.ui.main_window.WifiMethodDialog`; `main_window.py:39` hace `from app.ui.wifi_picker import WifiMethodDialog` (binding en import-time), así que `_pick_wifi_source()` (`main_window.py:2923-2930`) instancia el diálogo real y `dialog.exec()` bloquea para siempre en modo offscreen.
+- **Verificación del diagnóstico:** sonda read-only confirmó `mw.WifiMethodDialog is mock → False`; variante `test_pick_wifi_source_pairdrop_configures_new_qr` (mismo patrón) se colgaría igual (nunca llega a ejecutarse: orden alfabético ejecuta FTP primero).
+- **12 de 13 módulos pasan en <90 s cada uno** (test_db, test_e2e, test_ftp, test_ingestor, test_metadata_engine, test_mtp, test_mtp_integration, test_selective_dump, test_shoot_inbox, test_source_content, test_source_picker, test_updater → todos EXIT 0).
+- **Pre-existencia:** el import `main_window.py:39` y el test `:726` están en código commiteado (no en el diff no commiteado de la fase); `tests/` sin cambios respecto a la línea base.
+
+**Acción conforme al plan (tarea 3, "no arreglar: la fase es diagnóstico"):** el fallo se registra aquí con estado **REVISA OPERADOR** y se remite a revisión en el checkpoint del plan 04 (el fix — renombrar el mock a `app.ui.main_window.WifiMethodDialog` o mover el binding — es decisión de la fase v2, UI-04/UI-05).
+
+**3. Herramientas i18n:** no se ejecutaron `tools/update_translations.ps1` ni `tools/translate_en.py` (T-03-03 cumplido — línea base i18n intacta, verificada por la igualdad de conjuntos).
+
 ---
 
 *Plan de reubicación: 2026-08-15*
