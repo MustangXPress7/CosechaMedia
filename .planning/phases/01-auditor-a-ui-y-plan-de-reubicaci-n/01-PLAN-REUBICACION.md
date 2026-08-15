@@ -1,7 +1,7 @@
 # Fase 1: Plan de Reubicación — Auditoría UI
 
 **Elaborado:** 2026-08-15
-**Estado:** draft — pendiente de aprobación del operador (checkpoint plan 04)
+**Estado:** aprobado por el operador (2026-08-15) — contrato de entrada de la fase v2 (UI-04/UI-05)
 
 ## Resumen por bandas
 
@@ -19,7 +19,7 @@ El informe de hallazgos (`01-HALLAZGOS.md`) identificó **7 hallazgos (H-01..H-0
 - **one (P3, 1-2 ítems):** "1 ítem P3" — R-16.
 - **zero (sin P1):** no aplica — las tres bandas tienen ítems; ninguna banda se oculta ni se vacía en silencio. Si una banda quedara vacía se declararía explícitamente "Zona sin ítems de reubicación" (copy literal `01-UI-SPEC.md:263` / `01-PATTERNS.md:166`) en §1 y §3.
 
-**Ítems destructivos (5):** R-02 (formatear orígenes), R-03 (apagar al acabar), R-07 (eliminar origen), R-08 (eliminar sesión), R-09 (eliminar proyecto) — quedan **pendientes de confirmación D-09** y **no reciben orden de ejecución** hasta la confirmación explícita del operador en el checkpoint del plan 04 (las confirmaciones de runtime ya existen en el código: formateo `main_window.py:1802`, apagado `:1837-1842`, eliminar origen/sesión/proyecto `:2266,2473,3554`; el hallazgo es de presentación/ubicación, no de pérdida de datos).
+**Ítems destructivos (5):** R-02 (formatear orígenes), R-03 (apagar al acabar), R-07 (eliminar origen), R-08 (eliminar sesión), R-09 (eliminar proyecto) — **aprobados explícitamente por el operador el 2026-08-15** (checkpoint plan 04, patrón D-09: "Confirmo los 5 destructivos") y con orden de ejecución dentro de su flujo (P1 formatear: R-02 → R-03 tras R-01; P2 conectar: R-07, R-09; P2 ingestar: R-08; ver "Orden:" en cada bloque de §3 y el §5). Las confirmaciones de runtime ya existen en el código: formateo `main_window.py:1802`, apagado `:1837-1842`, eliminar origen/sesión/proyecto `:2266,2473,3554`; el hallazgo es de presentación/ubicación, no de pérdida de datos.
 
 ## Matriz de puntuación
 
@@ -72,7 +72,7 @@ Matriz por hallazgo (una fila por H-NN, con el Score y la banda del ítem líder
 
 ## Plan por zona
 
-Las 4 zonas tienen ítems de reubicación; ninguna se oculta ni se vacía en silencio (D-03, UI-03). Dentro de cada banda, los ítems se ordenan por flujo del operador (conectar → ingestar → formatear → reorganizar, D-01); los ítems destructivos quedan **pendientes de confirmación D-09** sin orden de ejecución.
+Las 4 zonas tienen ítems de reubicación; ninguna se oculta ni se vacía en silencio (D-03, UI-03). Dentro de cada banda, los ítems se ordenan por flujo del operador (conectar → ingestar → formatear → reorganizar, D-01); los ítems destructivos fueron **aprobados por el operador el 2026-08-15** (patrón D-09, §5) y reciben orden de ejecución dentro de su flujo (ver "Orden:" en cada bloque).
 
 ### Zona A — Ventana principal / dashboard (5 ítems)
 
@@ -104,7 +104,7 @@ Las 4 zonas tienen ítems de reubicación; ninguna se oculta ni se vacía en sil
 - **Strings nuevos:** `tr("Eliminar origen…")` + confirmación con plantilla D-09 `tr("Eliminar <elemento>: Esta acción no se puede deshacer. <Consecuencia específica>.")` (`01-UI-SPEC.md:105`)
 - **Riesgo:** tests: bajo — `btn_remove_source` no acoplado a tests; la confirmación `_remove_selected_source` ya existe (`:2266`). i18n: 1 string nuevo + plantilla. Estética: bajo.
 - **Score:** 1.5 (4 − (2+3)/2) → **P2**
-- **Orden:** pendiente de confirmación D-09 — no recibe orden de ejecución
+- **Orden:** P2-6 (flujo conectar; tras el cluster D-12 — D-09 aprobado 2026-08-15)
 
 **R-08 — `btn_delete_session` → "Eliminar sesión…" (H-03 · D-09):**
 - **Zona·Flujo:** A · i (ingestar)
@@ -114,7 +114,7 @@ Las 4 zonas tienen ítems de reubicación; ninguna se oculta ni se vacía en sil
 - **Strings nuevos:** `tr("Eliminar sesión…")` + plantilla D-09
 - **Riesgo:** tests: bajo — `btn_delete_session` no acoplado a tests. i18n: 1 string nuevo + plantilla. Estética: bajo.
 - **Score:** 1.5 (4 − (2+3)/2) → **P2**
-- **Orden:** pendiente de confirmación D-09 — no recibe orden de ejecución
+- **Orden:** P2-8 (flujo ingestar — D-09 aprobado 2026-08-15)
 
 **R-09 — `btn_delete_project` → confirmación explícita en header (H-03 · D-09):**
 - **Zona·Flujo:** A · g (gestión de proyecto; se activa en conectar)
@@ -124,7 +124,7 @@ Las 4 zonas tienen ítems de reubicación; ninguna se oculta ni se vacía en sil
 - **Strings nuevos:** `tr("Eliminar proyecto…")` + plantilla D-09
 - **Riesgo:** tests: bajo — `btn_delete_project` no acoplado a tests. i18n: 1 string nuevo + plantilla. Estética: bajo.
 - **Score:** 1.0 (3 − (1+3)/2) → **P2**
-- **Orden:** pendiente de confirmación D-09 — no recibe orden de ejecución
+- **Orden:** P2-7 (flujo conectar/gestión; tras R-07 — D-09 aprobado 2026-08-15)
 
 ### Zona B — Pickers de fuente (5 ítems)
 
@@ -212,7 +212,7 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **Strings nuevos:** — (labels existentes); confirmación con plantilla D-09 si procede
 - **Riesgo:** tests: medio — `chk_format_sources` y `combo_format_mode` usados en `tests/test_wifi_source.py:353-354,364` (`isEnabled`); mantener attrs y estados. i18n: ninguno (labels existentes). Estética: bajo.
 - **Score:** 2.5 (4 − (1+2)/2) → **P1**
-- **Orden:** pendiente de confirmación D-09 (destructivo: formatea tarjetas) — no recibe orden de ejecución
+- **Orden:** P1-4 (flujo formatear; tras R-01 — D-09 aprobado 2026-08-15)
 
 **R-03 — `chk_shutdown` → subgrupo "Al terminar" (H-01 · D-07):**
 - **Zona·Flujo:** D · f (formatear)
@@ -222,7 +222,7 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **Strings nuevos:** — (label existente); confirmación con plantilla D-09
 - **Riesgo:** tests: bajo — `chk_shutdown` no acoplado a tests. i18n: ninguno. Estética: bajo.
 - **Score:** 2.5 (4 − (1+2)/2) → **P1**
-- **Orden:** pendiente de confirmación D-09 (destructivo: apaga el equipo) — no recibe orden de ejecución
+- **Orden:** P1-5 (flujo formatear; tras R-02 — D-09 aprobado 2026-08-15)
 
 **R-04 — `btn_reorganize` → subgrupo "Operaciones" + siempre visible (H-01 · D-07):**
 - **Zona·Flujo:** D · r (reorganizar)
@@ -232,7 +232,7 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **Strings nuevos:** — (ninguno)
 - **Riesgo:** tests: bajo — `btn_reorganize` no acoplado a tests; eliminar el `setVisible` condicional requiere verificar el flujo de detección no-auto. i18n: ninguno. Estética: medio — el botón pasa a estar siempre presente en el layout.
 - **Score:** 2.0 (4 − (1+3)/2) → **P2**
-- **Orden:** P2-6 (flujo reorganizar)
+- **Orden:** P2-9 (flujo reorganizar)
 
 **R-05 — `btn_clear_completed` → subgrupo "Operaciones" (H-01 · D-07):**
 - **Zona·Flujo:** D · r (reorganizar)
@@ -242,7 +242,7 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **Strings nuevos:** — (ninguno)
 - **Riesgo:** tests: bajo — `btn_clear_completed` no acoplado a tests. i18n: ninguno. Estética: bajo.
 - **Score:** 1.5 (3 − (1+2)/2) → **P2**
-- **Orden:** P2-7 (flujo reorganizar)
+- **Orden:** P2-10 (flujo reorganizar)
 
 **R-17 — Entrada visible "Volcado selectivo…" (H-07, hallazgo nuevo):**
 - **Zona·Flujo:** D · r (reorganizar)
@@ -252,7 +252,7 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **Strings nuevos:** `tr("Volcado selectivo…")`
 - **Riesgo:** tests: medio — `SelectiveDumpAssistant` cubierto por `tests/test_selective_dump.py`; el wiring nuevo añade una entrada, no toca el asistente. i18n: 1 string nuevo. Estética: bajo.
 - **Score:** 1.0 (3 − (2+2)/2) → **P2**
-- **Orden:** P2-8 (flujo reorganizar; depende de R-01, su contenedor)
+- **Orden:** P2-11 (flujo reorganizar; depende de R-01, su contenedor)
 
 **Strings nuevos del contrato (12, UI-SPEC:112) — listados sin implementar (v2 los implementará con `tr()` en los módulos destino):**
 
@@ -285,43 +285,43 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - **R-10 ← C-03 `desc_input`:** reutiliza el dato ya capturado por `ProjectWizard` (guardado en `:1191,3647`); no mueve el control del wizard, solo añade el display en el dashboard.
 - **R-17 ← `_open_selective_dump`:** wiring de una entrada existente (`main_window.py:3671-3687`); no toca `SelectiveDumpAssistant`.
 
-**Discrepancia D-12 (documentada para revisión humana en el plan 04):** la tabla target-state de `01-UI-SPEC.md` marca el cluster D-12 (filas `:131,174-177`) como **P1**, pero la fórmula D-06 con Esfuerzo = 5 (definicional para D-12, `:249` — toca `main_window.py` + `source_picker.py` + `device_picker.py`) arroja Score 1.0 → **P2**. Este plan aplica la fórmula (vínculo must-haves: la banda se deriva del Score) y ordena el cluster al inicio de P2 (P2-2..P2-5). La discrepancia queda pendiente de confirmación del operador en el checkpoint del plan 04 (§5).
+**Discrepancia D-12 (revisada por el operador en el plan 04 — RESUELTA):** la tabla target-state de `01-UI-SPEC.md` marca el cluster D-12 (filas `:131,174-177`) como **P1**, pero la fórmula D-06 con Esfuerzo = 5 (definicional para D-12, `:249` — toca `main_window.py` + `source_picker.py` + `device_picker.py`) arroja Score 1.0 → **P2**. Este plan aplica la fórmula (vínculo must-haves: la banda se deriva del Score) y ordena el cluster al inicio de P2 (P2-2..P2-5). **Decisión del operador (2026-08-15): "Mantener banda de la fórmula (P2)"** — el cluster D-12 (R-12..R-16) se mantiene en P2 (registrado en §5).
 
 ## Estado de aprobación
 
-**Checklist de aprobación (los rellena el operador en el plan 04):**
+**Checklist de aprobación (rellenado por el operador el 2026-08-15):**
 
-- [ ] Apruebo las bandas P1/P2/P3 y el orden propuesto (P1: R-10 → R-06 → R-01; P2: R-11 → R-12 → R-13 → R-14 → R-15 → R-04 → R-05 → R-17; P3: R-16)
-- [ ] Apruebo los ítems destructivos R-02, R-03, R-07, R-08, R-09 (patrón D-09) — al aprobarlos reciben orden dentro de su flujo
-- [ ] Reviso la discrepancia D-12 (fórmula → P2 vs. target-state → P1) y decido si se mantiene la banda de la fórmula
+- [x] Apruebo las bandas P1/P2/P3 y el orden propuesto (P1: R-10 → R-06 → R-01; P2: R-11 → R-12 → R-13 → R-14 → R-15 → R-04 → R-05 → R-17; P3: R-16) — **decisión (2026-08-15):** "Apruebo bandas y orden"
+- [x] Apruebo los ítems destructivos R-02, R-03, R-07, R-08, R-09 (patrón D-09) — al aprobarlos reciben orden dentro de su flujo — **decisión (2026-08-15):** "Confirmo los 5 destructivos" (R-02 formatear orígenes, R-03 apagar al acabar, R-07 eliminar origen, R-08 eliminar sesión, R-09 eliminar proyecto); orden asignado: P1 formatear R-02 → R-03 tras R-01; P2 conectar R-07, R-09; P2 ingestar R-08
+- [x] Reviso la discrepancia D-12 (fórmula → P2 vs. target-state → P1) y decido si se mantiene la banda de la fórmula — **decisión (2026-08-15):** "Mantener banda de la fórmula (P2)" — el cluster D-12 (R-12..R-16) se mantiene en P2
 
 **Estado por banda (patrón tabla de progreso):**
 
 | Banda | Ítems | Estado |
 |-------|-------|--------|
-| P1 (≥ 2.5) | 5 | Pendiente de aprobación (plan 04) |
-| P2 (1.0–2.4) | 11 | Pendiente de aprobación (plan 04) |
-| P3 (< 1.0) | 1 | Pendiente de aprobación (plan 04) |
+| P1 (≥ 2.5) | 5 | Aprobado (operador, 2026-08-15) |
+| P2 (1.0–2.4) | 11 | Aprobado (operador, 2026-08-15) |
+| P3 (< 1.0) | 1 | Aprobado (operador, 2026-08-15) |
 
-**Aprobación por ítem (checklist `- [ ]`, pendiente hasta aprobación del usuario):**
+**Aprobación por ítem (todos aprobados por el operador, 2026-08-15):**
 
-- [ ] R-01 — Grupo "Acciones post-ingesta" (P1)
-- [ ] R-02 — Formatear orígenes → "Al terminar" (P1 · destructivo, D-09)
-- [ ] R-03 — Apagar al acabar → "Al terminar" (P1 · destructivo, D-09)
-- [ ] R-04 — Reorganizar → "Operaciones" + siempre visible (P2)
-- [ ] R-05 — Limpiar completados → "Operaciones" (P2)
-- [ ] R-06 — Apilado vertical de sesiones (P1)
-- [ ] R-07 — "Eliminar origen…" en menú contextual (P2 · destructivo, D-09)
-- [ ] R-08 — "Eliminar sesión…" (P2 · destructivo, D-09)
-- [ ] R-09 — "Eliminar proyecto…" con confirmación (P2 · destructivo, D-09)
-- [ ] R-10 — Línea "Descripción del proyecto" (P1)
-- [ ] R-11 — Columnas de `source_list` Interactive + persistencia (P2)
-- [ ] R-12 — Diálogo unificado "Añadir origen" (P2)
-- [ ] R-13 — Pestaña "Dispositivos" MTP (P2)
-- [ ] R-14 — Pestaña "Dispositivos" FTP (P2)
-- [ ] R-15 — Zona "Dispositivos desconectados" (P2)
-- [ ] R-16 — `WifiMethodDialog` mantenido (P3)
-- [ ] R-17 — Entrada "Volcado selectivo…" (P2)
+- [x] R-01 — Grupo "Acciones post-ingesta" (P1)
+- [x] R-02 — Formatear orígenes → "Al terminar" (P1 · destructivo, D-09)
+- [x] R-03 — Apagar al acabar → "Al terminar" (P1 · destructivo, D-09)
+- [x] R-04 — Reorganizar → "Operaciones" + siempre visible (P2)
+- [x] R-05 — Limpiar completados → "Operaciones" (P2)
+- [x] R-06 — Apilado vertical de sesiones (P1)
+- [x] R-07 — "Eliminar origen…" en menú contextual (P2 · destructivo, D-09)
+- [x] R-08 — "Eliminar sesión…" (P2 · destructivo, D-09)
+- [x] R-09 — "Eliminar proyecto…" con confirmación (P2 · destructivo, D-09)
+- [x] R-10 — Línea "Descripción del proyecto" (P1)
+- [x] R-11 — Columnas de `source_list` Interactive + persistencia (P2)
+- [x] R-12 — Diálogo unificado "Añadir origen" (P2)
+- [x] R-13 — Pestaña "Dispositivos" MTP (P2)
+- [x] R-14 — Pestaña "Dispositivos" FTP (P2)
+- [x] R-15 — Zona "Dispositivos desconectados" (P2)
+- [x] R-16 — `WifiMethodDialog` mantenido (P3)
+- [x] R-17 — Entrada "Volcado selectivo…" (P2)
 
 ## Trazabilidad hallazgo ↔ ítem (5-bis)
 
@@ -329,9 +329,9 @@ Cada hallazgo del informe (`01-HALLAZGOS.md`) tiene destino explícito: un ítem
 
 | Hallazgo | Destino | Nota |
 |----------|---------|------|
-| H-01 · Zona post-ingesta desordenada (D-07) | R-01, R-02, R-03, R-04, R-05 | Se reubica en subgrupos; R-02/R-03 destructivos pendientes D-09 |
+| H-01 · Zona post-ingesta desordenada (D-07) | R-01, R-02, R-03, R-04, R-05 | Se reubica en subgrupos; R-02/R-03 destructivos aprobados D-09 (operador, 2026-08-15) |
 | H-02 · Panel de sesiones crece a la derecha (D-08) | R-06 | Se reubica (apilado vertical) |
-| H-03 · Botones de eliminar genéricos (D-09) | R-07, R-08, R-09 | Se reubican (menú contextual + confirmación); destructivos pendientes D-09 |
+| H-03 · Botones de eliminar genéricos (D-09) | R-07, R-08, R-09 | Se reubican (menú contextual + confirmación); destructivos aprobados D-09 (operador, 2026-08-15) |
 | H-04 · Descripción del proyecto, dato muerto (D-10) | R-10 | Se reubica (display en dashboard, Zona A) |
 | H-05 · Columnas de `source_list` de ancho fijo (D-11) | R-11 | Se reubica (columnas redimensionables + persistencia) |
 | H-06 · Duplicado "guardar dispositivos" (D-12, costly) | R-12, R-13, R-14, R-15, R-16 | Se reubica (diálogo unificado + pestañas) |
