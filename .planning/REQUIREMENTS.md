@@ -47,4 +47,4 @@ Diferidos a una fase futura. Registrados pero fuera del roadmap actual.
 
 ---
 *Requirements defined: 2026-08-15*
-*Last updated: 2026-08-15 after initial definition*
+*Last updated: 2026-08-15 — traceability confirmed in ROADMAP.md (UI-01, UI-02, UI-03 → Phase 1, único slice MVP: auditoría + informe + plan, sin cambios de código)*
