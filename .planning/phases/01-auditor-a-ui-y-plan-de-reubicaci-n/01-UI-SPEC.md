@@ -1,7 +1,8 @@
 ---
 phase: 1
 slug: auditor-a-ui-y-plan-de-reubicaci-n
-status: draft
+status: approved
+reviewed_at: 2026-08-15
 shadcn_initialized: false
 preset: none
 created: 2026-08-15
@@ -104,6 +105,8 @@ Fase de diagnóstico: el "CTA" es producir los entregables acordados. Todos los 
 | Destructive confirmation (propuesta v2, patrón D-09) | "Eliminar <elemento>: Esta acción no se puede deshacer. <Consecuencia específica>." |
 | Severity labels (informe) | Bloqueante / Alto / Medio / Bajo |
 | Priority labels (plan) | Prioridad alta (P1) / Prioridad media (P2) / Prioridad baja (P3) |
+
+**Empty-state copy de las pestañas del diálogo unificado "Añadir origen" (target v2, D-12):** "Sin dispositivos guardados", "No se detectaron dispositivos", "Sin dispositivos conocidos" (estado de pestaña sin contenido).
 
 **Etiquetas nuevas para tr() (target-state, español fuente):**
 `Añadir origen…`, `Dispositivos guardados`, `Dispositivos desconectados`, `Descripción del proyecto`, `Acciones post-ingesta`, `Al terminar`, `Operaciones`, `Eliminar origen…`, `Eliminar sesión…`, `Eliminar proyecto…`, `Volcado selectivo…`, `Eliminar <elemento>` (plantilla de confirmación).
@@ -252,7 +255,7 @@ Cada ítem de `01-PLAN-REUBICACION.md` declara obligatoriamente:
 
 ## UI Considerations
 
-Estado objetivo y entregables cubiertos por el probe de estados (shape-rooted): {7 covered, 1 backstop, 0 unresolved}
+Estado objetivo y entregables cubiertos por el probe de estados (shape-rooted): {11 covered, 1 backstop, 0 unresolved}
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -290,11 +293,11 @@ La fase no introduce dependencias ni bloques de terceros: `requirements.txt` no 
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** {pending / approved 2026-08-15}
+**Approval:** approved 2026-08-15
