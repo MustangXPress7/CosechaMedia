@@ -323,6 +323,24 @@ El resto de la Zona C (**no reubicar — ya bien ubicado**): `ProjectWizard` man
 - [ ] R-16 — `WifiMethodDialog` mantenido (P3)
 - [ ] R-17 — Entrada "Volcado selectivo…" (P2)
 
+## Trazabilidad hallazgo ↔ ítem (5-bis)
+
+Cada hallazgo del informe (`01-HALLAZGOS.md`) tiene destino explícito: un ítem `R-NN` de la matriz (§2) o un motivo de descarte escrito. **Ningún hallazgo queda huérfano (UI-03, T-03-05).**
+
+| Hallazgo | Destino | Nota |
+|----------|---------|------|
+| H-01 · Zona post-ingesta desordenada (D-07) | R-01, R-02, R-03, R-04, R-05 | Se reubica en subgrupos; R-02/R-03 destructivos pendientes D-09 |
+| H-02 · Panel de sesiones crece a la derecha (D-08) | R-06 | Se reubica (apilado vertical) |
+| H-03 · Botones de eliminar genéricos (D-09) | R-07, R-08, R-09 | Se reubican (menú contextual + confirmación); destructivos pendientes D-09 |
+| H-04 · Descripción del proyecto, dato muerto (D-10) | R-10 | Se reubica (display en dashboard, Zona A) |
+| H-05 · Columnas de `source_list` de ancho fijo (D-11) | R-11 | Se reubica (columnas redimensionables + persistencia) |
+| H-06 · Duplicado "guardar dispositivos" (D-12, costly) | R-12, R-13, R-14, R-15, R-16 | Se reubica (diálogo unificado + pestañas) |
+| H-07 · Volcado selectivo sin entrada visible (nuevo) | R-17 | Se reubica (wiring de entrada visible) |
+
+**Sin descartes:** los 7 hallazgos del informe se reubican — ninguno se marca "no reubicar". Los controles de Zona C conservados (`ProjectWizard`, `SelectiveDumpAssistant`, `ShootInboxPanel`, `AboutDialog` — "no reubicar — ya bien ubicado", §3 Zona C) son filas del inventario, no hallazgos, y no requieren ítem.
+
+**Cobertura (patrón de bloque de cobertura, analog REQUIREMENTS.md:36-46):** ítems P1: 5, P2: 11, P3: 1, sin banda: 0 ✓ — los 17 ítems R-01..R-17 de la matriz (§2) están referenciados en esta tabla y cubren los 7 hallazgos H-01..H-07 del informe (conteo 7/7, sin huérfanos).
+
 ---
 
 *Plan de reubicación: 2026-08-15*
