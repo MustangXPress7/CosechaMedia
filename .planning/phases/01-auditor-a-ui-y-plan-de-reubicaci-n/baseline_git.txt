@@ -1,0 +1,4 @@
+﻿app/i18n/cosechamedia_en.qm
+app/i18n/cosechamedia_en.ts
+app/ui/main_window.py
+tools/translate_en.py

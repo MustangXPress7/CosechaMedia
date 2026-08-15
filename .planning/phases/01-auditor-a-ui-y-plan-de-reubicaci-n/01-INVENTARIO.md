@@ -171,6 +171,23 @@ Mapeo de cada decisión confirmada por el usuario (01-CONTEXT.md:26-32) a las fi
 | D-11 | Columnas de `source_list` de ancho fijo sin posibilidad de redimensionar | A-19 (`source_list`: col1/col2 Fixed, `app/ui/main_window.py:400-405`) |
 | D-12 | Duplicado "guardar dispositivos": origen personalizado de sesión vs. dispositivos guardados son dos flujos separados que parecen lo mismo | A-16, A-17, A-18 (entrada de origen manual) + B-01..B-05 (`SourcePickerDialog`) + B-06..B-11 (`DevicePickerDialog`) + B-12..B-28 (`FtpPickerDialog`) + B-29..B-32 (`WifiMethodDialog`) |
 
+## Leyenda de capturas
+
+Capturas offscreen (QT_QPA_PLATFORM=offscreen) generadas por `capture_ui.py` — mismas fuentes que las filas de este inventario. Ancho ≤1920px en todas.
+
+| Captura | Zona | Escena | Estado | Archivo de origen (widgets) | Notas |
+|---------|------|--------|--------|-----------------------------|-------|
+| `captures/zonaA_estado-inicial.png` | A — Ventana principal / dashboard | `MainWindow` completa | estado inicial (sin proyecto) | `app/ui/main_window.py` (header 261-345, source_list 396-418, sessions 434-503, acciones 505-521, progreso 528-532, proxies 536-543, stats 549-555) | BD temporal vacía; combo de proyecto en "-- Selecciona un proyecto --" |
+| `captures/zonaA_configurado.png` | A — Ventana principal / dashboard | `MainWindow` completa | configurado (proyecto + sesión + progreso + tabla) | `app/ui/main_window.py` (mismos + table 598-614) | Proyecto "Rodaje_Test" con sesión activa, 12/8/0 archivos, proxy 1080p marcado, 3 filas de ejemplo |
+| `captures/zonaB_estado-inicial.png` | B — Pickers de fuente | `SourcePickerDialog` | estado inicial (sin orígenes) | `app/ui/source_picker.py:29-68` | Secciones "(vacío)" para carpetas, WiFi y FTP |
+| `captures/zonaB_configurado.png` | B — Pickers de fuente | `SourcePickerDialog` | configurado (orígenes poblados) | `app/ui/source_picker.py:29-68` | 2 carpetas, 2 remitentes WiFi (1 "ya asignado"), 1 perfil FTP |
+| `captures/zonaC_estado-inicial.png` | C — Asistentes y paneles | `ProjectWizard` | estado inicial (vacío) | `app/ui/project_wizard.py:28-119` | Placeholders visibles, radio "Un solo día" por defecto |
+| `captures/zonaC_configurado.png` | C — Asistentes y paneles | `ProjectWizard` | configurado (formulario lleno) | `app/ui/project_wizard.py:28-119` | Nombre/descripción/destino, "Múltiples días", organización "Fecha primero" |
+| `captures/zonaD_estado-inicial.png` | D — Acciones post-ingesta | Zona bajo la barra de progreso (recorte columna izquierda) | estado inicial | `app/ui/main_window.py:528-543,549-593` | Recorte de `progress_bar` hasta `chk_shutdown`; checkboxes sin marcar |
+| `captures/zonaD_configurado.png` | D — Acciones post-ingesta | Zona bajo la barra de progreso (recorte columna izquierda) | configurado | `app/ui/main_window.py:528-543,549-593` | Progreso 40%, formatear marcado + modo "Completo", apagar marcado |
+
+Todas las capturas se generaron correctamente (8/8). No hay "captura pendiente" registrada.
+
 ---
 
 *Inventario de widgets: 2026-08-15*
