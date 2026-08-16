@@ -45,12 +45,15 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
 | I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | Abierta — baja prioridad (tras base sólida) |
 | I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar — carrera `_cam_done`, rename con `/`, validar el fix MTP en vivo | Core | uso | Abierta — PRIMERO |
+| I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard). Por defecto lo más sencillo posible (sin fechas), mostrando las opciones extra relevantes antes de crear | Proyectos | nuevo feature | Abierta |
+| I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | Abierta |
+| I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear, para usuarios "muy vagos" — conclusión de la integración de las acciones rápidas | Ingesta/UI | nuevo feature | Abierta — verde, ligada a I-01/R-02 |
 
 ## Rutas futuras (candidatas a fase)
 
 | Ruta | Prioridad | Origen | Notas |
 |------|-----------|--------|-------|
 | R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto |
-| R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 — la ruta bandera que integra configuración de proyecto + volcado + acciones |
+| R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración) |
 | R-03 | **Sesiones como réplica a otro disco/servidor** | nuevo feature | I-02 — conecta con la visión de sesión=backup |
 | R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | Ya planeado en Fase 2 |
