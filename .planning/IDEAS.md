@@ -13,12 +13,14 @@ CosechaMedia es la aplicación para **agilizar el proceso de volcar una SD o dis
 
 - **Volcado selectivo** — para tarjetas "en sucio" con varias jornadas de trabajo: volcar solo un rango de fechas.
 - **Proyectos** — cada proyecto tiene una **carpeta maestra** donde residen los volcados que se crean.
-- **Sesiones** — dentro de un proyecto; cada sesión se convierte en un **backup/copia automática del footage** para ser enviado a otro disco duro o servidor que lo necesite.
+- **Sesiones** — dentro de un proyecto; permiten enviar **un único volcado a infinidad de destinos** (esto ya funciona hoy). A futuro: destinos de **"fallback"/"servidor"** — una copia local y otra en nube, por si el proyecto se reasigna a otra persona.
 - **Features de apoyo** — detección de cámara, personalización de carpetas/contenedores, modo delicado, configuración de proyecto (estructura de carpetas consistente), proxies, acciones post-ingesta.
 
 ## Principio rector
 
 **Primero base sólida: que nada explote y sea consistente y compacto.** Los features y la estética vienen después de estabilizar y consolidar el núcleo.
+
+**Adaptar al uso de cada usuario, sin que se vaya de madre.** El programa se amolda a cómo trabaja cada uno (destinos, estructura, flujos), pero sin sobre-ingeniería.
 
 ## En Fase 2 (planeado — ROADMAP.md)
 
@@ -36,7 +38,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | ID | Idea | Área | Prioridad | Estado |
 |----|------|------|-----------|--------|
 | I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | Abierta — ruta bandera |
-| I-02 | **Sesiones como réplica automática**: cada sesión puede enviarse automáticamente a otro disco duro o servidor como backup del footage | Sesiones/Archivo | nuevo feature | Abierta |
+| I-02 | **Destinos de envío del volcado**: un único volcado puede enviarse a infinidad de destinos (ya funciona hoy). A futuro: destinos de **"fallback"/"servidor"** — copia local + copia en nube, por si el proyecto se reasigna a otra persona | Sesiones/Archivo | nuevo feature | Abierta — base ya resuelta |
 | I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | Abierta |
 | I-04 | **Contenedores/carpetas por tipo de archivo extraído** — dar cabida a datos giroscópicos, RAW, etc. | Archivo | nuevo feature | Abierta |
 | I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta |
@@ -55,5 +57,5 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 |------|-----------|--------|-------|
 | R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto |
 | R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración) |
-| R-03 | **Sesiones como réplica a otro disco/servidor** | nuevo feature | I-02 — conecta con la visión de sesión=backup |
+| R-03 | **Destinos "fallback"/servidor para el volcado** (copia local + nube, p. ej. si el proyecto se reasigna) | nuevo feature | I-02 — la base (enviar un volcado a múltiples destinos) ya funciona hoy |
 | R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | Ya planeado en Fase 2 |
