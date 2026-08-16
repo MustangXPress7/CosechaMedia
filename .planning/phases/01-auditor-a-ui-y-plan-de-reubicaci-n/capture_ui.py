@@ -184,7 +184,7 @@ def scene_zona_a_configurado(window, db, tmp):
 
 
 def scene_zona_b_estado_inicial():
-    dlg = SourcePickerDialog(folders=(), senders=(), ftp_profiles=())
+    dlg = SourcePickerDialog(folders=(), senders=())
     return _save(dlg, "zonaB_estado-inicial.png")
 
 
@@ -192,9 +192,7 @@ def scene_zona_b_configurado():
     folders = [r"E:\DCIM\100EOS5D", r"D:\Rodaje\Clip1"]
     senders = [{"name": "Móvil de Ana", "used": True},
                {"name": "iPhone de Luis", "used": False}]
-    ftp_profiles = [{"id": 1, "name": "Servidor FTP", "host": "192.168.1.50"}]
-    dlg = SourcePickerDialog(folders=folders, senders=senders,
-                             ftp_profiles=ftp_profiles)
+    dlg = SourcePickerDialog(folders=folders, senders=senders)
     return _save(dlg, "zonaB_configurado.png")
 
 

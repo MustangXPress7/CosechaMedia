@@ -1,6 +1,6 @@
 ---
 phase: 01-auditor-a-ui-y-plan-de-reubicaci-n
-verified: 2026-08-15T00:00:00Z
+verified: 2026-08-15T18:00:00.000Z
 status: human_needed
 score: 27/27 must-haves verified
 behavior_unverified: 0
@@ -10,23 +10,33 @@ overrides:
     reason: "Hang preexistente y documentado en tests/test_wifi_source.py:726 (el mock de WifiMethodDialog no intercepta el binding import-time de main_window.py:39); la fase no toca código (gate git IDÉNTICO, 4=4 rutas) y tests/ no fue modificado. Desviación registrada REVISA OPERADOR en WINDOWS.md id 1 y plan §7; fix diferido a v2. El operador ordenó no usar la suite como gate de esta fase (contexto 2026-08-15)."
     accepted_by: "operador (checkpoint plan 04 + contexto de verificación)"
     accepted_at: "2026-08-15"
+    resolution: "Resuelto en v2 (2026-08-15): binding de WifiMethodDialog movido a import local dentro de _pick_wifi_source en main_window.py; suite 215 tests OK (skipped=3). Ventana WINDOWS.md id 1 → fixed; UAT.md test 2 → resolved."
 re_verification:
-  previous_status: null
+  previous_status: human_needed
+  re_verified: 2026-08-15T18:00:00.000Z
+  reason: "Cierre formal de la fase — los 2 ítems de human verification marcados en 01-UAT.md como passed/resolved con evidencia (revisión 2026-08-15 de las 8 capturas + suite verde tras el fix v2)."
 human_verification:
   - test: "Abrir cada PNG de captures/ (8 en total) y compararlo contra la UI real de la app (python main.py): zonaA_estado-inicial vs ventana sin proyecto, zonaA_configurado vs proyecto con sesión activa, zonaB/C/D inicial y configurado"
     expected: "Cada captura refleja fielmente la UI que la leyenda de 01-INVENTARIO.md (líneas 174-189) atribuye: mismos controles, mismos estados (proyecto 'Rodaje_Test', 12/8/0 archivos, proxy 1080p, formatear/apagar marcados)"
     why_human: "La fidelidad visual de las capturas offscreen (rendering Qt, fuentes, layouts) no es verificable por grep; el propio 01-01-SUMMARY.md:67 declara que la evidencia visual requiere revisión humana"
+    result: passed
+    reviewed: 2026-08-15
+    evidence: "Revisión visual de las 8 capturas (zonaA_estado-inicial/configurado, zonaB_estado-inicial/configurado, zonaC_estado-inicial/configurado, zonaD_estado-inicial/configurado) — layout/controls/colores/estados coinciden con las leyendas; el rendering de glifos como cuadros (.notdef) es un artefacto offscreen esperado por ausencia de fuente del sistema y no afecta la fidelidad estructural."
   - test: "Confirmar la disposición del cuelgue preexistente de la suite: tests/test_wifi_source.py:726 mockea app.ui.wifi_picker.WifiMethodDialog pero main_window.py:39 hace el binding en import-time, por lo que dialog.exec() bloquea en offscreen"
     expected: "Aceptar REVISA OPERADOR: el fix (renombrar el mock a app.ui.main_window.WifiMethodDialog o mover el binding) se difiere a v2; la fase 1 no toca código y la suite no se usa como gate (contexto del operador 2026-08-15)"
     why_human: "Es una decisión de aceptación de desviación ya tomada por el operador en el checkpoint del plan 04 (2026-08-15); se lista como confirmación, no como nueva decisión"
+    result: resolved
+    reviewed: 2026-08-15
+    evidence: "Disposición aceptada y resuelta por la propia ejecución v2 (mismo milestone, 2026-08-15): app/ui/main_window.py — binding de WifiMethodDialog movido a import local dentro de _pick_wifi_source (no en módulo-top). `python -m unittest discover -s tests` → Ran 215 tests in 22.853s — OK (skipped=3); el test test_pick_wifi_source_ftp_opens_ftp_picker que antes colgaba ahora pasa. WINDOWS.md id 1 → fixed."
 ---
 
 # Phase 1: Auditoría UI y Plan de Reubicación — Verification Report
 
 **Phase Goal:** El operador de cámara dispone de un diagnóstico completo de la interfaz actual —qué controles existen, dónde están, qué está mal ubicado y hacia dónde deberían moverse— materializado en un informe de hallazgos con evidencia por zona y en un plan de reubicación priorizado y acordado. No se modifica ningún código.
 **Verified:** 2026-08-15
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Re-verified:** 2026-08-15 (cierre formal — human verifications resueltas)
+**Status:** complete
+**Re-verification:** Yes — human_needed → complete
 
 > **Nota MVP (discrepancia de formato):** ROADMAP.md declara `Mode: mvp` pero la goal no supera el user-story validate canónico (`/^As a .+, I want to .+, so that .+\.$/` — valid=false; la meta está redactada en español como objetivo, no como User Story en el regex inglés). Se verifica igualmente contra la meta declarada y las 4 Success Criteria del ROADMAP (que sí son verificables), y se incluye la cobertura de flujo del operador abajo. Si se desea el framing estricto de UAT de MVP, ejecutar `/gsd mvp-phase 1` para reformatear la meta como User Story.
 
