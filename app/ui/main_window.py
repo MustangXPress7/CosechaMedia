@@ -385,13 +385,6 @@ class MainWindow(QMainWindow):
         src_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
         src_label_row.addWidget(src_label)
         src_label_row.addStretch()
-        self.btn_remove_source = QPushButton("🗑")
-        self.btn_remove_source.setObjectName("IconButton")
-        self.btn_remove_source.setFixedSize(24, 24)
-        self.btn_remove_source.setToolTip(self.tr("Eliminar el origen seleccionado…"))
-        self.btn_remove_source.setEnabled(False)
-        self.btn_remove_source.clicked.connect(self._remove_selected_source)
-        src_label_row.addWidget(self.btn_remove_source)
         left_col.addLayout(src_label_row)
 
         src_top = QHBoxLayout()
@@ -409,18 +402,20 @@ class MainWindow(QMainWindow):
         left_col.addLayout(src_top)
 
         self.source_list = QTableWidget()
-        self.source_list.setColumnCount(3)
+        self.source_list.setColumnCount(4)
         self.source_list.setHorizontalHeaderLabels(
-            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido")])
+            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido"), ""])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
         header.setMinimumSectionSize(40)
         header.resizeSection(0, 320)
         header.resizeSection(1, 160)
         header.resizeSection(2, 110)
+        header.resizeSection(3, 40)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -429,7 +424,6 @@ class MainWindow(QMainWindow):
             QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.source_list.itemChanged.connect(self._on_source_check_changed)
         self.source_list.itemDoubleClicked.connect(self._on_source_double_clicked)
-        self.source_list.itemSelectionChanged.connect(self._update_remove_source_button)
         self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.source_list.customContextMenuRequested.connect(
             self._show_source_context_menu)
@@ -648,18 +642,21 @@ class MainWindow(QMainWindow):
         left_col.addStretch()
 
         # --- Files table ---
-        self.table = QTableWidget(0, 5)
+        self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels([
             self.tr("Archivo"), self.tr("Cámara"), self.tr("Estado"),
-            self.tr("Progreso"), self.tr("Destino"),
+            self.tr("Progreso"), self.tr("Destino"), "",
         ])
         th = self.table.horizontalHeader()
         th.setSectionResizeMode(QHeaderView.Interactive)
-        th.setStretchLastSection(True)
+        th.setStretchLastSection(False)
+        th.setSectionResizeMode(4, QHeaderView.Stretch)
+        th.setSectionResizeMode(5, QHeaderView.Fixed)
         th.resizeSection(0, 280)
         th.resizeSection(1, 130)
         th.resizeSection(2, 110)
         th.resizeSection(3, 90)
+        th.resizeSection(5, 40)
         self.table.setAlternatingRowColors(True)
         self.table.setSortingEnabled(True)
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -1588,6 +1585,8 @@ class MainWindow(QMainWindow):
         dest_item.setFlags(dest_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 4, dest_item)
 
+        self.table.setCellWidget(row, 5, self._build_remove_file_button(filename_item))
+
         if was_sorted:
             self.table.setSortingEnabled(True)
 
@@ -2031,10 +2030,11 @@ class MainWindow(QMainWindow):
             self.source_list.setItem(row, 1, cam_item)
             # Column 2: content filter
             self.source_list.setCellWidget(row, 2, self._build_content_button(row, sess))
+            # Column 3: per-row delete
+            self.source_list.setCellWidget(row, 3, self._build_remove_source_button(row))
         self.source_list.blockSignals(False)
         self._update_format_sources_state()
         self._update_source_list_height()
-        self._update_remove_source_button()
 
     def _update_source_list_height(self):
         """Altura mínima de la tabla de orígenes según su contenido (B-06).
@@ -2099,6 +2099,30 @@ class MainWindow(QMainWindow):
         else:
             btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
         return btn
+
+    def _build_remove_source_button(self, row):
+        btn = QPushButton("🗑")
+        btn.setObjectName("IconButton")
+        btn.setFixedSize(24, 24)
+        btn.setToolTip(self.tr("Eliminar este origen…"))
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda: self._delete_source_at_row(row))
+        return btn
+
+    def _build_remove_file_button(self, row_item):
+        btn = QPushButton("🗑")
+        btn.setObjectName("IconButton")
+        btn.setFixedSize(24, 24)
+        btn.setToolTip(self.tr("Quitar de la vista…"))
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda: self._remove_file_row(row_item))
+        return btn
+
+    def _remove_file_row(self, row_item):
+        row = self.table.indexFromItem(row_item).row()
+        if row < 0:
+            return
+        self.table.removeRow(row)
 
     def _show_wifi_qr_for_sender(self, sender_name):
         """Abre la ventana QR mostrando el dispositivo de un origen WiFi."""
@@ -2266,19 +2290,6 @@ class MainWindow(QMainWindow):
         db.update_session_config(session["id"], camera_name=new_name or None)
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
-
-    def _remove_selected_source(self):
-        """Elimina el origen seleccionado en la tabla (botón de la cabecera)."""
-        row = self.source_list.currentRow()
-        if row < 0:
-            return
-        self._delete_source_at_row(row)
-
-    def _update_remove_source_button(self, *_):
-        """Habilita/deshabilita el botón de eliminar según haya selección."""
-        enabled = (self.current_project_id is not None
-                   and self.source_list.currentRow() >= 0)
-        self.btn_remove_source.setEnabled(enabled)
 
     def _show_source_context_menu(self, pos):
         row = self.source_list.rowAt(pos.y())
