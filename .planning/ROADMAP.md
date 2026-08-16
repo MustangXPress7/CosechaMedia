@@ -40,11 +40,23 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 2: Mejoras al volcado selectivo: multi-origen, escaneo MTP completo y opción todo
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 1
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 2 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1
+Phases execute in numeric order: 1, 2
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | In Progress|  |
+| 2. Mejoras al volcado selectivo | 0/0 | Planned |  |

@@ -72,6 +72,12 @@ Recent decisions affecting current work:
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
 - [Phase ?]: Quick k7i: ProjectWizard reactivado como única vía de creación de proyecto (600x520, callbacks on_finished/on_cancel)
 - [Phase ?]: Quick k7i: gestión de dispositivos guardados migrada a Añadir origen — rol ('device', id) + menú contextual Eliminar guardado; menú Ingesta depurado sin código zombie
+- [Fase 2]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección
+- [Priorización]: Convención de prioridades de uso — cambios críticos de usabilidad = "uso"; funcionalidad nueva = "nuevo feature" (no feature-request genérico)
+
+### Roadmap Evolution
+
+- Phase 2 added: Mejoras al volcado selectivo: multi-origen, escaneo MTP completo y opción todo
 
 ### Pending Todos
 
