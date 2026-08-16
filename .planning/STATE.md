@@ -8,7 +8,7 @@ status: complete
 stopped_at: Completed 260816-mcj-PLAN.md (quick)
 last_updated: "2026-08-16T14:05:26.575Z"
 last_activity: 2026-08-16
-last_activity_desc: Quick task 260816-mcj completado y verificado — fix MTP (manager COM por hilo), volcado selectivo a la fila de orígenes, columnas de borrado por fila en ambas tablas y columna de ruta redimensionable.
+last_activity_desc: Quick task 260816-x3b completado — glifos emoji sustituidos por iconos SVG vectoriales tintables (app/ui/icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado).
 progress:
   total_phases: 1
   completed_phases: 0
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01 (Auditoría UI y Plan de Reubicación) — EXECUTING
 Plan: 1 of 4
 Status: Executing Phase 01
-Last activity: 2026-08-16 - Completed quick task 260816-mcj: fix MTP (manager COM por hilo), volcado selectivo a la fila de orígenes, columnas de borrado por fila en ambas tablas, columna de ruta redimensionable
+Last activity: 2026-08-16 - Completed quick task 260816-x3b: glifos emoji sustituidos por iconos SVG vectoriales tintables (icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado)
 
 Progress: [████████░░] 80%
 
@@ -95,6 +95,7 @@ None yet.
 | 260816-jlt | Convertir SourcePickerDialog en lanzador compacto (inversión parcial D-12) | 2026-08-16 | 572cd26 | Needs Review | [260816-jlt-convertir-sourcepickerdialog-en-lanzador](./quick/260816-jlt-convertir-sourcepickerdialog-en-lanzador/) |
 | 260816-k7i | Corregir hallazgos pendientes del UI-REVIEW (ProjectWizard, confirmaciones destructivas, zombie buttons, menú redundante) | 2026-08-16 | 7aa7f98 | Verified (gap fix 5d970b3) | [260816-k7i-corregir-hallazgos-pendientes-del-ui-rev](./quick/260816-k7i-corregir-hallazgos-pendientes-del-ui-rev/) |
 | 260816-mcj | Arreglar MTP (manager COM por hilo), volcado selectivo a orígenes, columnas de borrado por fila y columna de ruta redimensionable | 2026-08-16 | 7b27666 | Verified | [260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub](./quick/260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub/) |
+| 260816-x3b | Reemplazar glifos emoji por iconos SVG vectoriales tintables (app/ui/icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado) | 2026-08-16 | b28b808 | Needs Review | [260816-x3b-reemplazar-los-glifos-emoji-unicode-que-](./quick/260816-x3b-reemplazar-los-glifos-emoji-unicode-que-/) |
 
 ## Deferred Items
 
