@@ -152,6 +152,38 @@ class TestSourcePicker(unittest.TestCase):
         self.assertIsNone(dlg.kind)
         self.assertIsNone(dlg.value)
 
+    def test_accept_item_noop_for_missing_device(self):
+        # Regresión (verificación k7i): el doble clic sobre un ítem
+        # «Desconectados» llega a _accept_item; el rol ("device", id) no debe
+        # mutar kind/value ni aceptar el diálogo, o _apply_source_choice
+        # desempaquetaría el id en crudo y lanzaría ValueError.
+        dlg = SourcePickerDialog(
+            None, folders=[], senders=[],
+            devices_missing=[{"id": "M1", "name": "Cámara A"}])
+        missing = self._missing_item(dlg)
+        self.assertIsNotNone(missing)
+        dlg._accept_item(missing)
+        self.assertIsNone(dlg.kind)
+        self.assertIsNone(dlg.value)
+        self.assertEqual(dlg.result(), QDialog.Rejected)
+
+    def test_double_click_missing_item_does_not_accept(self):
+        # Vía real del doble clic: el ítem «Desconectados» no acepta el
+        # diálogo con un device-id en crudo (regresión de verificación k7i).
+        dlg = SourcePickerDialog(
+            None, folders=[], senders=[],
+            devices_missing=[{"id": "M1", "name": "Cámara A"}])
+        missing = self._missing_item(dlg)
+        self.assertIsNotNone(missing)
+        dlg.show()
+        QApplication.processEvents()
+        rect = dlg.list_widget.visualItemRect(missing)
+        self._send_double_click(dlg.list_widget.viewport(), rect.center())
+        self.assertIsNone(dlg.kind)
+        self.assertIsNone(dlg.value)
+        self.assertEqual(dlg.result(), QDialog.Rejected)
+        dlg.close()
+
     def test_delete_device_item_calls_on_delete(self):
         # Test 2 (lado picker): el borrado de un «Desconectados» pasa el rol
         # ("device", id) al callback y quita el ítem de la lista cuando se

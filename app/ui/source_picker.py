@@ -222,11 +222,17 @@ class SourcePickerDialog(QDialog):
             self._update_ok_state()
 
     def _accept_item(self, item):
+        role = item.data(Qt.UserRole)
+        if role is None or role[0] == "device":
+            # Ítem no-accionable (sección Desconectados): el doble clic no
+            # debe aceptar el diálogo ni mutar kind/value.
+            return
         self._set_from_item(item)
         if self.kind is not None:
             self.accept()
 
     def _set_from_item(self, item):
         role = item.data(Qt.UserRole)
-        if role is not None:
-            self.kind, self.value = role
+        if role is None or role[0] == "device":
+            return
+        self.kind, self.value = role
