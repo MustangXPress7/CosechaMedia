@@ -13,6 +13,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 
 | ID | Idea | Prioridad | Justificación |
 |----|------|-----------|---------------|
+| ID-04 | La caché MTP sigue **"viva"/disponible** aunque el dispositivo esté desconectado (permite consultar/filtrar por fecha sin tenerlo conectado), con opción de preguntar al usuario si quiere **eliminar esa caché** cuando el dispositivo al que referencia no está conectado | uso | Hoy la caché es inaccesible sin el dispositivo y no hay control sobre cuándo se descarta: riesgo de basura y de datos obsoletos |
 | ID-01 | El volcado selectivo **global** (el que se lanza fuera del menú del dispositivo) incluye **todos los orígenes** añadidos en Orígenes; el volcado selectivo **per-device** (columna Contenido / menú del dispositivo) mantiene la selección uno a uno | nuevo feature | El caso global "quiero solo un rango de fechas pero de todo lo que hay enchufado" no es posible hoy: solo toma un origen |
 | ID-02 | MTP: **escaneo completo de archivos** vía caché (device_cache) para poder ordenar/filtrar por fecha sin volcar todo | nuevo feature | El rango por fecha hoy depende del escaneo; con la caché se puede listar sin volcar. Pendiente de validar el método (ffprobe remoto vs. mtime del dispositivo) |
 | ID-03 | Opción **"todo"** dentro del volcado selectivo para revertir la selección y volver a "volcar todo" | uso | Sin salida del filtro, el operador queda encerrado en el rango; es una fricción diaria |
