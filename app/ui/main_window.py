@@ -402,20 +402,10 @@ class MainWindow(QMainWindow):
         self.source_input.currentTextChanged.connect(self.update_start_button_state)
         src_top.addWidget(self.source_input, 1)
 
-        self.btn_browse_source = QPushButton(self.tr("Examinar"))
-        self.btn_browse_source.clicked.connect(self.select_source_path)
-        self.btn_browse_source.hide()
-
         self.btn_add_source = QPushButton(self.tr("Añadir origen…"))
         self.btn_add_source.setToolTip(self.tr("Añadir un origen guardado, un dispositivo USB, WiFi o FTP"))
         self.btn_add_source.clicked.connect(self._add_source_entry)
         src_top.addWidget(self.btn_add_source)
-
-        self.btn_receive_wifi = QPushButton(self.tr("WiFi…"))
-        self.btn_receive_wifi.setToolTip(self.tr("Recibir archivos de un móvil por WiFi (QR o FTP)"))
-        self.btn_receive_wifi.clicked.connect(self._pick_wifi_source)
-        self.btn_receive_wifi.setEnabled(False)
-        self.btn_receive_wifi.hide()
 
         left_col.addLayout(src_top)
 
@@ -456,11 +446,6 @@ class MainWindow(QMainWindow):
         self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
-
-        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
-        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
-        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
-        src_scan_row.addWidget(self.btn_selective_dump)
 
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
@@ -649,6 +634,11 @@ class MainWindow(QMainWindow):
         self.btn_clear_completed.setToolTip(self.tr("Quita de la tabla las filas completadas"))
         self.btn_clear_completed.clicked.connect(self._clear_completed_rows)
         op_row.addWidget(self.btn_clear_completed)
+
+        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
+        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
+        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
+        op_row.addWidget(self.btn_selective_dump)
 
         op_row.addStretch()
         post_operaciones.addLayout(op_row)
@@ -1202,7 +1192,6 @@ class MainWindow(QMainWindow):
             self.btn_delete_project.setEnabled(False)
             self.btn_rename_project.setEnabled(False)
             self.btn_duplicate_project.setEnabled(False)
-            self._update_wifi_button_state()
         else:
             self._load_project(project_id)
             self.btn_delete_project.setEnabled(True)
@@ -1246,7 +1235,6 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self._refresh_source_list()
         self._update_detect_button_state()
-        self._update_wifi_button_state()
 
     def _set_project_description(self, text):
         """Muestra la descripción del proyecto bajo la header bar (R-10/B-03)."""
@@ -2486,14 +2474,12 @@ class MainWindow(QMainWindow):
             self.session_dest_combo.setVisible(False)
             self._btn_browse_sess_dest.setVisible(False)
             self.chk_session_delicate.setVisible(False)
-            self._update_wifi_button_state()
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
             self.sessions_combo.addItem(self.tr("(Sin sesiones)"), None)
             self.sessions_combo.blockSignals(False)
             self.btn_delete_session.setEnabled(False)
-            self._update_wifi_button_state()
             return
         for idx, s in enumerate(sessions, start=1):
             status_fmt = "●" if s["status"] == "active" else "○"
@@ -2511,7 +2497,6 @@ class MainWindow(QMainWindow):
             self._on_session_selected(0)
         self.sessions_combo.blockSignals(False)
         self.btn_delete_session.setEnabled(True)
-        self._update_wifi_button_state()
 
     def _on_session_selected(self, index):
         session_id = self.sessions_combo.itemData(index)
@@ -2523,11 +2508,9 @@ class MainWindow(QMainWindow):
             self.session_dest_combo.setVisible(False)
             self._btn_browse_sess_dest.setVisible(False)
             self.chk_session_delicate.setVisible(False)
-            self._update_wifi_button_state()
             return
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
-        self._update_wifi_button_state()
         session = db.get_session(session_id)
         if not session:
             return
@@ -3156,11 +3139,6 @@ class MainWindow(QMainWindow):
         elif dialog.method == "pairdrop":
             self._open_wifi_panel(force_new_sender=True)
 
-    def _update_wifi_button_state(self):
-        """WiFi… disponible siempre que haya un proyecto (crea sus sesiones)."""
-        enabled = self.current_project_id is not None
-        self.btn_receive_wifi.setEnabled(enabled)
-
     # -- WiFi / PairDrop: origen en la tabla + ventana flotante QR --------
 
     def _open_wifi_panel(self, force_new_sender: bool = False):
@@ -3570,7 +3548,6 @@ class MainWindow(QMainWindow):
         self._stage_thread = thread
         self._stage_worker = worker
         self.act_pick_device.setEnabled(False)
-        self.btn_receive_wifi.setEnabled(False)
         self.ingest_status_label.setText(
             self.tr("Sincronizando dispositivo (primera pasada)…")
         )
@@ -3581,7 +3558,6 @@ class MainWindow(QMainWindow):
 
     def _on_stage_done(self, ok, res, worker, thread, session_id, cache_dir, silent=False):
         self.act_pick_device.setEnabled(True)
-        self._update_wifi_button_state()
         if not ok:
             if silent:
                 self.ingest_status_label.setText(self.tr("Dispositivo no disponible"))
