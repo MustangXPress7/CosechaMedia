@@ -8,7 +8,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView
+from PySide6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QPushButton
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -69,7 +69,7 @@ class TestSourceContent(unittest.TestCase):
 
     def test_source_list_has_content_column_with_button(self):
         self.window._refresh_source_list()
-        self.assertEqual(self.window.source_list.columnCount(), 3)
+        self.assertEqual(self.window.source_list.columnCount(), 4)
         btn = self.window.source_list.cellWidget(0, 2)
         self.assertIsNotNone(btn)
         self.assertEqual(btn.text(), "Todo")
@@ -114,8 +114,8 @@ class TestSourceContent(unittest.TestCase):
         self.assertEqual(sessions[0]["source_path"], self.src)
 
     def test_ingest_table_has_progress_column(self):
-        self.assertEqual(self.window.table.columnCount(), 5)
-        headers = [self.window.table.horizontalHeaderItem(i).text() for i in range(5)]
+        self.assertEqual(self.window.table.columnCount(), 6)
+        headers = [self.window.table.horizontalHeaderItem(i).text() for i in range(6)]
         self.assertIn("Progreso", headers)
 
     def test_selective_dump_button_present(self):
@@ -150,6 +150,52 @@ class TestSourceContent(unittest.TestCase):
         self.assertEqual(header.sectionSize(0), 320)
         header.resizeSection(0, 200)
         self.assertEqual(header.sectionSize(0), 200)
+
+    def test_source_list_has_per_row_delete_column(self):
+        self.window._refresh_source_list()
+        self.assertEqual(self.window.source_list.columnCount(), 4)
+        btn = self.window.source_list.cellWidget(0, 3)
+        self.assertIsNotNone(btn)
+        self.assertIsInstance(btn, QPushButton)
+        self.assertEqual(btn.text(), "🗑")
+        self.assertFalse(hasattr(self.window, "btn_remove_source"))
+
+    def test_source_delete_button_removes_source_with_confirmation(self):
+        self.window._refresh_source_list()
+        btn = self.window.source_list.cellWidget(0, 3)
+        with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.Yes):
+            btn.click()
+        self.assertEqual(self.db.get_sessions(self.pid), [])
+        self.assertNotIn(self.src, self.window._source_paths)
+
+    def test_source_delete_button_no_keeps_session(self):
+        self.window._refresh_source_list()
+        btn = self.window.source_list.cellWidget(0, 3)
+        with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.No):
+            btn.click()
+        self.assertEqual(len(self.db.get_sessions(self.pid)), 1)
+
+    def test_files_table_delete_button_removes_row_only(self):
+        self.window.on_file_started(os.path.join(self.src, "clip.mp4"))
+        self.assertEqual(self.window.table.rowCount(), 1)
+        btn = self.window.table.cellWidget(0, 5)
+        self.assertIsNotNone(btn)
+        before = len(self.db.get_sessions(self.pid))
+        btn.click()
+        self.assertEqual(self.window.table.rowCount(), 0)
+        self.assertEqual(len(self.db.get_sessions(self.pid)), before)
+
+    def test_files_table_delete_follows_sorting(self):
+        self.window.on_file_started(os.path.join(self.src, "BBB.mp4"))
+        self.window.on_file_started(os.path.join(self.src, "AAA.mp4"))
+        key = self.window._file_row_key(os.path.join(self.src, "BBB.mp4"), None)
+        item = self.window._file_row_map[key]
+        self.window.table.sortItems(0)
+        row = self.window.table.indexFromItem(item).row()
+        self.assertEqual(row, 1)
+        self.window.table.cellWidget(row, 5).click()
+        self.assertEqual(self.window.table.rowCount(), 1)
+        self.assertEqual(self.window.table.item(0, 0).text(), "AAA.mp4")
 
     def test_on_copy_progress_updates_cell(self):
         self.window.on_file_started("clip.mp4")
