@@ -1279,39 +1279,45 @@ class MainWindow(QMainWindow):
         self.ingest_status_label.setText(self.tr("Descripción actualizada."))
 
     def _show_create_project(self):
-        name, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Nombre del proyecto:"))
-        if not ok or not name.strip():
+        # Import local (patrón del archivo); el wizard es QWidget, no QDialog:
+        # se muestra con show() + WindowModality, nunca exec().
+        from app.ui.project_wizard import ProjectWizard
+        wizard = ProjectWizard(self._on_project_wizard_finished,
+                               on_cancel_callback=lambda: self._close_project_wizard(wizard))
+        self._project_wizard = wizard  # referencia persistente (anti-GC)
+        wizard.setWindowModality(Qt.ApplicationModal)
+        wizard.show()
+
+    def _on_project_wizard_finished(self, project_id):
+        """Callback del ProjectWizard: crea la sesión inicial y activa el proyecto."""
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT name FROM projects WHERE id = ?', (project_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
             return
-        name = name.strip()
-        desc, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Descripción (opcional):"))
-        if not ok:
-            desc = ""
-        else:
-            desc = desc.strip()
-        try:
-            conn = db.get_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                'INSERT INTO projects (name, root_path, description) VALUES (?, ?, ?)',
-                (name, "", desc)
-            )
-            project_id = cursor.lastrowid
-            conn.commit()
-            conn.close()
+        name = row['name']
 
-            db.create_session(project_id, f"Sesión 1 - {name}", datetime.now().strftime("%Y-%m-%d"), "active")
+        db.create_session(project_id, f"Sesión 1 - {name}", datetime.now().strftime("%Y-%m-%d"), "active")
 
-            self.load_existing_projects()
-            idx = self.project_combo.findData(project_id)
-            if idx >= 0:
-                self.project_combo.setCurrentIndex(idx)
-            self.ingest_status_label.setText(self.tr("Proyecto #%1 creado con sesión inicial.").arg(project_id))
-            self.btn_delete_project.setEnabled(True)
-            self.btn_rename_project.setEnabled(True)
-            self.btn_duplicate_project.setEnabled(True)
-            self.update_start_button_state()
-        except Exception as e:
-            QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo crear el proyecto: %1").arg(str(e)))
+        self.load_existing_projects()
+        idx = self.project_combo.findData(project_id)
+        if idx >= 0:
+            self.project_combo.setCurrentIndex(idx)
+        self.ingest_status_label.setText(self.tr("Proyecto #%1 creado con sesión inicial.").arg(project_id))
+        self.btn_delete_project.setEnabled(True)
+        self.btn_rename_project.setEnabled(True)
+        self.btn_duplicate_project.setEnabled(True)
+        self.update_start_button_state()
+        self._close_project_wizard(self._project_wizard)
+
+    def _close_project_wizard(self, wizard):
+        """Cierra y libera el wizard (usado por on_finished y on_cancel)."""
+        if wizard is not None:
+            wizard.close()
+            wizard.deleteLater()
+        self._project_wizard = None
 
     def _update_detect_button_state(self):
         is_auto = self.project_camera_detection_mode == "auto"
@@ -1941,7 +1947,7 @@ class MainWindow(QMainWindow):
         reply = QMessageBox.question(
             self, self.tr("Apagar ordenador"),
             self.tr("Todas las tareas han finalizado. ¿Apagar el ordenador ahora?"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:
             return
@@ -2598,7 +2604,8 @@ class MainWindow(QMainWindow):
         sid = self.current_session_id
         reply = QMessageBox.question(
             self, self.tr("Eliminar sesión"),
-            self.tr("¿Eliminar la sesión #%1 y todos sus archivos?\n"
+            self.tr("¿Eliminar la sesión #%1 y sus registros de ingesta?\n"
+                    "Los archivos en disco se conservan.\n"
                     "Esta acción no se puede deshacer.").arg(sid),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
