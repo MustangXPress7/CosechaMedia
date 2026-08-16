@@ -55,7 +55,19 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 
 | Ruta | Prioridad | Origen | Notas |
 |------|-----------|--------|-------|
-| R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto |
+| R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto. Alcance apuntado abajo |
 | R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración) |
 | R-03 | **Destinos "fallback"/servidor para el volcado** (copia local + nube, p. ej. si el proyecto se reasigna) | nuevo feature | I-02 — la base (enviar un volcado a múltiples destinos) ya funciona hoy |
 | R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | Ya planeado en Fase 2 |
+
+### R-01 · Estabilización del core — alcance apuntado (solo notas, aún sin planificar)
+
+Prerrequisito de I-01 (acciones rápidas). Piezas a considerar al definir la fase:
+
+1. **Tests de regresión sobre la capa UI sin cubrir.** `MainWindow` es el god node nº 1 del gráfico graphify (`graphify-out/GRAPH_REPORT.md`): 144 aristas, betweenness 0.241, puente entre ~12 comunidades. Junto con los diálogos (SourcePickerDialog, SelectiveDumpAssistant, ProjectWizard, …), hoy no hay red de seguridad: cada quick task que toca la UI es un volado. Objetivo de fondo: poder tocar `main_window.py` sin miedo.
+2. **Auditoría de concurrencia.** Evidencia directa: el bug MTP de hoy = COM cruzando hilos (`RPC_E_WRONG_THREAD`) con la excepción tragada. Superficie a inventariar: `ThreadPoolExecutor` de ingesta (4 hilos; 1 en modo delicado), `FileSystemWatcher` (daemon), QThread + `_StageWorker`/`_TaskWorker`, auto-sync (QTimer 5 s con throttle 60 s), COM inicializado por hilo (`_WpdSession`), locks (`_inflight_lock`, `_target_lock`). Riesgo alto: toca la integridad del volcado.
+3. **Artefacto de integridad por sesión.** Ya existe verificación MD5 + estado de reanudación, pero no un reporte legible (hash, fechas, destino) que el operador pueda guardar o mandar. Germen de I-06 (CSV).
+4. **Bugs conocidos a incluir:** carrera `_cam_done`, rename con `/` (documentados en `.planning/codebase/CONCERNS.md`). La validación del fix MTP en vivo queda fuera (requiere hardware del usuario).
+5. **Recursos para definir la fase:** gráfico graphify (`graphify-out/` — 103 comunidades, hubs por zona) y docs `.planning/codebase/` (ARCHITECTURE.md, CONCERNS.md, TESTING.md, CONVENTIONS.md).
+
+Quick tasks `uso` previas e independientes (no bloquean R-01): **I-12** (predeterminado), **I-03** (cámara ↔ ID de tarjeta/dispositivo).
