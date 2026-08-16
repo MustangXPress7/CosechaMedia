@@ -4,7 +4,9 @@ Cobertura:
 - Abrir el panel WiFi registra una sesión/fila por remitente (caché local).
 - El panel es una ventana no modal (Qt.Window) y no bloquea la app.
 - Al recibir un archivo se dispara ``handle_new_file`` del ingestor.
-- ``_update_wifi_button_state`` habilita el botón con proyecto, sin sesión.
+- ``_open_wifi_panel`` arranca el servidor/panel solo con proyecto activo.
+- ``_delete_saved_source`` borra dispositivos guardados (MTP y FTP) desde el
+  diálogo Añadir origen, con confirmación veraz y default No.
 - Eliminar un origen desde la tabla borra sesión y remitente WiFi.
 """
 import os
@@ -91,14 +93,68 @@ class TestWifiSource(unittest.TestCase):
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def test_wifi_button_enabled_with_project(self):
-        self.window._update_wifi_button_state()
-        self.assertTrue(self.window.btn_receive_wifi.isEnabled())
+    def test_open_wifi_panel_with_project_starts_server(self):
+        # Test 3 (gating): con proyecto activo, _open_wifi_panel arranca el
+        # servidor y muestra el panel (mocks del setUp).
+        self.window._open_wifi_panel()
+        self.assertIs(self.window._wifi_server, self._fake_server)
 
-    def test_wifi_button_disabled_without_project(self):
+    def test_open_wifi_panel_without_project_is_noop(self):
+        # Test 3 (gating): sin proyecto, _open_wifi_panel no arranca nada.
         self.window.current_project_id = None
-        self.window._update_wifi_button_state()
-        self.assertFalse(self.window.btn_receive_wifi.isEnabled())
+        with mock.patch.object(mw.MainWindow, "_ensure_wifi_server") as ensure:
+            self.window._open_wifi_panel()
+            ensure.assert_not_called()
+
+    def test_delete_saved_device_confirmed_deletes(self):
+        # Test 2: borrar un dispositivo guardado con confirmación aprobada
+        # borra sus sesiones vía db.delete_device y devuelve True.
+        cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
+        os.makedirs(cache, exist_ok=True)
+        sid = self.db.create_session(self.pid, "MTP", "2026-01-01", "active",
+                                     source_path=cache)
+        self.db.update_session_config(sid, device_id="mtp:pnp123",
+                                      device_folder="DCIM")
+        self.assertEqual(len(self.db.get_devices()), 1)
+        with mock.patch.object(mw.QMessageBox, "question",
+                               return_value=mw.QMessageBox.Yes):
+            result = self.window._delete_saved_source("device", "mtp:pnp123")
+        self.assertTrue(result)
+        self.assertEqual(self.db.get_devices(), [])
+
+    def test_delete_saved_device_rejected_keeps(self):
+        # Test 2: con confirmación rechazada no se borra y devuelve False.
+        cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
+        os.makedirs(cache, exist_ok=True)
+        sid = self.db.create_session(self.pid, "MTP", "2026-01-01", "active",
+                                     source_path=cache)
+        self.db.update_session_config(sid, device_id="mtp:pnp123",
+                                      device_folder="DCIM")
+        with mock.patch.object(mw.QMessageBox, "question",
+                               return_value=mw.QMessageBox.No):
+            result = self.window._delete_saved_source("device", "mtp:pnp123")
+        self.assertFalse(result)
+        self.assertEqual(len(self.db.get_devices()), 1)
+
+    def test_delete_saved_ftp_device_deletes_profile(self):
+        # Test 2: para un dispositivo ftp:<id>, además de borrar el dispositivo
+        # se borra el perfil FTP asociado (db.delete_ftp_profile).
+        from app.core import ftp as ftpmod
+        pid = self.db.add_ftp_profile("Serv", "192.168.1.50")
+        dev_id = ftpmod.device_key(pid)
+        cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
+        os.makedirs(cache, exist_ok=True)
+        sid = self.db.create_session(self.pid, "FTP", "2026-01-01", "active",
+                                     source_path=cache)
+        self.db.update_session_config(sid, device_id=dev_id, device_folder="DCIM")
+        with mock.patch.object(mw.QMessageBox, "question",
+                               return_value=mw.QMessageBox.Yes):
+            with mock.patch.object(self.db, "delete_ftp_profile",
+                                   wraps=self.db.delete_ftp_profile) as dfp:
+                result = self.window._delete_saved_source("device", dev_id)
+        self.assertTrue(result)
+        dfp.assert_called_once_with(pid)
+        self.assertEqual(self.db.get_devices(), [])
 
     def test_panel_is_non_modal_window(self):
         from app.ui.wifi_panel import ShootInboxPanel

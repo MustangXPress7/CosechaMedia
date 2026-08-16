@@ -71,7 +71,8 @@ class TestSourcePicker(unittest.TestCase):
     def _missing_item(self, dlg):
         for i in range(dlg.list_widget.count()):
             item = dlg.list_widget.item(i)
-            if item.data(Qt.UserRole) is None and item.text().startswith("📱"):
+            role = item.data(Qt.UserRole)
+            if role is not None and role[0] == "device" and item.text().startswith("📱"):
                 return item
         return None
 
@@ -90,8 +91,8 @@ class TestSourcePicker(unittest.TestCase):
         self.assertEqual((dlg.kind, dlg.value), ("folder", "F:\\ROOT"))
 
     def test_ftp_profiles_not_duplicated_in_guardados(self):
-        # B-04: los perfiles FTP viven en «Configuración → Dispositivos
-        # guardados» y en el diálogo FTP; no se duplican en Guardados.
+        # B-04: los perfiles FTP viven en el diálogo unificado (Desconectados)
+        # y en el diálogo FTP; no se duplican en Guardados.
         dlg = SourcePickerDialog(
             None, folders=[], senders=[],
             devices_missing=[{"id": "M1", "name": "Cámara A"}])
@@ -134,6 +135,37 @@ class TestSourcePicker(unittest.TestCase):
         self.assertIsNone(dlg.kind)
         self.assertIsNone(dlg.value)
         self.assertEqual(dlg.result(), QDialog.Rejected)
+
+    def test_missing_item_carries_device_role(self):
+        # Test 1: el ítem «Desconectados» porta el rol ("device", id) para
+        # que el diálogo unificado pueda borrarlo, pero NO habilita OK ni se
+        # acepta (sigue siendo una sección informativa).
+        dlg = SourcePickerDialog(
+            None, folders=[], senders=[],
+            devices_missing=[{"id": "M1", "name": "Cámara A"}])
+        missing = self._missing_item(dlg)
+        self.assertIsNotNone(missing)
+        self.assertEqual(missing.data(Qt.UserRole), ("device", "M1"))
+        dlg.list_widget.setCurrentItem(missing)
+        self.assertFalse(dlg.ok_btn.isEnabled())
+        dlg._accept_current()
+        self.assertIsNone(dlg.kind)
+        self.assertIsNone(dlg.value)
+
+    def test_delete_device_item_calls_on_delete(self):
+        # Test 2 (lado picker): el borrado de un «Desconectados» pasa el rol
+        # ("device", id) al callback y quita el ítem de la lista cuando se
+        # confirma (la confirmación real vive en _delete_saved_source).
+        calls = []
+        dlg = SourcePickerDialog(
+            None, folders=[], senders=[],
+            devices_missing=[{"id": "M1", "name": "Cámara A"}],
+            on_delete=lambda k, v: calls.append((k, v)) or True)
+        missing = self._missing_item(dlg)
+        self.assertIsNotNone(missing)
+        dlg._delete_selected(missing, ("device", "M1"))
+        self.assertEqual(calls, [("device", "M1")])
+        self.assertIsNone(self._missing_item(dlg))
 
     def test_accept_current_noop_without_valid_selection(self):
         dlg = self._dialog()
@@ -252,9 +284,9 @@ class TestSourcePicker(unittest.TestCase):
         self.assertIn(dlg.tr("(vacío)"), texts)
 
     def test_missing_section_lists_devices(self):
-        # B-04: «Desconectados» solo lista dispositivos MTP conocidos; los
-        # perfiles FTP no se repiten aquí (viven en «Configuración →
-        # Dispositivos guardados» y en el diálogo FTP).
+        # B-04: «Desconectados» lista dispositivos MTP conocidos (y FTP con
+        # sesiones, vía _disconnected_devices); los perfiles FTP no se
+        # duplican en Guardados (la gestión vive en el diálogo Añadir origen).
         dlg = SourcePickerDialog(
             None, folders=[], senders=[],
             devices_missing=[{"id": "M1", "name": "Cámara A"}])
