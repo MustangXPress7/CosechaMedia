@@ -1,7 +1,10 @@
 import os
 import shutil
+import sys
 import tempfile
+import threading
 import unittest
+from unittest import mock
 
 from app.core import mtp
 
@@ -236,6 +239,107 @@ class TestStaging(unittest.TestCase):
         self.assertEqual(res["staged"], 4)
         cache = mtp.device_cache_dir("D1", "")
         self.assertTrue(os.path.exists(os.path.join(cache, "Internal", "DCIM", "IMG_1.jpg")))
+
+
+@unittest.skipUnless(sys.platform == "win32", "WPD/COM es Windows-only")
+class TestThreadLocalManager(unittest.TestCase):
+    """El manager COM (`IPortableDeviceManager`) debe ser por hilo, no un
+    singleton global: el staging en QThread y el list_devices del hilo
+    principal no pueden compartir objetos COM entre apartamentos."""
+
+    def setUp(self):
+        self._orig_ensure_types = mtp._ensure_types
+        mtp._ensure_types = lambda: None
+
+    def tearDown(self):
+        mtp._ensure_types = self._orig_ensure_types
+
+    def test_manager_is_thread_local(self):
+        created = []
+
+        def fake_create(*args, **kwargs):
+            dm = mock.MagicMock()
+            created.append(dm)
+            return dm
+
+        with mock.patch("comtypes.client.CreateObject", side_effect=fake_create), \
+             mock.patch.dict(sys.modules,
+                             {"comtypes.gen.PortableDeviceApiLib": mock.MagicMock()}):
+            m1 = mtp._manager()
+            m2 = mtp._manager()
+            other = {}
+            t = threading.Thread(target=lambda: other.setdefault("dm", mtp._manager()))
+            t.start()
+            t.join()
+        self.assertIs(m1, m2)
+        self.assertIsNot(m1, other["dm"])
+        self.assertEqual(len(created), 2)
+
+    def test_list_devices_uses_current_thread_manager(self):
+        fake_dm = mock.MagicMock()
+
+        def fake_get_devices(ids, count):
+            if not ids:
+                count.contents.value = 2
+                return
+            for i, dev_id in enumerate(["DEV1", "DEV2"]):
+                ids[i] = dev_id
+
+        fake_dm.GetDevices.side_effect = fake_get_devices
+
+        def fake_friendly_name(dev_id, buf, nlen):
+            name = {"DEV1": "Camera A", "DEV2": "Camera B"}.get(dev_id, dev_id)
+            nlen.contents.value = len(name)
+            if buf:
+                for i, ch in enumerate(name):
+                    buf[i] = ord(ch)
+                buf[len(name)] = 0
+
+        fake_dm.GetDeviceFriendlyName.side_effect = fake_friendly_name
+
+        with mock.patch.object(mtp, "_manager", return_value=fake_dm), \
+             mock.patch("comtypes.CoInitialize"), \
+             mock.patch("comtypes.CoUninitialize"):
+            devices = mtp.WpdBackend().list_devices()
+        self.assertEqual([d.device_id for d in devices], ["DEV1", "DEV2"])
+        self.assertEqual([d.name for d in devices], ["Camera A", "Camera B"])
+        self.assertGreaterEqual(fake_dm.GetDevices.call_count, 1)
+
+    def test_wpd_session_devicename_no_duplicate(self):
+        fake_port = mock.MagicMock()
+        fake_types = mock.MagicMock()
+        ci = mock.MagicMock()
+        device_mock = mock.MagicMock()
+        device_mock.Content.return_value.Properties.return_value.GetValues.return_value.GetStringValue.return_value = "SERIAL9"
+        fake_dm = mock.MagicMock()
+
+        def fake_friendly_name(pnp_id, buf, nlen):
+            nlen.contents.value = 0
+
+        fake_dm.GetDeviceFriendlyName.side_effect = fake_friendly_name
+
+        def fake_create(clsid, clsctx=None, interface=None):
+            if clsid is fake_types.PortableDeviceValues:
+                return ci
+            if clsid is fake_port.PortableDevice:
+                return device_mock
+            return mock.MagicMock()
+
+        with mock.patch.object(mtp, "_manager", return_value=fake_dm), \
+             mock.patch.object(mtp, "_pkey", lambda fmtid, pid: mock.MagicMock()), \
+             mock.patch("comtypes.CoInitialize"), \
+             mock.patch("comtypes.CoUninitialize"), \
+             mock.patch("comtypes.client.CreateObject", side_effect=fake_create), \
+             mock.patch.dict(sys.modules, {
+                 "comtypes.gen.PortableDeviceApiLib": fake_port,
+                 "comtypes.gen.PortableDeviceTypesLib": fake_types,
+             }):
+            sess = mtp._WpdSession("PNP1")
+            try:
+                self.assertEqual(sess.devicename, "PNP1_SERIAL9")
+                self.assertNotEqual(sess.devicename, "PNP1_PNP1_SERIAL9")
+            finally:
+                sess.close()
 
 
 if __name__ == "__main__":
