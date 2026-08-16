@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 
 from app.core.translator import QtString
 from app.ui import theme
+from app.ui import icons
 from app.ui.device_picker import DevicePickerDialog
 from app.ui.ftp_picker import FtpPickerDialog
 
@@ -193,8 +194,9 @@ class SourcePickerDialog(QDialog):
 
     def _missing_item(self, dev):
         name = dev.get("name") or dev.get("id") or ""
-        item = QListWidgetItem("📱 " + name + " — " + self.tr("desconectado"))
+        item = QListWidgetItem(name + " — " + self.tr("desconectado"))
         item.setFlags(Qt.ItemIsEnabled)
+        item.setIcon(icons.icon("phone", size=16))
         item.setData(Qt.UserRole, ("device", dev["id"]))
         item.setToolTip(
             self.tr("Dispositivo conocido pero no conectado ahora"))

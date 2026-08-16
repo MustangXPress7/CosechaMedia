@@ -72,7 +72,7 @@ class TestSourcePicker(unittest.TestCase):
         for i in range(dlg.list_widget.count()):
             item = dlg.list_widget.item(i)
             role = item.data(Qt.UserRole)
-            if role is not None and role[0] == "device" and item.text().startswith("📱"):
+            if role is not None and role[0] == "device" and not item.icon().isNull():
                 return item
         return None
 
@@ -325,7 +325,8 @@ class TestSourcePicker(unittest.TestCase):
         texts = [dlg.list_widget.item(i).text()
                  for i in range(dlg.list_widget.count())]
         self.assertIn(dlg.tr("Desconectados"), texts)
-        self.assertTrue(any(t.startswith("📱") for t in texts))
+        self.assertTrue(any(not dlg.list_widget.item(i).icon().isNull()
+                            for i in range(dlg.list_widget.count())))
         self.assertTrue(any(dlg.tr("desconectado") in t for t in texts))
         missing = self._missing_item(dlg)
         self.assertIsNotNone(missing)
