@@ -8,7 +8,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QFileDialog
+from PySide6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -124,6 +124,32 @@ class TestSourceContent(unittest.TestCase):
         with mock.patch.object(self.window, "_open_selective_dump") as op:
             self.window.btn_selective_dump.click()
             op.assert_called_once()
+
+    def test_selective_dump_button_in_scan_row_not_operations(self):
+        scan_row = None
+        op_row = None
+        for layout in self.window.findChildren(QHBoxLayout):
+            widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
+            widgets = [w for w in widgets if w is not None]
+            if self.window.btn_scan_cameras in widgets:
+                scan_row = layout
+            if self.window.btn_clear_completed in widgets:
+                op_row = layout
+        self.assertIsNotNone(scan_row)
+        self.assertIsNotNone(op_row)
+        scan_widgets = [scan_row.itemAt(i).widget() for i in range(scan_row.count())]
+        op_widgets = [op_row.itemAt(i).widget() for i in range(op_row.count())]
+        self.assertIn(self.window.btn_selective_dump, scan_widgets)
+        self.assertNotIn(self.window.btn_selective_dump, op_widgets)
+
+    def test_source_path_column_interactive_with_default_width(self):
+        self.window._refresh_source_list()
+        header = self.window.source_list.horizontalHeader()
+        self.assertEqual(header.sectionResizeMode(0), QHeaderView.Interactive)
+        self.assertFalse(header.stretchLastSection())
+        self.assertEqual(header.sectionSize(0), 320)
+        header.resizeSection(0, 200)
+        self.assertEqual(header.sectionSize(0), 200)
 
     def test_on_copy_progress_updates_cell(self):
         self.window.on_file_started("clip.mp4")

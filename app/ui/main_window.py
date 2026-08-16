@@ -414,12 +414,11 @@ class MainWindow(QMainWindow):
             [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido")])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
-        # La columna de ruta se estira para aprovechar el ancho disponible y
-        # mostrar los paths largos; cámara/contenido mantienen su tamaño.
-        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Interactive)
-        header.setMinimumSectionSize(100)
+        header.setMinimumSectionSize(40)
+        header.resizeSection(0, 320)
         header.resizeSection(1, 160)
         header.resizeSection(2, 110)
         self.source_list.verticalHeader().setVisible(False)
@@ -445,6 +444,11 @@ class MainWindow(QMainWindow):
         self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
+
+        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
+        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
+        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
+        src_scan_row.addWidget(self.btn_selective_dump)
 
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
@@ -633,11 +637,6 @@ class MainWindow(QMainWindow):
         self.btn_clear_completed.setToolTip(self.tr("Quita de la tabla las filas completadas"))
         self.btn_clear_completed.clicked.connect(self._clear_completed_rows)
         op_row.addWidget(self.btn_clear_completed)
-
-        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
-        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
-        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
-        op_row.addWidget(self.btn_selective_dump)
 
         op_row.addStretch()
         post_operaciones.addLayout(op_row)
@@ -1072,7 +1071,7 @@ class MainWindow(QMainWindow):
         settings.setValue("windowState", self.saveState())
         header = self.source_list.horizontalHeader()
         settings.setValue("sourceListWidths", [
-            header.sectionSize(0), header.sectionSize(1), header.sectionSize(2)])
+            header.sectionSize(0), header.sectionSize(1), header.sectionSize(2), header.sectionSize(3)])
         event.accept()
 
     def load_existing_projects(self):
