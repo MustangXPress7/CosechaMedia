@@ -250,6 +250,8 @@ class TestThreadLocalManager(unittest.TestCase):
     def setUp(self):
         self._orig_ensure_types = mtp._ensure_types
         mtp._ensure_types = lambda: None
+        # El thread-local persiste entre tests del mismo hilo: reset.
+        mtp._manager_local = threading.local()
 
     def tearDown(self):
         mtp._ensure_types = self._orig_ensure_types

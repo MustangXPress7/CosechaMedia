@@ -152,6 +152,9 @@ GUID_CONTENT_DIRECTORY = "{27E2E392-A111-48E0-AB0C-E17705A05F85}"
 
 _load_lock = threading.Lock()
 _types_loaded = False
+# El manager COM se crea por hilo: el staging (QThread worker) y el
+# list_devices del hilo principal no comparten objeto entre apartamentos.
+_manager_local = threading.local()
 
 
 def _ensure_types():
@@ -208,7 +211,7 @@ class _WpdSession:
             self._properties = self._content.Properties()
             self.name = self._friendly_name(pnp_id)
             self.serial = self._device_serial()
-            self.devicename = f"{self.name}_{self.name}_{self.serial}"
+            self.devicename = f"{self.name}_{self.serial}"
         except Exception:
             self.close()
             raise
@@ -426,17 +429,15 @@ def _manager():
     import comtypes.client
     import comtypes.gen.PortableDeviceApiLib as port
     _ensure_types()
-    global _DEVICE_MANAGER
-    if _DEVICE_MANAGER is None:
-        _DEVICE_MANAGER = comtypes.client.CreateObject(
+    dm = getattr(_manager_local, "device_manager", None)
+    if dm is None:
+        dm = comtypes.client.CreateObject(
             port.PortableDeviceManager,
             clsctx=comtypes.CLSCTX_INPROC_SERVER,
             interface=port.IPortableDeviceManager,
         )
-    return _DEVICE_MANAGER
-
-
-_DEVICE_MANAGER = None
+        _manager_local.device_manager = dm
+    return dm
 
 
 class WpdBackend(MtpBackend):
