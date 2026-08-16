@@ -8,7 +8,7 @@ status: complete
 stopped_at: Completed 260816-k7i-PLAN.md (quick)
 last_updated: "2026-08-16T13:21:14.209Z"
 last_activity: 2026-08-16
-last_activity_desc: Quick task 260816-jlt completado — SourcePickerDialog como lanzador compacto (inversión parcial D-12).
+last_activity_desc: Quick task 260816-k7i completado y verificado — corrección de hallazgos UI-REVIEW (ProjectWizard, confirmaciones, zombie buttons, menú Ingesta) con gap fix de regresión doble-click.
 progress:
   total_phases: 1
   completed_phases: 0
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01 (Auditoría UI y Plan de Reubicación) — EXECUTING
 Plan: 1 of 4
 Status: Executing Phase 01
-Last activity: 2026-08-16 - Completed quick task 260816-jlt: Convertir SourcePickerDialog en lanzador compacto (inversión parcial D-12)
+Last activity: 2026-08-16 - Completed quick task 260816-k7i: corrección hallazgos UI-REVIEW (ProjectWizard, confirmaciones destructivas, zombie buttons, menú Ingesta) + gap fix regresión doble-click
 
 Progress: [████████░░] 80%
 
@@ -87,6 +87,7 @@ None yet.
 | # | Description | Date | Commit | Status | Directory |
 |---|-------------|------|--------|--------|-----------|
 | 260816-jlt | Convertir SourcePickerDialog en lanzador compacto (inversión parcial D-12) | 2026-08-16 | 572cd26 | Needs Review | [260816-jlt-convertir-sourcepickerdialog-en-lanzador](./quick/260816-jlt-convertir-sourcepickerdialog-en-lanzador/) |
+| 260816-k7i | Corregir hallazgos pendientes del UI-REVIEW (ProjectWizard, confirmaciones destructivas, zombie buttons, menú redundante) | 2026-08-16 | 7aa7f98 | Verified (gap fix 5d970b3) | [260816-k7i-corregir-hallazgos-pendientes-del-ui-rev](./quick/260816-k7i-corregir-hallazgos-pendientes-del-ui-rev/) |
 
 ## Deferred Items
 
