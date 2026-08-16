@@ -112,12 +112,19 @@ class SourcePickerDialog(QDialog):
 
     def _update_ok_state(self, *_):
         item = self.list_widget.currentItem()
-        self.ok_btn.setEnabled(
-            item is not None and item.data(Qt.UserRole) is not None)
+        role = item.data(Qt.UserRole) if item is not None else None
+        if role is not None and role[0] == "device":
+            # Ítem no-accionable (sección Desconectados): no habilita OK.
+            self.ok_btn.setEnabled(False)
+            return
+        self.ok_btn.setEnabled(role is not None)
 
     def _accept_current(self):
         item = self.list_widget.currentItem()
-        if item is None or item.data(Qt.UserRole) is None:
+        if item is None:
+            return
+        role = item.data(Qt.UserRole)
+        if role is None or role[0] == "device":
             return
         self._set_from_item(item)
         self.accept()
@@ -188,6 +195,7 @@ class SourcePickerDialog(QDialog):
         name = dev.get("name") or dev.get("id") or ""
         item = QListWidgetItem("📱 " + name + " — " + self.tr("desconectado"))
         item.setFlags(Qt.ItemIsEnabled)
+        item.setData(Qt.UserRole, ("device", dev["id"]))
         item.setToolTip(
             self.tr("Dispositivo conocido pero no conectado ahora"))
         return item

@@ -31,7 +31,6 @@ from app.core import ftp, mtp
 from app.core import shoot_inbox as inboxmod
 from app.core.ftp import FtpBackend
 from app.core.metadata_engine import _is_system_entry
-from app.ui.device_picker import DevicePickerDialog
 from app.ui.ftp_picker import FtpPickerDialog
 from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
 from app.ui.source_picker import SourcePickerDialog
@@ -971,79 +970,6 @@ class MainWindow(QMainWindow):
             None,
         )
         metadata_engine.refresh_file_types()
-
-    def _manage_devices(self):
-        """Lista dispositivos MTP/FTP guardados y permite borrarlos (con sus sesiones)."""
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Dispositivos guardados"))
-        dialog.setMinimumWidth(460)
-        dialog.setMinimumHeight(300)
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
-
-        hint = QLabel(self.tr("Eliminar un dispositivo borra también sus sesiones y archivos registrados."))
-        hint.setWordWrap(True)
-        hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
-        layout.addWidget(hint)
-
-        listw = QListWidget()
-        layout.addWidget(listw, 1)
-
-        def refresh():
-            listw.clear()
-            for dev in db.get_devices():
-                did = dev["device_id"]
-                if str(did).startswith("ftp:"):
-                    pid = ftp.profile_id_from_device_key(did)
-                    prof = db.get_ftp_profile(pid) if pid is not None else None
-                    name = (prof or {}).get("name") or (prof or {}).get("host") or did
-                    host = (prof or {}).get("host") or ""
-                    label = f"{name} ({host}) — {dev['device_folder'] or '/'} ({dev['session_count']} sesiones)"
-                else:
-                    label = f"{did[-24:]} — {dev['device_folder'] or '/'} ({dev['session_count']} sesiones)"
-                listw.addItem(label)
-                listw.item(listw.count() - 1).setData(Qt.UserRole, did)
-            if listw.count():
-                listw.setCurrentRow(0)
-
-        refresh()
-
-        def _del():
-            item = listw.currentItem()
-            if not item:
-                return
-            device_id = item.data(Qt.UserRole)
-            reply = QMessageBox.question(
-                dialog, self.tr("Eliminar dispositivo"),
-                self.tr("¿Eliminar este dispositivo y todas sus sesiones?"),
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply != QMessageBox.Yes:
-                return
-            if str(device_id).startswith("ftp:"):
-                pid = ftp.profile_id_from_device_key(device_id)
-                if pid is not None:
-                    db.delete_ftp_profile(pid)
-            db.delete_device(device_id)
-            refresh()
-        self._populate_source_paths_from_sessions()
-        self._refresh_source_list()
-        self._refresh_sessions_combo()
-        self.update_start_button_state()
-        if self._wifi_panel is not None:
-            self._wifi_panel.refresh()
-
-        btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        btn_del = QPushButton(self.tr("Eliminar"))
-        btn_del.clicked.connect(_del)
-        btn_close = QPushButton(self.tr("Cerrar"))
-        btn_close.clicked.connect(dialog.accept)
-        btn_row.addWidget(btn_del)
-        btn_row.addWidget(btn_close)
-        layout.addLayout(btn_row)
-        dialog.exec()
 
     def _manage_dump_locations(self):
         if self.current_project_id is None:
@@ -2681,11 +2607,6 @@ class MainWindow(QMainWindow):
 
         m_ingest = menu_bar.addMenu(self.tr("&Ingesta"))
 
-        act_pick_source = QAction(self.tr("Seleccionar &origen (SD)…"), self)
-        act_pick_source.setShortcut("Ctrl+O")
-        act_pick_source.triggered.connect(self.select_source_path)
-        m_ingest.addAction(act_pick_source)
-
         act_pick_dest = QAction(self.tr("Seleccionar &destino del proyecto…"), self)
         act_pick_dest.setShortcut("Ctrl+D")
         act_pick_dest.triggered.connect(self.select_dest_path)
@@ -2701,14 +2622,6 @@ class MainWindow(QMainWindow):
         )
         self.act_auto_detect.triggered.connect(self._on_auto_detect_toggled)
         m_ingest.addAction(self.act_auto_detect)
-
-        act_detect_now = QAction(self.tr("&Detectar unidades extraíbles ahora"), self)
-        act_detect_now.triggered.connect(self._auto_detect_removable_drives)
-        m_ingest.addAction(act_detect_now)
-
-        self.act_pick_device = QAction(self.tr("Importar desde dispositivo (MTP)…"), self)
-        self.act_pick_device.triggered.connect(self._pick_device_source)
-        m_ingest.addAction(self.act_pick_device)
 
         act_detect_sd = QAction(self.tr("Detectar &información de tarjeta SD…"), self)
         act_detect_sd.triggered.connect(self._detect_sd_card)
@@ -2739,10 +2652,6 @@ class MainWindow(QMainWindow):
         act_containers = QAction(self.tr("Personalizar &contenedores de archivos…"), self)
         act_containers.triggered.connect(self._manage_containers)
         m_config.addAction(act_containers)
-
-        act_devices = QAction(self.tr("Dispositivos guardados…"), self)
-        act_devices.triggered.connect(self._manage_devices)
-        m_config.addAction(act_devices)
 
         self._view_menu = menu_bar.addMenu(self.tr("&Vista"))
         self._theme_menu = self._view_menu.addMenu(self.tr("Tema"))
@@ -2829,11 +2738,6 @@ class MainWindow(QMainWindow):
             sp = s.get("source_path")
             if sp and sp not in self._source_paths:
                 self._source_paths.append(sp)
-
-    def select_source_path(self):
-        choice = self._pick_source_entry()
-        if choice is not None:
-            self._apply_source_choice(choice)
 
     def _add_source_entry(self):
         choice = self._pick_source_entry()
@@ -2937,10 +2841,30 @@ class MainWindow(QMainWindow):
                     break
             self._sync_wifi_sessions()
             return True
+        if kind == "device":
+            reply = QMessageBox.question(
+                self, self.tr("Eliminar dispositivo guardado"),
+                self.tr("¿Eliminar este dispositivo guardado y sus sesiones?\n"
+                        "Los archivos en disco se conservan.\n"
+                        "Esta acción no se puede deshacer."),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return False
+            if str(value).startswith("ftp:"):
+                pid = ftp.profile_id_from_device_key(value)
+                if pid is not None:
+                    db.delete_ftp_profile(pid)
+            db.delete_device(value)
+            self._populate_source_paths_from_sessions()
+            self._refresh_source_list()
+            self._refresh_sessions_combo()
+            self.update_start_button_state()
+            return True
         return False
 
     def _disconnected_devices(self):
-        """Dispositivos MTP con sesiones en el proyecto pero no conectados ahora."""
+        """Dispositivos MTP desconectados y perfiles FTP con sesiones en el
+        proyecto, para poder borrarlos desde el diálogo unificado (D-12)."""
         if self.current_project_id is None:
             return []
         try:
@@ -2950,10 +2874,15 @@ class MainWindow(QMainWindow):
         known = {}
         for s in db.get_sessions(self.current_project_id):
             did = s.get("device_id") or ""
-            if did and not did.startswith("ftp:") and not did.startswith("wifi:"):
+            if did.startswith("ftp:"):
+                # Los FTP no se pueden "desconectar" por USB; se listan
+                # siempre que tengan sesiones para poder borrarlos (sustituye
+                # a la vía «Configuración → Dispositivos guardados»).
+                known.setdefault(did, s.get("camera_name") or "")
+            elif did and not did.startswith("wifi:"):
                 known.setdefault(did, s.get("camera_name") or "")
         return [{"id": did, "name": known[did] or did}
-                for did in sorted(known) if did not in current]
+                for did in sorted(known) if did.startswith("ftp:") or did not in current]
 
     def _register_device_source_from_picker(self, device_id, device_folder,
                                             device_name, backend):
@@ -3105,28 +3034,6 @@ class MainWindow(QMainWindow):
         self.update_start_button_state()
         self.ingest_status_label.setText(
             self.tr("Origen WiFi asignado a la sesión #%1").arg(session_id))
-
-    def _pick_device_source(self):
-        dialog = DevicePickerDialog(self)
-        if dialog.exec() != QDialog.Accepted:
-            return
-        if not dialog.device_id or not dialog.device_folder:
-            return
-        if self.current_project_id is None:
-            QMessageBox.information(
-                self, self.tr("Sin proyecto"),
-                self.tr("Selecciona o crea un proyecto antes de elegir un dispositivo.")
-            )
-            return
-        cache_dir = mtp.device_cache_dir(dialog.device_id, dialog.device_folder)
-        try:
-            os.makedirs(cache_dir, exist_ok=True)
-        except OSError:
-            cache_dir = mtp.device_cache_dir(dialog.device_id, "")
-            os.makedirs(cache_dir, exist_ok=True)
-        self._register_device_source(
-            cache_dir, dialog.device_id, dialog.device_folder, dialog.device_name
-        )
 
     def _pick_wifi_source(self):
         # Import local: los tests parchean app.ui.wifi_picker.WifiMethodDialog.
@@ -3547,7 +3454,6 @@ class MainWindow(QMainWindow):
         thread.finished.connect(thread.deleteLater)
         self._stage_thread = thread
         self._stage_worker = worker
-        self.act_pick_device.setEnabled(False)
         self.ingest_status_label.setText(
             self.tr("Sincronizando dispositivo (primera pasada)…")
         )
@@ -3557,7 +3463,6 @@ class MainWindow(QMainWindow):
         self.ingest_status_label.setText(message)
 
     def _on_stage_done(self, ok, res, worker, thread, session_id, cache_dir, silent=False):
-        self.act_pick_device.setEnabled(True)
         if not ok:
             if silent:
                 self.ingest_status_label.setText(self.tr("Dispositivo no disponible"))
