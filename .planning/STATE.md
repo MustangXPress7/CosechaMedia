@@ -5,14 +5,14 @@ milestone_name: milestone
 current_phase: 01
 current_phase_name: Auditoría UI y Plan de Reubicación
 status: complete
-stopped_at: Phase 01 complete — all 4 plans executed and verified. V2 relocation implemented.
-last_updated: "2026-08-15T18:30:00.000Z"
+stopped_at: Completed 260816-k7i-PLAN.md (quick)
+last_updated: "2026-08-16T13:21:14.209Z"
 last_activity: 2026-08-16
 last_activity_desc: Quick task 260816-jlt completado — SourcePickerDialog como lanzador compacto (inversión parcial D-12).
 progress:
   total_phases: 1
-  completed_phases: 1
-  total_plans: 4
+  completed_phases: 0
+  total_plans: 5
   completed_plans: 4
 ---
 
@@ -32,7 +32,7 @@ Plan: 1 of 4
 Status: Executing Phase 01
 Last activity: 2026-08-16 - Completed quick task 260816-jlt: Convertir SourcePickerDialog en lanzador compacto (inversión parcial D-12)
 
-Progress: [----------] 0%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -54,6 +54,11 @@ Progress: [----------] 0%
 - Trend: —
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 260816-k7i-corregir-hallazgos-pendientes-del-ui-rev P1 | 0h | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -65,6 +70,8 @@ Recent decisions affecting current work:
 - [Iniciativa]: Auditoría primero, implementación después — el roadmap v1 es 100% diagnóstico (sin cambios de código)
 - [Iniciativa]: Alcance = diagnóstico + plan por zona; la implementación (UI-04/UI-05) se difiere a v2 por decisión explícita del usuario
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
+- [Phase ?]: Quick k7i: ProjectWizard reactivado como única vía de creación de proyecto (600x520, callbacks on_finished/on_cancel)
+- [Phase ?]: Quick k7i: gestión de dispositivos guardados migrada a Añadir origen — rol ('device', id) + menú contextual Eliminar guardado; menú Ingesta depurado sin código zombie
 
 ### Pending Todos
 
@@ -90,6 +97,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-08-15T17:10:00.000Z
-Stopped at: Phase 1 planning complete — 4 plans ready
-Resume file: C:/Users/JoanRamon/Documents/CosechaMedia/.planning/phases/01-auditor-a-ui-y-plan-de-reubicaci-n/01-01-PLAN.md
+Last session: 2026-08-16T13:21:06.313Z
+Stopped at: Completed 260816-k7i-PLAN.md (quick)
+Resume file: None

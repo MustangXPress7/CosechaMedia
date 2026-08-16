@@ -7,6 +7,7 @@ Iniciativa de diagnóstico para CosechaMedia (aplicación de escritorio PySide6 
 ## Phases
 
 **Phase Numbering:**
+
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
@@ -17,21 +18,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Auditoría UI y Plan de Reubicación
+
 **Goal**: El operador de cámara dispone de un diagnóstico completo de la interfaz actual —qué controles existen, dónde están, qué está mal ubicado y hacia dónde deberían moverse— materializado en un informe de hallazgos con evidencia por zona y en un plan de reubicación priorizado y acordado. No se modifica ningún código.
 **Mode**: mvp
 **Depends on**: Nothing (first phase)
 **Requirements**: UI-01, UI-02, UI-03
 **Success Criteria** (what must be TRUE):
+
   1. Las cuatro zonas — ventana principal/dashboard, pickers de fuente (MTP/FTP/WiFi), asistentes y paneles (SelectiveDump, ShootInbox, About, ProjectWizard) y acciones post-ingesta (formateo, proxies, reorganizar, apagado) — quedan auditadas y cada control relevante está documentado con su ubicación actual y el problema detectado (UI-01)
   2. Existe un informe de hallazgos por zona en `.planning/` donde cada hallazgo incluye evidencia: ubicación actual, problema detectado, propuesta de reubicación y justificación de usabilidad para el operador de cámara (UI-02)
   3. Existe un plan de reubicación priorizado por zona —con impacto estimado y orden de implementación— revisado y aprobado por el usuario (UI-03)
   4. No hay cambios de código: el árbol `app/` no presenta diffs y la suite de tests (`tests/`, Qt offscreen) pasa sin modificaciones
-**Plans**: 4 plans
+
+**Plans**: 4/4 plans executed
 Plans:
-- [ ] 01-01-PLAN.md — Inventario de widgets por zona y capturas offscreen (evidencia, UI-01)
-- [ ] 01-02-PLAN.md — Informe de hallazgos 01-HALLAZGOS.md con anclas D-07..D-12 (UI-01, UI-02)
-- [ ] 01-03-PLAN.md — Plan de reubicación priorizado 01-PLAN-REUBICACION.md + gate de cero código (UI-03)
-- [ ] 01-04-PLAN.md — Revisión y aprobación del plan de reubicación por el operador (UI-03)
+
+- [x] 01-01-PLAN.md — Inventario de widgets por zona y capturas offscreen (evidencia, UI-01)
+- [x] 01-02-PLAN.md — Informe de hallazgos 01-HALLAZGOS.md con anclas D-07..D-12 (UI-01, UI-02)
+- [x] 01-03-PLAN.md — Plan de reubicación priorizado 01-PLAN-REUBICACION.md + gate de cero código (UI-03)
+- [x] 01-04-PLAN.md — Revisión y aprobación del plan de reubicación por el operador (UI-03)
+
 **UI hint**: yes
 
 ## Progress
@@ -41,4 +47,4 @@ Phases execute in numeric order: 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-15 |
+| 1. Auditoría UI y Plan de Reubicación | 4/4 | In Progress|  |
