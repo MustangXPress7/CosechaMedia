@@ -6,8 +6,8 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtCore import Qt
-from PySide6.QtTest import QTest
+from PySide6.QtCore import QEvent, Qt, QPointF
+from PySide6.QtGui import QMouseEvent
 from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from app.ui.source_picker import SourcePickerDialog
@@ -215,6 +215,19 @@ class TestSourcePicker(unittest.TestCase):
         self.assertEqual((dlg.kind, dlg.value), ("wifi", None))
         self.assertEqual(dlg.result(), QDialog.Accepted)
 
+    def _send_double_click(self, widget, pos):
+        """Envío manual de doble clic (QTest.mouseDClick no lo genera en
+        offscreen): press/release + MouseButtonDblClick/release."""
+        for etype, button, buttons in (
+                (QEvent.MouseButtonPress, Qt.LeftButton, Qt.LeftButton),
+                (QEvent.MouseButtonRelease, Qt.LeftButton, Qt.NoButton),
+                (QEvent.MouseButtonDblClick, Qt.LeftButton, Qt.LeftButton),
+                (QEvent.MouseButtonRelease, Qt.LeftButton, Qt.NoButton)):
+            event = QMouseEvent(etype, QPointF(pos), QPointF(pos), button,
+                                buttons, Qt.NoModifier)
+            QApplication.sendEvent(widget, event)
+        QApplication.processEvents()
+
     def test_double_click_item_accepts(self):
         dlg = self._dialog()
         item = self._find_item(dlg, ("folder", "F:\\ROOT"))
@@ -222,9 +235,7 @@ class TestSourcePicker(unittest.TestCase):
         dlg.show()
         QApplication.processEvents()
         rect = dlg.list_widget.visualItemRect(item)
-        QTest.mouseDClick(dlg.list_widget.viewport(), Qt.LeftButton,
-                          Qt.KeyboardModifiers(), rect.center())
-        QApplication.processEvents()
+        self._send_double_click(dlg.list_widget.viewport(), rect.center())
         self.assertEqual((dlg.kind, dlg.value), ("folder", "F:\\ROOT"))
         self.assertEqual(dlg.result(), QDialog.Accepted)
         dlg.close()
