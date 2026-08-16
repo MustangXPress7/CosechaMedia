@@ -62,6 +62,7 @@ Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo
 | Auditoría primero, implementación después | El usuario pidió "análisis primero"; reubicar sin diagnóstico previo produciría cambios a ciegas | ✓ Good |
 | Alcance: diagnóstico + plan, no rediseño completo | Revisar dónde y cómo están botones/opciones, proponer reubicación por zona, implementar solo lo acordado | ✓ Good |
 | Todos los flujos con igual prioridad | El operador de cámara usa la app de extremo a extremo; ninguna zona es descartable a priori | — Pending |
+| Inversión parcial de D-12 (lanzador de orígenes) | El diálogo unificado con 3 pestañas embebidas se rediseñó como lanzador compacto: lista de Guardados por secciones + botones que abren DevicePickerDialog/FtpPickerDialog/cadena WiFi en ventanas propias | ✓ Good — registrado 2026-08-16 (quick 260816-jlt) |
 
 ---
 *Last updated: 2026-08-15 after initialization*
