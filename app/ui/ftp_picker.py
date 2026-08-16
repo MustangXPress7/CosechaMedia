@@ -8,7 +8,7 @@ from PySide6.QtCore import QObject, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFormLayout, QHBoxLayout, QInputDialog,
     QLabel, QLineEdit, QPushButton, QSpinBox, QTextEdit, QTreeWidget,
-    QTreeWidgetItem, QVBoxLayout,
+    QTreeWidgetItem, QVBoxLayout, QWidget,
 )
 
 from app.core import ftp as ftpmod
@@ -50,34 +50,64 @@ class _ScanWorker(QObject):
         self.done.emit(ftpmod.scan_network_ftp())
 
 
-class FtpPickerDialog(QDialog):
-    """Diálogo para elegir la carpeta de un servidor FTP."""
+class FtpDevicePane(QWidget):
+    """Panel reutilizable de selección de carpeta de un servidor FTP.
+
+    No incluye fila de botones Aceptar/Cancelar: el contenedor (diálogo o
+    pestaña) gestiona la confirmación. Emite ``selection_changed`` con un
+    bool (¿listo para aceptar?) y ``activate_requested`` en doble clic válido.
+    La carga de perfiles es diferida (``ensure_loaded``).
+    """
+
+    selection_changed = Signal(bool)
+    activate_requested = Signal()
 
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
 
-    def __init__(self, parent=None, backend=None, preset_profile_id=None):
+    def __init__(self, parent=None, backend=None):
         super().__init__(parent)
         self._backend = backend or ftpmod.FtpBackend()
         self._profiles = []
         self._current_profile_id = None
-        self._preset_profile_id = preset_profile_id
         self._detect_thread = None
+        self._loaded = False
         self.profile_id = None
         self.device_id = ""
         self.device_name = ""
         self.device_folder = ""
-
-        self.setWindowTitle(self.tr("Importar por WiFi (FTP)"))
-        self.resize(720, 640)
         self._build_ui()
-        self._load_profiles()
+
+    def ensure_loaded(self, preset_profile_id=None):
+        if not self._loaded:
+            self._loaded = True
+            self._load_profiles(preset_profile_id)
+
+    def can_accept(self):
+        return bool(self.device_id and self._selected_path())
+
+    def commit(self):
+        """Guarda el perfil y rellena ``profile_id``/``device_id``/
+        ``device_name``/``device_folder`` si hay conexión y carpeta. Devuelve bool."""
+        path = self._selected_path()
+        if not self.device_id or not path:
+            return False
+        profile = self._form_profile()
+        try:
+            pid = self._save_profile(profile)
+        except Exception:
+            pid = self._current_profile_id
+        self.profile_id = pid
+        self.device_id = ftpmod.device_key(pid) if pid is not None else self.device_id
+        self.device_name = profile.display_name()
+        self.device_folder = path
+        return True
 
     # -- UI --------------------------------------------------------------
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(8)
 
         hint = QLabel(
@@ -165,24 +195,12 @@ class FtpPickerDialog(QDialog):
             "color: {}; font-size: 11px;".format(theme.color("text_secondary")))
         layout.addWidget(self.selection_label)
 
-        buttons = QHBoxLayout()
-        self.ok_btn = QPushButton(self.tr("Aceptar"))
-        self.ok_btn.setObjectName("PrimaryAction")
-        self.ok_btn.setEnabled(False)
-        self.ok_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton(self.tr("Cancelar"))
-        cancel_btn.clicked.connect(self.reject)
-        buttons.addStretch()
-        buttons.addWidget(self.ok_btn)
-        buttons.addWidget(cancel_btn)
-        layout.addLayout(buttons)
-
     def _toggle_guide(self, checked):
         self.guide_text.setVisible(checked)
 
     # -- perfiles ---------------------------------------------------------
 
-    def _load_profiles(self):
+    def _load_profiles(self, preset_profile_id=None):
         self._profiles = db.list_ftp_profiles()
         self.profile_combo.blockSignals(True)
         self.profile_combo.clear()
@@ -190,8 +208,8 @@ class FtpPickerDialog(QDialog):
         for p in self._profiles:
             label = p["name"] or f"{p['host']}:{p['port']}"
             self.profile_combo.addItem(label, p["id"])
-        if self._preset_profile_id is not None:
-            idx = self.profile_combo.findData(self._preset_profile_id)
+        if preset_profile_id is not None:
+            idx = self.profile_combo.findData(preset_profile_id)
             if idx >= 0:
                 self.profile_combo.setCurrentIndex(idx)
         self.profile_combo.blockSignals(False)
@@ -319,7 +337,7 @@ class FtpPickerDialog(QDialog):
         except Exception as e:
             self.tree.clear()
             self.conn_status.setText(self.tr("No se pudo conectar: %1").arg(str(e)))
-            self.ok_btn.setEnabled(False)
+            self._update_ok_state()
             return
         self._load_storages()
         row = db.get_ftp_profile(pid) if pid is not None else None
@@ -421,8 +439,8 @@ class FtpPickerDialog(QDialog):
     def _on_item_double_clicked(self, item, _col):
         if item.childCount() > 0:
             return
-        if self.ok_btn.isEnabled():
-            self.accept()
+        if self.can_accept():
+            self.activate_requested.emit()
 
     def _selected_path(self):
         items = self.tree.selectedItems()
@@ -433,20 +451,57 @@ class FtpPickerDialog(QDialog):
 
     def _update_ok_state(self, *_):
         path = self._selected_path()
-        self.ok_btn.setEnabled(bool(path) and bool(self.device_id))
         self.selection_label.setText(path)
+        self.selection_changed.emit(bool(path) and bool(self.device_id))
+
+
+class FtpPickerDialog(QDialog):
+    """Diálogo para elegir la carpeta de un servidor FTP."""
+
+    def tr(self, text, *args, **kwargs):
+        return QtString(super().tr(text, *args, **kwargs))
+
+    def __init__(self, parent=None, backend=None, preset_profile_id=None):
+        super().__init__(parent)
+        self._preset_profile_id = preset_profile_id
+        self.profile_id = None
+        self.device_id = ""
+        self.device_name = ""
+        self.device_folder = ""
+
+        self.setWindowTitle(self.tr("Importar por WiFi (FTP)"))
+        self.resize(720, 640)
+        self._build_ui(backend)
+
+    def _build_ui(self, backend):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(8)
+
+        self.pane = FtpDevicePane(self, backend=backend)
+        layout.addWidget(self.pane, 1)
+
+        buttons = QHBoxLayout()
+        self.ok_btn = QPushButton(self.tr("Aceptar"))
+        self.ok_btn.setObjectName("PrimaryAction")
+        self.ok_btn.setEnabled(False)
+        self.ok_btn.clicked.connect(self.accept)
+        cancel_btn = QPushButton(self.tr("Cancelar"))
+        cancel_btn.clicked.connect(self.reject)
+        buttons.addStretch()
+        buttons.addWidget(self.ok_btn)
+        buttons.addWidget(cancel_btn)
+        layout.addLayout(buttons)
+
+        self.pane.selection_changed.connect(self.ok_btn.setEnabled)
+        self.pane.activate_requested.connect(self.accept)
+        self.pane.ensure_loaded(self._preset_profile_id)
 
     def accept(self):
-        path = self._selected_path()
-        if not self.device_id or not path:
+        if not self.pane.commit():
             return
-        profile = self._form_profile()
-        try:
-            pid = self._save_profile(profile)
-        except Exception:
-            pid = self._current_profile_id
-        self.profile_id = pid
-        self.device_id = ftpmod.device_key(pid) if pid is not None else self.device_id
-        self.device_name = profile.display_name()
-        self.device_folder = path
+        self.profile_id = self.pane.profile_id
+        self.device_id = self.pane.device_id
+        self.device_name = self.pane.device_name
+        self.device_folder = self.pane.device_folder
         super().accept()

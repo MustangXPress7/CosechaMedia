@@ -107,6 +107,18 @@ class TestShootInboxServer(unittest.TestCase):
         self.assertIn(b"Reintentar (", body)
         self.assertIn(b"Cancelar", body)
 
+    def test_page_dark_by_default(self):
+        body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
+        self.assertIn(b"background: #111", body)
+        self.assertNotIn(b"background: #ffffff", body)
+
+    def test_page_light_when_server_configured_light(self):
+        # B-07: la página de subida sigue el tema de la app.
+        self.server.page_dark = False
+        body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
+        self.assertIn(b"background: #ffffff", body)
+        self.assertNotIn(b"background: #111", body)
+
     def test_health(self):
         body = urlopen(f"{self.base}/health", timeout=10).read()
         self.assertEqual(json.loads(body)["ok"], True)

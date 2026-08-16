@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QComboBox, QMessageBox, QFileDialog, QMenuBar, QMenu, QCheckBox,
                              QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
                              QListWidget, QListWidgetItem, QInputDialog, QScrollArea, QFormLayout, QDialog,
-                             QTextEdit, QSpinBox)
+                             QTextEdit, QSpinBox, QSizePolicy)
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap, QPainter
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
 from app.core.ingestor import Ingestor, DumpTarget
@@ -36,7 +36,6 @@ from app.ui.ftp_picker import FtpPickerDialog
 from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
 from app.ui.source_picker import SourcePickerDialog
 from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
-from app.ui.wifi_picker import WifiMethodDialog
 
 ORG_TYPE_MAP = {
     0: "camera_first",
@@ -286,7 +285,7 @@ class MainWindow(QMainWindow):
         for btn, txt, tip in [
             ("btn_refresh_projects", "⟳", self.tr("Actualizar proyectos")),
             ("btn_new_project", "+", self.tr("Nuevo proyecto")),
-            ("btn_delete_project", "×", self.tr("Eliminar proyecto")),
+            ("btn_delete_project", "×", self.tr("Eliminar proyecto…")),
             ("btn_rename_project", "✎", self.tr("Renombrar proyecto")),
             ("btn_duplicate_project", "⧉", self.tr("Duplicar proyecto")),
             ("btn_browse_root", "📁", self.tr("Cambiar ruta maestra del proyecto")),
@@ -313,6 +312,9 @@ class MainWindow(QMainWindow):
 
         self.project_path_label = QLabel("")
         self.project_path_label.setStyleSheet(f"color: {theme.color('accent')}; font-size: 11px; font-weight: bold;")
+        self.project_path_label.setMaximumWidth(420)
+        self.project_path_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred))
         hb.addWidget(self.project_path_label)
 
         hb.addStretch()
@@ -341,10 +343,33 @@ class MainWindow(QMainWindow):
 
         dash_layout.addWidget(header_bar)
 
+        # --- Project info line (R-10) ---
+        desc_row = QWidget()
+        desc_row.setObjectName("ProjectDescriptionRow")
+        desc_layout = QHBoxLayout(desc_row)
+        desc_layout.setContentsMargins(12, 0, 12, 2)
+        desc_layout.setSpacing(6)
+        self.project_description_label = QLabel("")
+        self.project_description_label.setStyleSheet(
+            f"color: {theme.color('text_secondary')}; font-size: 11px;")
+        self.project_description_label.setWordWrap(True)
+        self.project_description_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        desc_layout.addWidget(self.project_description_label)
+
+        self.btn_edit_description = QPushButton("✎")
+        self.btn_edit_description.setObjectName("IconButton")
+        self.btn_edit_description.setFixedSize(24, 24)
+        self.btn_edit_description.setToolTip(self.tr("Editar descripción del proyecto"))
+        self.btn_edit_description.clicked.connect(self._edit_project_description)
+        desc_layout.addWidget(self.btn_edit_description, 0, Qt.AlignTop)
+        dash_layout.addWidget(desc_row)
+
         # === MAIN CONTENT ===
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setObjectName("DashboardScrollArea")
 
         scroll_content = QWidget()
@@ -356,9 +381,19 @@ class MainWindow(QMainWindow):
         left_col.setSpacing(6)
 
         # --- Sources ---
+        src_label_row = QHBoxLayout()
         src_label = QLabel(self.tr("Orígenes:"))
         src_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
-        left_col.addWidget(src_label)
+        src_label_row.addWidget(src_label)
+        src_label_row.addStretch()
+        self.btn_remove_source = QPushButton("🗑")
+        self.btn_remove_source.setObjectName("IconButton")
+        self.btn_remove_source.setFixedSize(24, 24)
+        self.btn_remove_source.setToolTip(self.tr("Eliminar el origen seleccionado…"))
+        self.btn_remove_source.setEnabled(False)
+        self.btn_remove_source.clicked.connect(self._remove_selected_source)
+        src_label_row.addWidget(self.btn_remove_source)
+        left_col.addLayout(src_label_row)
 
         src_top = QHBoxLayout()
         self.source_input = QComboBox()
@@ -369,13 +404,18 @@ class MainWindow(QMainWindow):
 
         self.btn_browse_source = QPushButton(self.tr("Examinar"))
         self.btn_browse_source.clicked.connect(self.select_source_path)
-        src_top.addWidget(self.btn_browse_source)
+        self.btn_browse_source.hide()
+
+        self.btn_add_source = QPushButton(self.tr("Añadir origen…"))
+        self.btn_add_source.setToolTip(self.tr("Añadir un origen guardado, un dispositivo USB, WiFi o FTP"))
+        self.btn_add_source.clicked.connect(self._add_source_entry)
+        src_top.addWidget(self.btn_add_source)
 
         self.btn_receive_wifi = QPushButton(self.tr("WiFi…"))
         self.btn_receive_wifi.setToolTip(self.tr("Recibir archivos de un móvil por WiFi (QR o FTP)"))
         self.btn_receive_wifi.clicked.connect(self._pick_wifi_source)
         self.btn_receive_wifi.setEnabled(False)
-        src_top.addWidget(self.btn_receive_wifi)
+        self.btn_receive_wifi.hide()
 
         left_col.addLayout(src_top)
 
@@ -383,19 +423,25 @@ class MainWindow(QMainWindow):
         self.source_list.setColumnCount(3)
         self.source_list.setHorizontalHeaderLabels(
             [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido")])
-        self.source_list.horizontalHeader().setStretchLastSection(False)
-        self.source_list.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.source_list.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
-        self.source_list.horizontalHeader().resizeSection(1, 140)
-        self.source_list.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
-        self.source_list.horizontalHeader().resizeSection(2, 180)
+        header = self.source_list.horizontalHeader()
+        header.setStretchLastSection(False)
+        # La columna de ruta se estira para aprovechar el ancho disponible y
+        # mostrar los paths largos; cámara/contenido mantienen su tamaño.
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.Interactive)
+        header.setMinimumSectionSize(100)
+        header.resizeSection(1, 160)
+        header.resizeSection(2, 110)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
-        self.source_list.setMinimumHeight(60)
-        self.source_list.setMaximumHeight(120)
+        # La tabla crece con el contenido y aprovecha el espacio vertical.
+        self.source_list.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.source_list.itemChanged.connect(self._on_source_check_changed)
         self.source_list.itemDoubleClicked.connect(self._on_source_double_clicked)
+        self.source_list.itemSelectionChanged.connect(self._update_remove_source_button)
         self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.source_list.customContextMenuRequested.connect(
             self._show_source_context_menu)
@@ -411,6 +457,11 @@ class MainWindow(QMainWindow):
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
 
+        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
+        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
+        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
+        src_scan_row.addWidget(self.btn_selective_dump)
+
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
 
@@ -419,55 +470,62 @@ class MainWindow(QMainWindow):
         sess_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
         left_col.addWidget(sess_label)
 
-        sess_row = QHBoxLayout()
+        sess_top = QHBoxLayout()
         self.sessions_combo = QComboBox()
         self.sessions_combo.setMinimumWidth(160)
         self.sessions_combo.setMaximumWidth(360)
         self.sessions_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.sessions_combo.currentIndexChanged.connect(self._on_session_selected)
-        sess_row.addWidget(self.sessions_combo)
+        sess_top.addWidget(self.sessions_combo)
 
         self.btn_new_session = QPushButton("+")
         self.btn_new_session.setObjectName("IconButton")
         self.btn_new_session.setFixedSize(28, 28)
         self.btn_new_session.setToolTip(self.tr("Nueva sesión"))
         self.btn_new_session.clicked.connect(self._add_manual_session)
-        sess_row.addWidget(self.btn_new_session)
+        sess_top.addWidget(self.btn_new_session)
 
         self.btn_delete_session = QPushButton("−")
         self.btn_delete_session.setObjectName("IconButton")
         self.btn_delete_session.setFixedSize(28, 28)
-        self.btn_delete_session.setToolTip(self.tr("Eliminar sesión"))
+        self.btn_delete_session.setToolTip(self.tr("Eliminar sesión…"))
         self.btn_delete_session.setEnabled(False)
         self.btn_delete_session.clicked.connect(self._delete_current_session)
-        sess_row.addWidget(self.btn_delete_session)
+        sess_top.addWidget(self.btn_delete_session)
 
+        sess_top.addStretch()
+        left_col.addLayout(sess_top)
+
+        sess_src_row = QHBoxLayout()
+        sess_src_row.addWidget(QLabel(self.tr("Origen:")))
         self.session_src_label = QLabel("")
         self.session_src_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 11px;")
-        self.session_src_label.setMaximumWidth(240)
-        sess_row.addWidget(self.session_src_label)
+        self.session_src_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        sess_src_row.addWidget(self.session_src_label)
 
         self._btn_browse_sess_src = QPushButton("📁")
         self._btn_browse_sess_src.setObjectName("IconButton")
         self._btn_browse_sess_src.setFixedSize(28, 28)
         self._btn_browse_sess_src.setToolTip(self.tr("Examinar origen de sesión…"))
         self._btn_browse_sess_src.clicked.connect(self._browse_session_src)
-        sess_row.addWidget(self._btn_browse_sess_src)
+        sess_src_row.addWidget(self._btn_browse_sess_src)
+        left_col.addLayout(sess_src_row)
 
-        sess_row.addSpacing(8)
-        sess_row.addWidget(QLabel(self.tr("Destino:")))
+        sess_dest_row = QHBoxLayout()
+        sess_dest_row.addWidget(QLabel(self.tr("Destino:")))
         self.session_dest_combo = QComboBox()
         self.session_dest_combo.addItems([self.tr("Por defecto"), self.tr("Personalizado")])
         self.session_dest_combo.setFixedWidth(110)
         self.session_dest_combo.activated.connect(self._on_session_dest_type_changed)
-        sess_row.addWidget(self.session_dest_combo)
+        sess_dest_row.addWidget(self.session_dest_combo)
 
         self.session_dest_path = QLineEdit()
         self.session_dest_path.setPlaceholderText(self.tr("Ruta..."))
         self.session_dest_path.setFixedWidth(200)
         self.session_dest_path.editingFinished.connect(self._save_session_override)
         self.session_dest_path.setVisible(False)
-        sess_row.addWidget(self.session_dest_path)
+        sess_dest_row.addWidget(self.session_dest_path)
 
         self._btn_browse_sess_dest = QPushButton("📁")
         self._btn_browse_sess_dest.setObjectName("IconButton")
@@ -475,14 +533,14 @@ class MainWindow(QMainWindow):
         self._btn_browse_sess_dest.setToolTip(self.tr("Examinar..."))
         self._btn_browse_sess_dest.clicked.connect(self._browse_session_dest)
         self._btn_browse_sess_dest.setVisible(False)
-        sess_row.addWidget(self._btn_browse_sess_dest)
+        sess_dest_row.addWidget(self._btn_browse_sess_dest)
+
+        sess_dest_row.addStretch()
+        left_col.addLayout(sess_dest_row)
 
         self.chk_session_delicate = QCheckBox(self.tr("Modo delicado"))
         self.chk_session_delicate.stateChanged.connect(self._save_session_override)
-        sess_row.addWidget(self.chk_session_delicate)
-
-        sess_row.addStretch()
-        left_col.addLayout(sess_row)
+        left_col.addWidget(self.chk_session_delicate)
 
         # --- Action buttons ---
         action_row = QHBoxLayout()
@@ -541,34 +599,63 @@ class MainWindow(QMainWindow):
         stats_row.addStretch()
         left_col.addLayout(stats_row)
 
-        # --- Post-ingest actions ---
-        post_row = QHBoxLayout()
-        post_row.setSpacing(6)
+        # --- Post-ingest actions (R-01: subgrupos "Al terminar" / "Operaciones") ---
+        post_box = QGroupBox(self.tr("Acciones post-ingesta"))
+        post_box.setObjectName("PostActionsBox")
+        post_box_layout = QVBoxLayout(post_box)
+        post_box_layout.setContentsMargins(8, 6, 8, 6)
+        post_box_layout.setSpacing(6)
 
-        self.btn_reorganize = QPushButton(self.tr("Reorganizar por metadatos"))
-        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos"))
-        self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
-        post_row.addWidget(self.btn_reorganize)
+        post_terminar = QVBoxLayout()
+        post_terminar.setSpacing(2)
+        term_label = QLabel(self.tr("Al terminar"))
+        term_label.setStyleSheet(f"font-weight: 600; font-size: 10px; color: {theme.color('text_secondary')};")
+        post_terminar.addWidget(term_label)
 
-        post_row.addStretch()
-
+        format_row = QHBoxLayout()
+        format_row.setSpacing(6)
         self.chk_format_sources = QCheckBox(self.tr("Formatear orígenes al acabar:"))
         self.chk_format_sources.setToolTip(self.tr("Formatea las unidades de origen al acabar el volcado y la comprobación"))
-        post_row.addWidget(self.chk_format_sources)
+        format_row.addWidget(self.chk_format_sources)
         self.combo_format_mode = QComboBox()
         self.combo_format_mode.addItems([self.tr("Rápido"), self.tr("Completo")])
         self.combo_format_mode.setFixedWidth(100)
         self.combo_format_mode.setEnabled(False)
-        post_row.addWidget(self.combo_format_mode)
+        format_row.addWidget(self.combo_format_mode)
+        format_row.addStretch()
+        post_terminar.addLayout(format_row)
         self.chk_format_sources.toggled.connect(self.combo_format_mode.setEnabled)
-
-        post_row.addSpacing(8)
 
         self.chk_shutdown = QCheckBox(self.tr("Apagar al acabar"))
         self.chk_shutdown.setToolTip(self.tr("Apaga el ordenador al finalizar todas las tareas de ingesta"))
-        post_row.addWidget(self.chk_shutdown)
+        post_terminar.addWidget(self.chk_shutdown)
 
-        left_col.addLayout(post_row)
+        post_box_layout.addLayout(post_terminar)
+
+        post_operaciones = QVBoxLayout()
+        post_operaciones.setSpacing(2)
+        op_label = QLabel(self.tr("Operaciones"))
+        op_label.setStyleSheet(f"font-weight: 600; font-size: 10px; color: {theme.color('text_secondary')};")
+        post_operaciones.addWidget(op_label)
+
+        op_row = QHBoxLayout()
+        op_row.setSpacing(6)
+        self.btn_reorganize = QPushButton(self.tr("Reorganizar por metadatos"))
+        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos"))
+        self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
+        op_row.addWidget(self.btn_reorganize)
+
+        self.btn_clear_completed = QPushButton(self.tr("Limpiar completados"))
+        self.btn_clear_completed.setToolTip(self.tr("Quita de la tabla las filas completadas"))
+        self.btn_clear_completed.clicked.connect(self._clear_completed_rows)
+        op_row.addWidget(self.btn_clear_completed)
+
+        op_row.addStretch()
+        post_operaciones.addLayout(op_row)
+
+        post_box_layout.addLayout(post_operaciones)
+
+        left_col.addWidget(post_box)
 
         left_col.addStretch()
 
@@ -1067,6 +1154,9 @@ class MainWindow(QMainWindow):
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         settings.setValue("geometry", self.saveGeometry())
         settings.setValue("windowState", self.saveState())
+        header = self.source_list.horizontalHeader()
+        settings.setValue("sourceListWidths", [
+            header.sectionSize(0), header.sectionSize(1), header.sectionSize(2)])
         event.accept()
 
     def load_existing_projects(self):
@@ -1102,6 +1192,11 @@ class MainWindow(QMainWindow):
             self.dest_root = ""
             self.current_session_id = None
             self.project_path_label.setText("")
+            # Sin proyecto no se muestra la fila de descripción.
+            self._project_description = ""
+            self.project_description_label.setText("")
+            self.project_description_label.setVisible(False)
+            self.btn_edit_description.setVisible(False)
             self._set_status_color("border_strong")
             self.status_text.setText(self.tr("Listo"))
             self.btn_delete_project.setEnabled(False)
@@ -1119,7 +1214,7 @@ class MainWindow(QMainWindow):
         conn = db.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT name, root_path, organization_type, duration_type, default_camera, '
+            'SELECT name, root_path, description, organization_type, duration_type, default_camera, '
             'folder_name, delicate_mode, use_metadata_date FROM projects WHERE id = ?',
             (project_id,)
         )
@@ -1143,6 +1238,7 @@ class MainWindow(QMainWindow):
         name = res["name"]
         root = self.dest_root or self.tr("(sin ruta)")
         self.project_path_label.setText(f"→ {root}")
+        self._set_project_description(res["description"] or "")
         self._set_status_color("success")
         self.status_text.setText(self.tr("Proyecto: %1").arg(name))
 
@@ -1151,6 +1247,36 @@ class MainWindow(QMainWindow):
         self._refresh_source_list()
         self._update_detect_button_state()
         self._update_wifi_button_state()
+
+    def _set_project_description(self, text):
+        """Muestra la descripción del proyecto bajo la header bar (R-10/B-03)."""
+        self._project_description = text or ""
+        if not self._project_description:
+            self.project_description_label.setText(
+                self.tr("Descripción del proyecto: (sin descripción)"))
+            self.project_description_label.setToolTip("")
+            self.project_description_label.setVisible(True)
+            self.btn_edit_description.setVisible(True)
+            return
+        full = self.tr("Descripción del proyecto") + ": " + self._project_description
+        self.project_description_label.setText(full)
+        self.project_description_label.setToolTip(full)
+        self.project_description_label.setVisible(True)
+        self.btn_edit_description.setVisible(True)
+
+    def _edit_project_description(self):
+        """Edita la descripción del proyecto en línea (B-03)."""
+        if self.current_project_id is None:
+            return
+        current = getattr(self, "_project_description", "") or ""
+        new_desc, ok = QInputDialog.getText(
+            self, self.tr("Descripción del proyecto"),
+            self.tr("Descripción (opcional):"), text=current)
+        if not ok:
+            return
+        db.update_project_description(self.current_project_id, new_desc.strip())
+        self._set_project_description(new_desc.strip())
+        self.ingest_status_label.setText(self.tr("Descripción actualizada."))
 
     def _show_create_project(self):
         name, ok = QInputDialog.getText(self, self.tr("Nuevo proyecto"), self.tr("Nombre del proyecto:"))
@@ -1191,7 +1317,6 @@ class MainWindow(QMainWindow):
         is_auto = self.project_camera_detection_mode == "auto"
         self.btn_detect_drives.setEnabled(True)
         self.btn_scan_cameras.setEnabled(is_auto)
-        self.btn_reorganize.setVisible(is_auto)
 
     def _style_table_viewports(self):
         """Aplica el fondo semi-transparente a los viewports de las tablas."""
@@ -1858,13 +1983,9 @@ class MainWindow(QMainWindow):
         self._unknown_cameras.add(camera_name)
 
     def _show_table_context_menu(self, pos):
-        row = self.table.rowAt(pos.y())
         context_menu = QMenu(self)
         clear_action = context_menu.addAction(self.tr("Eliminar completados"))
         clear_action.triggered.connect(self._clear_completed_rows)
-        if row >= 0:
-            rename_action = context_menu.addAction(self.tr("Renombrar cámara..."))
-            rename_action.triggered.connect(lambda: self._rename_camera_dialog(row))
         context_menu.exec(self.table.viewport().mapToGlobal(pos))
 
     def _clear_completed_rows(self):
@@ -1879,29 +2000,6 @@ class MainWindow(QMainWindow):
                     self.table.removeRow(r)
         finally:
             self.table.setSortingEnabled(was_sorted)
-
-    def _rename_camera_dialog(self, row):
-        old_name_item = self.table.item(row, 1)
-        if not old_name_item:
-            return
-        old_name = old_name_item.text()
-        if old_name in ("Detectando...", "Unknown_Camera", ""):
-            QMessageBox.information(self, self.tr("Sin cámara"), self.tr("No se detectó cámara para renombrar."))
-            return
-        new_name, ok = QInputDialog.getText(
-            self, self.tr("Renombrar cámara"),
-            self.tr("Nuevo nombre para '%1':").arg(old_name),
-            text=old_name
-        )
-        if ok and new_name.strip() and new_name.strip() != old_name:
-            new_name = new_name.strip()
-            for ing in self._ingestors:
-                ing.rename_camera(old_name, new_name)
-            for r in range(self.table.rowCount()):
-                cam_item = self.table.item(r, 1)
-                if cam_item and cam_item.text() == old_name:
-                    cam_item.setText(new_name)
-            self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_name))
 
     def _post_ingest_rename_dialog(self):
         if self.project_camera_detection_mode == "manual":
@@ -1996,6 +2094,7 @@ class MainWindow(QMainWindow):
             self.source_list.insertRow(row)
             # Column 0: source path with checkbox
             item = QTableWidgetItem(path)
+            item.setToolTip(path)
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             path_sessions = by_path.get(path) or []
             sess = path_sessions[0] if path_sessions else None
@@ -2015,6 +2114,18 @@ class MainWindow(QMainWindow):
             self.source_list.setCellWidget(row, 2, self._build_content_button(row, sess))
         self.source_list.blockSignals(False)
         self._update_format_sources_state()
+        self._update_source_list_height()
+        self._update_remove_source_button()
+
+    def _update_source_list_height(self):
+        """Altura mínima de la tabla de orígenes según su contenido (B-06).
+
+        La tabla crece con las filas sin saltos bruscos, pero sin fijar un
+        máximo: con espacio disponible la amplía el propio layout."""
+        header = self.source_list.horizontalHeader().height() or 26
+        row_h = self.source_list.verticalHeader().defaultSectionSize() or 30
+        height = header + self.source_list.rowCount() * row_h
+        self.source_list.setMinimumHeight(max(56, height))
 
     def _build_content_button(self, row, session):
         device_id = (session or {}).get("device_id") or ""
@@ -2237,16 +2348,27 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
 
+    def _remove_selected_source(self):
+        """Elimina el origen seleccionado en la tabla (botón de la cabecera)."""
+        row = self.source_list.currentRow()
+        if row < 0:
+            return
+        self._delete_source_at_row(row)
+
+    def _update_remove_source_button(self, *_):
+        """Habilita/deshabilita el botón de eliminar según haya selección."""
+        enabled = (self.current_project_id is not None
+                   and self.source_list.currentRow() >= 0)
+        self.btn_remove_source.setEnabled(enabled)
+
     def _show_source_context_menu(self, pos):
         row = self.source_list.rowAt(pos.y())
+        if row < 0:
+            return
         menu = QMenu(self)
-        add_action = menu.addAction(self.tr("Añadir dispositivo WiFi…"))
-        add_action.triggered.connect(lambda: self._prompt_wifi_sender())
-        menu.addSeparator()
-        if row >= 0:
-            delete_action = menu.addAction(self.tr("Eliminar origen"))
-            delete_action.triggered.connect(
-                lambda: self._delete_source_at_row(row))
+        delete_action = menu.addAction(self.tr("Eliminar origen…"))
+        delete_action.triggered.connect(
+            lambda: self._delete_source_at_row(row))
         menu.exec(self.source_list.viewport().mapToGlobal(pos))
 
     def _delete_source_at_row(self, row):
@@ -2263,7 +2385,8 @@ class MainWindow(QMainWindow):
         names = ", ".join(s["name"] for s in sessions)
         reply = QMessageBox.question(
             self, self.tr("Eliminar origen"),
-            self.tr("¿Eliminar el origen '%1' y sus sesiones (%2)?")
+            self.tr("¿Eliminar el origen '%1' y sus sesiones (%2)?\n"
+                    "Esta acción no se puede deshacer.")
             .arg(path).arg(names),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
@@ -2409,19 +2532,24 @@ class MainWindow(QMainWindow):
         self.session_dest_combo.setVisible(True)
         src = session.get("source_path") or ""
         if managed and src:
-            name = None
-            if session.get("device_id") == WIFI_DEVICE_ID:
-                name = session.get("camera_name") or session.get("device_folder") or ""
+            # Muestra el nombre del dispositivo (cámara/móvil) en lugar de la
+            # ruta técnica de la caché local (B-02).
+            name = session.get("camera_name") or session.get("device_folder") or ""
             if name:
-                text = self.tr("Origen automático: %1").arg("📶 " + name)
+                prefix = ""
+                if session.get("device_id") == WIFI_DEVICE_ID:
+                    prefix = "📶 "
+                elif (session.get("device_id") or "").startswith("ftp:"):
+                    prefix = "🌐 "
+                elif session.get("device_id"):
+                    prefix = "📱 "
+                text = self.tr("Origen automático: %1").arg(prefix + name)
             else:
                 text = self.tr("Origen automático: %1").arg(src)
         else:
             text = (self.tr("Origen: %1").arg(src) if src
                     else self.tr("Origen: sin origen (no se ejecutará)"))
-        from PySide6.QtGui import QFontMetrics
-        fm = QFontMetrics(self.session_src_label.font())
-        self.session_src_label.setText(fm.elidedText(text, Qt.ElideMiddle, 240))
+        self.session_src_label.setText(text)
         self.session_src_label.setToolTip(text)
         self.session_dest_combo.blockSignals(True)
         dest = session.get("destination_override")
@@ -2540,7 +2668,7 @@ class MainWindow(QMainWindow):
 
         m_file = menu_bar.addMenu(self.tr("&Archivo"))
 
-        act_new = QAction(self.tr("&Nuevo Proyecto..."), self)
+        act_new = QAction(self.tr("&Nuevo Proyecto…"), self)
         act_new.setShortcut("Ctrl+N")
         act_new.triggered.connect(self._show_create_project)
         m_file.addAction(act_new)
@@ -2550,7 +2678,7 @@ class MainWindow(QMainWindow):
         act_refresh.triggered.connect(self.load_existing_projects)
         m_file.addAction(act_refresh)
 
-        act_delete_all = QAction(self.tr("&Eliminar todos los proyectos..."), self)
+        act_delete_all = QAction(self.tr("&Eliminar todos los proyectos…"), self)
         act_delete_all.triggered.connect(self.delete_all_projects)
         m_file.addAction(act_delete_all)
 
@@ -2561,19 +2689,19 @@ class MainWindow(QMainWindow):
         act_quit.triggered.connect(self.close)
         m_file.addAction(act_quit)
 
-        m_routes = menu_bar.addMenu(self.tr("&Rutas"))
+        m_ingest = menu_bar.addMenu(self.tr("&Ingesta"))
 
-        act_pick_source = QAction(self.tr("Seleccionar &origen (SD)..."), self)
+        act_pick_source = QAction(self.tr("Seleccionar &origen (SD)…"), self)
         act_pick_source.setShortcut("Ctrl+O")
         act_pick_source.triggered.connect(self.select_source_path)
-        m_routes.addAction(act_pick_source)
+        m_ingest.addAction(act_pick_source)
 
-        act_pick_dest = QAction(self.tr("Seleccionar &destino del proyecto..."), self)
+        act_pick_dest = QAction(self.tr("Seleccionar &destino del proyecto…"), self)
         act_pick_dest.setShortcut("Ctrl+D")
         act_pick_dest.triggered.connect(self.select_dest_path)
-        m_routes.addAction(act_pick_dest)
+        m_ingest.addAction(act_pick_dest)
 
-        m_routes.addSeparator()
+        m_ingest.addSeparator()
 
         self.act_auto_detect = QAction(self.tr("Auto-detectar &unidades extraíbles al inicio"), self)
         self.act_auto_detect.setCheckable(True)
@@ -2582,45 +2710,49 @@ class MainWindow(QMainWindow):
             settings.value("autoDetectDrives", False, type=bool)
         )
         self.act_auto_detect.triggered.connect(self._on_auto_detect_toggled)
-        m_routes.addAction(self.act_auto_detect)
+        m_ingest.addAction(self.act_auto_detect)
 
         act_detect_now = QAction(self.tr("&Detectar unidades extraíbles ahora"), self)
         act_detect_now.triggered.connect(self._auto_detect_removable_drives)
-        m_routes.addAction(act_detect_now)
+        m_ingest.addAction(act_detect_now)
 
-        m_routes.addSeparator()
-
-        act_open_data = QAction(self.tr("Abrir carpeta &datos..."), self)
-        act_open_data.triggered.connect(self.open_data_folder)
-        m_routes.addAction(act_open_data)
-
-        m_routes.addSeparator()
-
-        act_dump_targets = QAction(self.tr("Gestionar &destinos de volcado..."), self)
-        act_dump_targets.triggered.connect(self._manage_dump_locations)
-        m_routes.addAction(act_dump_targets)
-
-        m_detection = menu_bar.addMenu(self.tr("&Detección"))
         self.act_pick_device = QAction(self.tr("Importar desde dispositivo (MTP)…"), self)
         self.act_pick_device.triggered.connect(self._pick_device_source)
-        m_detection.addAction(self.act_pick_device)
-        act_cam_detect = QAction(self.tr("Configurar detección de &cámara..."), self)
-        act_cam_detect.triggered.connect(self._show_camera_detection_dialog)
-        m_detection.addAction(act_cam_detect)
-        act_detect_sd = QAction(self.tr("Detectar &información de tarjeta SD..."), self)
-        act_detect_sd.triggered.connect(self._detect_sd_card)
-        m_detection.addAction(act_detect_sd)
+        m_ingest.addAction(self.act_pick_device)
 
-        m_custom = menu_bar.addMenu(self.tr("&Personalizado"))
-        act_footage = QAction(self.tr("Personalizar &carpeta de footage..."), self)
+        act_detect_sd = QAction(self.tr("Detectar &información de tarjeta SD…"), self)
+        act_detect_sd.triggered.connect(self._detect_sd_card)
+        m_ingest.addAction(act_detect_sd)
+
+        m_ingest.addSeparator()
+
+        act_dump_targets = QAction(self.tr("Gestionar &destinos de volcado…"), self)
+        act_dump_targets.triggered.connect(self._manage_dump_locations)
+        m_ingest.addAction(act_dump_targets)
+
+        act_open_data = QAction(self.tr("Abrir carpeta &datos…"), self)
+        act_open_data.triggered.connect(self.open_data_folder)
+        m_ingest.addAction(act_open_data)
+
+        m_config = menu_bar.addMenu(self.tr("&Configuración"))
+
+        act_cam_detect = QAction(self.tr("Configurar detección de &cámara…"), self)
+        act_cam_detect.triggered.connect(self._show_camera_detection_dialog)
+        m_config.addAction(act_cam_detect)
+
+        m_config.addSeparator()
+
+        act_footage = QAction(self.tr("Personalizar &carpeta de footage…"), self)
         act_footage.triggered.connect(self._manage_footage_folders)
-        m_custom.addAction(act_footage)
-        act_containers = QAction(self.tr("Personalizar &contenedores de archivos..."), self)
+        m_config.addAction(act_footage)
+
+        act_containers = QAction(self.tr("Personalizar &contenedores de archivos…"), self)
         act_containers.triggered.connect(self._manage_containers)
-        m_custom.addAction(act_containers)
-        act_devices = QAction(self.tr("Dispositivos guardados..."), self)
+        m_config.addAction(act_containers)
+
+        act_devices = QAction(self.tr("Dispositivos guardados…"), self)
         act_devices.triggered.connect(self._manage_devices)
-        m_custom.addAction(act_devices)
+        m_config.addAction(act_devices)
 
         self._view_menu = menu_bar.addMenu(self.tr("&Vista"))
         self._theme_menu = self._view_menu.addMenu(self.tr("Tema"))
@@ -2670,11 +2802,11 @@ class MainWindow(QMainWindow):
         self._view_menu.addAction(self._act_wheat_bg)
 
         m_help = menu_bar.addMenu(self.tr("A&yuda"))
-        act_check_updates = QAction(self.tr("&Búsqueda de actualizaciones..."), self)
+        act_check_updates = QAction(self.tr("&Búsqueda de actualizaciones…"), self)
         act_check_updates.triggered.connect(self._check_for_updates)
         m_help.addAction(act_check_updates)
         m_help.addSeparator()
-        act_about = QAction(self.tr("&Acerca de..."), self)
+        act_about = QAction(self.tr("&Acerca de…"), self)
         act_about.triggered.connect(self.show_about)
         m_help.addAction(act_about)
 
@@ -2710,8 +2842,15 @@ class MainWindow(QMainWindow):
 
     def select_source_path(self):
         choice = self._pick_source_entry()
-        if choice is None:
-            return
+        if choice is not None:
+            self._apply_source_choice(choice)
+
+    def _add_source_entry(self):
+        choice = self._pick_source_entry()
+        if choice is not None:
+            self._apply_source_choice(choice)
+
+    def _apply_source_choice(self, choice):
         kind, value = choice
         if kind == "browse":
             start_dir = self.source_input.currentText().strip() or os.path.expanduser("~")
@@ -2726,13 +2865,23 @@ class MainWindow(QMainWindow):
             self._bind_wifi_sender(value)
         elif kind == "ftp_profile":
             self._pick_ftp_source(preset_profile_id=value)
+        elif kind == "device":
+            device_id, device_folder, device_name = value
+            self._register_device_source_from_picker(
+                device_id, device_folder, device_name, backend=mtp.WpdBackend())
+        elif kind == "ftp_new":
+            profile_id, device_id, device_folder, device_name = value
+            self._register_device_source_from_picker(
+                device_id, device_folder, device_name, backend=ftp.FtpBackend())
+        elif kind == "wifi":
+            self._pick_wifi_source()
 
     def _pick_source_entry(self):
-        """Abre el selector unificado de orígenes guardados.
+        """Abre el selector unificado de orígenes (guardados y dispositivos).
 
         Devuelve una tupla ``(kind, value)`` o ``None`` si se cancela.
-        ``kind`` puede ser ``"folder"``, ``"sender"`` o ``"ftp_profile"``
-        (origen guardado) o ``"browse"`` (el usuario quiere explorar).
+        ``kind`` puede ser ``"folder"``/``"sender"``/``"ftp_profile"``/
+        ``"browse"``/``"device"``/``"ftp_new"``/``"wifi"``.
         """
         if self.current_project_id is None:
             return None
@@ -2750,14 +2899,89 @@ class MainWindow(QMainWindow):
         senders = [{"name": s["name"],
                     "used": inboxmod.sanitize_alias(s["name"]) in used}
                    for s in db.list_inbox_senders()]
-        profiles = db.list_ftp_profiles()
         dialog = SourcePickerDialog(self, folders=folders, senders=senders,
-                                    ftp_profiles=profiles)
+                                    devices_missing=self._disconnected_devices(),
+                                    on_delete=self._delete_saved_source)
         if dialog.exec() != QDialog.Accepted:
             return None
         if dialog.kind is None:
             return None
         return (dialog.kind, dialog.value)
+
+    def _delete_saved_source(self, kind, value):
+        """Borra un guardado desde el diálogo «Añadir origen» (B-04).
+
+        Devuelve True si se eliminó (para quitar el elemento de la lista)."""
+        if kind == "folder":
+            if self.current_project_id is not None:
+                in_use = any(s.get("source_path") == value
+                             for s in db.get_sessions(self.current_project_id))
+                if in_use:
+                    QMessageBox.information(
+                        self, self.tr("Eliminar origen"),
+                        self.tr("La carpeta '%1' está asignada a una sesión; "
+                                "elimínala desde la lista de orígenes.")
+                        .arg(value))
+                    return False
+            db.remove_recent_path(value)
+            return True
+        if kind == "ftp_profile":
+            reply = QMessageBox.question(
+                self, self.tr("Eliminar perfil FTP"),
+                self.tr("¿Eliminar el perfil FTP guardado?"),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return False
+            db.delete_ftp_profile(value)
+            return True
+        if kind == "sender":
+            reply = QMessageBox.question(
+                self, self.tr("Eliminar remitente WiFi"),
+                self.tr("¿Eliminar el remitente WiFi '%1'?").arg(value),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return False
+            for s in db.list_inbox_senders():
+                if s["name"] == value:
+                    db.delete_inbox_sender(s["id"])
+                    break
+            self._sync_wifi_sessions()
+            return True
+        return False
+
+    def _disconnected_devices(self):
+        """Dispositivos MTP con sesiones en el proyecto pero no conectados ahora."""
+        if self.current_project_id is None:
+            return []
+        try:
+            current = {dev.device_id for dev in mtp.WpdBackend().list_devices()}
+        except Exception:
+            current = set()
+        known = {}
+        for s in db.get_sessions(self.current_project_id):
+            did = s.get("device_id") or ""
+            if did and not did.startswith("ftp:") and not did.startswith("wifi:"):
+                known.setdefault(did, s.get("camera_name") or "")
+        return [{"id": did, "name": known[did] or did}
+                for did in sorted(known) if did not in current]
+
+    def _register_device_source_from_picker(self, device_id, device_folder,
+                                            device_name, backend):
+        """Registra un origen de dispositivo (MTP o FTP) elegido en el diálogo unificado."""
+        if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Sin proyecto"),
+                self.tr("Selecciona o crea un proyecto antes de elegir un dispositivo.")
+            )
+            return
+        cache_dir = mtp.device_cache_dir(device_id, device_folder)
+        try:
+            os.makedirs(cache_dir, exist_ok=True)
+        except OSError:
+            cache_dir = mtp.device_cache_dir(device_id, "")
+            os.makedirs(cache_dir, exist_ok=True)
+        self._register_device_source(
+            cache_dir, device_id, device_folder, device_name, backend=backend)
 
     def _assign_folder_source(self, path):
         """Asigna un folder real como nuevo origen (nunca una caché gestionada)."""
@@ -2915,6 +3139,8 @@ class MainWindow(QMainWindow):
         )
 
     def _pick_wifi_source(self):
+        # Import local: los tests parchean app.ui.wifi_picker.WifiMethodDialog.
+        from app.ui.wifi_picker import WifiMethodDialog
         dialog = WifiMethodDialog(self)
         if dialog.exec() != QDialog.Accepted:
             return
@@ -2983,7 +3209,8 @@ class MainWindow(QMainWindow):
     def _ensure_wifi_server(self) -> bool:
         if self._wifi_server is not None and self._wifi_server.running:
             return True
-        self._wifi_server = inboxmod.ShootInboxServer()
+        self._wifi_server = inboxmod.ShootInboxServer(
+            page_dark=(theme.get_theme() != "light"))
         try:
             self._wifi_server.start()
         except OSError as e:

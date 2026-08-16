@@ -380,6 +380,26 @@ class TestWifiSource(unittest.TestCase):
         self.assertIn("Alice", self.window.session_src_label.toolTip())
         self.assertIn("📶", self.window.session_src_label.toolTip())
 
+    def test_session_source_shows_mtp_device_name(self):
+        """Una sesión MTP muestra el nombre del dispositivo, no la ruta de
+        la caché técnica (B-02)."""
+        cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
+        os.makedirs(cache, exist_ok=True)
+        sid = self.db.create_session(self.pid, "Auto (Canon R5)",
+                                     "2026-01-01", "active", source_path=cache)
+        self.db.update_session_config(sid, device_id="mtp:pnp123",
+                                      device_folder="DCIM",
+                                      camera_name="Canon R5")
+        self.window._refresh_sessions_combo()
+        idx = self.window.sessions_combo.findData(sid)
+        self.assertGreaterEqual(idx, 0)
+        self.window._on_session_selected(idx)
+        tip = self.window.session_src_label.toolTip()
+        self.assertIn(self.window.tr("Origen automático:"), tip)
+        self.assertIn("📱", tip)
+        self.assertIn("Canon R5", tip)
+        self.assertNotIn(cache, tip)
+
     def test_session_source_editable_for_manual(self):
         manual = os.path.join(self.tmp, "manual")
         os.makedirs(manual, exist_ok=True)

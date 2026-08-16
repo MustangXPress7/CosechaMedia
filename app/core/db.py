@@ -294,7 +294,7 @@ class DatabaseManager:
                 (path, path_type, now)
             )
         cursor.execute(
-            'DELETE FROM recent_paths WHERE path_type = ? AND id NOT IN (SELECT id FROM recent_paths WHERE path_type = ? ORDER BY last_used DESC LIMIT 10)',
+            'DELETE FROM recent_paths WHERE path_type = ? AND id NOT IN (SELECT id FROM recent_paths WHERE path_type = ? ORDER BY last_used DESC, id DESC LIMIT 10)',
             (path_type, path_type)
         )
         conn.commit()
@@ -304,12 +304,23 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT path FROM recent_paths WHERE path_type = ? ORDER BY last_used DESC LIMIT ?',
+            'SELECT path FROM recent_paths WHERE path_type = ? ORDER BY last_used DESC, id DESC LIMIT ?',
             (path_type, limit)
         )
         paths = [row[0] for row in cursor.fetchall()]
         conn.close()
         return paths
+
+    def remove_recent_path(self, path: str, path_type: str = "source"):
+        """Olvida una ruta guardada (no borra la carpeta ni sus sesiones)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'DELETE FROM recent_paths WHERE path = ? AND path_type = ?',
+            (path, path_type)
+        )
+        conn.commit()
+        conn.close()
 
     def get_containers(self):
         conn = self.get_connection()
@@ -411,6 +422,17 @@ class DatabaseManager:
         cursor.execute(
             'UPDATE projects SET dump_path = ? WHERE id = ?',
             (path, project_id)
+        )
+        conn.commit()
+        conn.close()
+
+    def update_project_description(self, project_id: int, text: str):
+        """Actualiza la descripción del proyecto."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE projects SET description = ? WHERE id = ?',
+            (text, project_id)
         )
         conn.commit()
         conn.close()

@@ -28,37 +28,68 @@ from urllib.parse import parse_qs, urlsplit
 from app.core.db import db as _default_db
 from app.core.ftp import local_ip
 
+# CSS de la página web de subida (B-07): se elige en _serve_page según el tema
+# de la aplicación (claro/oscuro). El navegador del móvil no sabe nada de Qt.
+_PAGE_CSS = {
+    "dark": """<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #111;
+         color: #eee; margin: 0 auto; padding: 24px; max-width: 560px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .alias { color: #7ee787; font-weight: 700; }
+  .sub { font-size: 12px; color: #888; }
+  .card { background: #1c1c1c; border: 1px solid #333; border-radius: 12px;
+          padding: 16px; margin: 16px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { background: #2ea043; color: #fff; border: 0; border-radius: 8px;
+         padding: 12px 18px; font-size: 15px; cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; border: 1px solid #444;
+               color: #bbb; }
+  progress { width: 100%; margin: 8px 0; }
+  #files { list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }
+  #files li { margin: 4px 0; }
+  #files li.pending { color: #d0d7de; }
+  #files li.ok { color: #7ee787; }
+  #files li.err { color: #f85149; }
+  #status { font-size: 13px; color: #bbb; min-height: 18px; }
+  #status.ok { color: #7ee787; }
+  #status.err { color: #f85149; }
+  .sub strong { color: #eee; }
+</style>""",
+    "light": """<style>
+  body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff;
+         color: #1f2328; margin: 0 auto; padding: 24px; max-width: 560px; }
+  h1 { font-size: 20px; margin: 0 0 6px; }
+  .alias { color: #1a7f37; font-weight: 700; }
+  .sub { font-size: 12px; color: #59636e; }
+  .card { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 12px;
+          padding: 16px; margin: 16px 0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .btn { background: #1f883d; color: #fff; border: 0; border-radius: 8px;
+         padding: 12px 18px; font-size: 15px; cursor: pointer; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; border: 1px solid #d0d7de;
+               color: #59636e; }
+  progress { width: 100%; margin: 8px 0; }
+  #files { list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }
+  #files li { margin: 4px 0; }
+  #files li.pending { color: #57606a; }
+  #files li.ok { color: #1a7f37; }
+  #files li.err { color: #cf222e; }
+  #status { font-size: 13px; color: #59636e; min-height: 18px; }
+  #status.ok { color: #1a7f37; }
+  #status.err { color: #cf222e; }
+  .sub strong { color: #1f2328; }
+</style>""",
+}
+
 _PAGE_TEMPLATE = """<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Enviar a CosechaMedia</title>
-<style>
-  body {{ font-family: system-ui, -apple-system, sans-serif; background: #111;
-         color: #eee; margin: 0 auto; padding: 24px; max-width: 560px; }}
-  h1 {{ font-size: 20px; margin: 0 0 6px; }}
-  .alias {{ color: #7ee787; font-weight: 700; }}
-  .sub {{ font-size: 12px; color: #888; }}
-  .card {{ background: #1c1c1c; border: 1px solid #333; border-radius: 12px;
-          padding: 16px; margin: 16px 0; }}
-  .row {{ display: flex; gap: 8px; flex-wrap: wrap; }}
-  .btn {{ background: #2ea043; color: #fff; border: 0; border-radius: 8px;
-         padding: 12px 18px; font-size: 15px; cursor: pointer; }}
-  .btn:disabled {{ opacity: .5; cursor: default; }}
-  .btn.ghost {{ background: transparent; border: 1px solid #444;
-               color: #bbb; }}
-  progress {{ width: 100%; margin: 8px 0; }}
-  #files {{ list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }}
-  #files li {{ margin: 4px 0; }}
-  #files li.pending {{ color: #d0d7de; }}
-  #files li.ok {{ color: #7ee787; }}
-  #files li.err {{ color: #f85149; }}
-  #status {{ font-size: 13px; color: #bbb; min-height: 18px; }}
-  #status.ok {{ color: #7ee787; }}
-  #status.err {{ color: #f85149; }}
-  .sub strong {{ color: #eee; }}
-</style>
+{style}
 </head>
 <body>
 <h1>Enviar a CosechaMedia</h1>
@@ -315,7 +346,10 @@ class _UploadHandler(BaseHTTPRequestHandler):
     def _serve_page(self):
         alias = html.escape(sanitize_alias(self._query().get("src", [""])[0]))
         folder_mode = bool(getattr(self.server.owner, "folder_mode", False))
+        page_dark = bool(getattr(self.server.owner, "page_dark", True))
+        style = _PAGE_CSS["dark" if page_dark else "light"]
         page = _PAGE_TEMPLATE.format(
+            style=style,
             alias=alias,
             host=f"{(local_ip() or '127.0.0.1')}:{self.server.owner.port}",
             pick_label=("Selecciona la carpeta que quieres enviar"
@@ -428,13 +462,15 @@ class ShootInboxServer:
     def __init__(self, root: Optional[str] = None, db=None,
                  on_file_received: Optional[Callable[[str, str, int], None]] = None,
                  host: str = "0.0.0.0", port: int = 0,
-                 folder_mode: bool = False):
+                 folder_mode: bool = False, page_dark: bool = True):
         self.root = root or inbox_root(db)
         self.db = db or _default_db
         self.on_file_received = on_file_received
         self.host = host
         self.port = port
         self.folder_mode = folder_mode
+        # La página de subida se sirve en oscuro o claro según el tema de la app.
+        self.page_dark = page_dark
         self._httpd = None
         self._thread = None
 

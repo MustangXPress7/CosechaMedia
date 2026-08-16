@@ -118,8 +118,12 @@ class TestSourceContent(unittest.TestCase):
         headers = [self.window.table.horizontalHeaderItem(i).text() for i in range(5)]
         self.assertIn("Progreso", headers)
 
-    def test_selective_dump_button_removed(self):
-        self.assertFalse(hasattr(self.window, "btn_selective_dump"))
+    def test_selective_dump_button_present(self):
+        # B-01: «Volcado selectivo…» vive ahora en el área pre-ingesta de orígenes.
+        self.assertTrue(hasattr(self.window, "btn_selective_dump"))
+        with mock.patch.object(self.window, "_open_selective_dump") as op:
+            self.window.btn_selective_dump.click()
+            op.assert_called_once()
 
     def test_on_copy_progress_updates_cell(self):
         self.window.on_file_started("clip.mp4")

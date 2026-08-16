@@ -94,6 +94,31 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(len(paths), 10)
         self.assertEqual(paths[0], "C:/src/14")
 
+    def test_remove_recent_path(self):
+        self.db.save_recent_path("C:/src/x", "source")
+        self.db.save_recent_path("C:/dest/x", "destination")
+        self.db.remove_recent_path("C:/src/x")
+        self.assertNotIn("C:/src/x", self.db.get_recent_paths("source"))
+        self.assertIn("C:/dest/x", self.db.get_recent_paths("destination"))
+
+    def test_update_project_description(self):
+        conn = self.db.get_connection()
+        pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid
+        conn.commit()
+        conn.close()
+        self.db.update_project_description(pid, "Rodaje exterior")
+        conn = self.db.get_connection()
+        row = conn.execute(
+            'SELECT description FROM projects WHERE id = ?', (pid,)).fetchone()
+        conn.close()
+        self.assertEqual(row[0], "Rodaje exterior")
+        self.db.update_project_description(pid, "")
+        conn = self.db.get_connection()
+        row = conn.execute(
+            'SELECT description FROM projects WHERE id = ?', (pid,)).fetchone()
+        conn.close()
+        self.assertEqual(row[0], "")
+
     def test_device_helpers(self):
         conn = self.db.get_connection()
         pid = conn.execute("INSERT INTO projects (name) VALUES ('P')").lastrowid

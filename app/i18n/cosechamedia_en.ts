@@ -385,8 +385,8 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="288"/>
-        <location filename="../ui/main_window.py" line="1156"/>
-        <location filename="../ui/main_window.py" line="1160"/>
+        <location filename="../ui/main_window.py" line="1178"/>
+        <location filename="../ui/main_window.py" line="1182"/>
         <source>Nuevo proyecto</source>
         <translation>New project</translation>
     </message>
@@ -397,13 +397,13 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="290"/>
-        <location filename="../ui/main_window.py" line="1265"/>
+        <location filename="../ui/main_window.py" line="1287"/>
         <source>Renombrar proyecto</source>
         <translation>Rename project</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="291"/>
-        <location filename="../ui/main_window.py" line="1302"/>
+        <location filename="../ui/main_window.py" line="1324"/>
         <source>Duplicar proyecto</source>
         <translation>Duplicate project</translation>
     </message>
@@ -413,785 +413,800 @@
         <translation>Change project master path</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="321"/>
-        <location filename="../ui/main_window.py" line="611"/>
+        <location filename="../ui/main_window.py" line="324"/>
+        <location filename="../ui/main_window.py" line="633"/>
         <source>Configuración</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="338"/>
-        <location filename="../ui/main_window.py" line="1106"/>
-        <location filename="../ui/main_window.py" line="3359"/>
+        <location filename="../ui/main_window.py" line="341"/>
+        <location filename="../ui/main_window.py" line="1128"/>
+        <location filename="../ui/main_window.py" line="3365"/>
         <source>Listo</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="359"/>
+        <location filename="../ui/main_window.py" line="364"/>
         <source>Orígenes:</source>
         <translation>Sources:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="366"/>
+        <location filename="../ui/main_window.py" line="380"/>
         <source>E:\DCIM...</source>
         <translation>E:\DCIM...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="370"/>
+        <location filename="../ui/main_window.py" line="384"/>
         <source>Examinar</source>
         <translation>Browse</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="385"/>
+        <location filename="../ui/main_window.py" line="399"/>
         <source>Ruta de origen</source>
         <translation>Source path</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="385"/>
-        <location filename="../ui/main_window.py" line="578"/>
+        <location filename="../ui/main_window.py" line="399"/>
+        <location filename="../ui/main_window.py" line="600"/>
         <source>Cámara</source>
         <translation>Camera</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="385"/>
+        <location filename="../ui/main_window.py" line="399"/>
         <source>Contenido</source>
         <translation>Content</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="405"/>
+        <location filename="../ui/main_window.py" line="421"/>
         <source>⟳ Detectar</source>
         <translation>⟳ Detect</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="406"/>
+        <location filename="../ui/main_window.py" line="422"/>
         <source>Detectar unidades extraíbles</source>
         <translation>Detect removable drives</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="409"/>
+        <location filename="../ui/main_window.py" line="425"/>
         <source>📷 Escanear cámaras</source>
         <translation>📷 Scan cameras</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="410"/>
+        <location filename="../ui/main_window.py" line="426"/>
         <source>Escanear cámaras de todos los orígenes checkeados</source>
         <translation>Scan cameras from all checked sources</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="374"/>
+        <location filename="../ui/main_window.py" line="388"/>
         <source>WiFi…</source>
         <translation>WiFi…</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="375"/>
+        <location filename="../ui/main_window.py" line="371"/>
+        <source>Eliminar origen seleccionado</source>
+        <translation>Delete selected source</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="389"/>
         <source>Recibir archivos de un móvil por WiFi (QR o FTP)</source>
         <translation>Receive files from a phone over WiFi (QR or FTP)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="418"/>
+        <location filename="../ui/main_window.py" line="434"/>
         <source>Sesiones:</source>
         <translation>Sessions:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="433"/>
+        <location filename="../ui/main_window.py" line="449"/>
         <source>Nueva sesión</source>
         <translation>New session</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="440"/>
-        <location filename="../ui/main_window.py" line="2472"/>
+        <location filename="../ui/main_window.py" line="456"/>
+        <location filename="../ui/main_window.py" line="2474"/>
         <source>Eliminar sesión</source>
         <translation>Delete session</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="453"/>
+        <location filename="../ui/main_window.py" line="471"/>
         <source>Examinar origen de sesión…</source>
         <translation>Browse session source…</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="458"/>
+        <location filename="../ui/main_window.py" line="476"/>
         <source>Destino:</source>
         <translation>Destination:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="460"/>
+        <location filename="../ui/main_window.py" line="478"/>
         <source>Por defecto</source>
         <translation>Default</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="460"/>
+        <location filename="../ui/main_window.py" line="478"/>
         <source>Personalizado</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="466"/>
+        <location filename="../ui/main_window.py" line="484"/>
         <source>Ruta...</source>
         <translation>Path...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="475"/>
+        <location filename="../ui/main_window.py" line="493"/>
         <source>Examinar...</source>
         <translation>Browse...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="480"/>
+        <location filename="../ui/main_window.py" line="498"/>
         <source>Modo delicado</source>
         <translation>Delicate mode</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="489"/>
+        <location filename="../ui/main_window.py" line="507"/>
         <source>INICIAR INGESTA</source>
         <translation>START INGEST</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="495"/>
+        <location filename="../ui/main_window.py" line="513"/>
         <source>DETENER</source>
         <translation>STOP</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="513"/>
+        <location filename="../ui/main_window.py" line="531"/>
         <source>%v / %m archivos</source>
         <translation>%v / %m files</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="518"/>
-        <location filename="../ui/main_window.py" line="3834"/>
+        <location filename="../ui/main_window.py" line="536"/>
+        <location filename="../ui/main_window.py" line="3840"/>
         <source>Generar proxies</source>
         <translation>Generate proxies</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="519"/>
+        <location filename="../ui/main_window.py" line="537"/>
         <source>Genera proxies de los clips de video tras la ingesta</source>
         <translation>Generate proxies of video clips after ingest</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="532"/>
+        <location filename="../ui/main_window.py" line="550"/>
         <source>0 procesados</source>
         <translation>0 processed</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="534"/>
+        <location filename="../ui/main_window.py" line="552"/>
         <source>0 pendientes</source>
         <translation>0 pending</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="536"/>
+        <location filename="../ui/main_window.py" line="554"/>
         <source>0 errores</source>
         <translation>0 errors</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="548"/>
+        <location filename="../ui/main_window.py" line="560"/>
+        <source>Limpiar completados</source>
+        <translation>Clear completed</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="561"/>
+        <source>Quita de la tabla las filas completadas</source>
+        <translation>Remove completed rows from the table</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="570"/>
         <source>Reorganizar por metadatos</source>
         <translation>Reorganize by metadata</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="549"/>
+        <location filename="../ui/main_window.py" line="571"/>
         <source>Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos</source>
         <translation>Reorganize files in 'Unknown_Camera' by detecting their camera via metadata</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="555"/>
+        <location filename="../ui/main_window.py" line="577"/>
         <source>Formatear orígenes al acabar:</source>
         <translation>Format sources when done:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="556"/>
+        <location filename="../ui/main_window.py" line="578"/>
         <source>Formatea las unidades de origen al acabar el volcado y la comprobación</source>
         <translation>Format source drives after the dump and verification</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="559"/>
+        <location filename="../ui/main_window.py" line="581"/>
         <source>Rápido</source>
         <translation>Quick</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="559"/>
+        <location filename="../ui/main_window.py" line="581"/>
         <source>Completo</source>
         <translation>Full</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="567"/>
+        <location filename="../ui/main_window.py" line="589"/>
         <source>Apagar al acabar</source>
         <translation>Shut down when done</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="568"/>
+        <location filename="../ui/main_window.py" line="590"/>
         <source>Apaga el ordenador al finalizar todas las tareas de ingesta</source>
         <translation>Shut down the computer after all ingest tasks finish</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="578"/>
+        <location filename="../ui/main_window.py" line="600"/>
         <source>Archivo</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="578"/>
+        <location filename="../ui/main_window.py" line="600"/>
         <source>Estado</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="579"/>
+        <location filename="../ui/main_window.py" line="601"/>
         <source>Destino</source>
         <translation>Destination</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="579"/>
+        <location filename="../ui/main_window.py" line="601"/>
         <source>Progreso</source>
         <translation>Progress</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="621"/>
+        <location filename="../ui/main_window.py" line="643"/>
         <source>Carpeta footage:</source>
         <translation>Footage folder:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="624"/>
+        <location filename="../ui/main_window.py" line="646"/>
         <source>Cámara primero</source>
         <translation>Camera first</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="624"/>
+        <location filename="../ui/main_window.py" line="646"/>
         <source>Fecha primero</source>
         <translation>Date first</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="624"/>
+        <location filename="../ui/main_window.py" line="646"/>
         <source>Solo cámara</source>
         <translation>Camera only</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="624"/>
+        <location filename="../ui/main_window.py" line="646"/>
         <source>Sin subcarpetas</source>
         <translation>No subfolders</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="626"/>
+        <location filename="../ui/main_window.py" line="648"/>
         <source>Organización:</source>
         <translation>Organization:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="629"/>
+        <location filename="../ui/main_window.py" line="651"/>
         <source>Un solo día</source>
         <translation>Single day</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="629"/>
+        <location filename="../ui/main_window.py" line="651"/>
         <source>Múltiples días</source>
         <translation>Multiple days</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="629"/>
+        <location filename="../ui/main_window.py" line="651"/>
         <source>Sin fecha</source>
         <translation>No date</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="632"/>
+        <location filename="../ui/main_window.py" line="654"/>
         <source>Duración:</source>
         <translation>Duration:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="636"/>
+        <location filename="../ui/main_window.py" line="658"/>
         <source>Usar fecha de metadatos:</source>
         <translation>Use metadata date:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="642"/>
+        <location filename="../ui/main_window.py" line="664"/>
         <source>Fecha:</source>
         <translation>Date:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="647"/>
+        <location filename="../ui/main_window.py" line="669"/>
         <source>Cambiar...</source>
         <translation>Change...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="648"/>
+        <location filename="../ui/main_window.py" line="670"/>
         <source>(sin definir)</source>
         <translation>(not set)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="653"/>
+        <location filename="../ui/main_window.py" line="675"/>
         <source>Ruta maestra:</source>
         <translation>Master path:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="656"/>
+        <location filename="../ui/main_window.py" line="678"/>
         <source>Seleccionar ruta maestra</source>
         <translation>Select master path</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="665"/>
-        <location filename="../ui/main_window.py" line="751"/>
+        <location filename="../ui/main_window.py" line="687"/>
+        <location filename="../ui/main_window.py" line="773"/>
         <source>Guardar</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="690"/>
+        <location filename="../ui/main_window.py" line="712"/>
         <source>Establecer como predeterminado</source>
         <translation>Set as default</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="698"/>
+        <location filename="../ui/main_window.py" line="720"/>
         <source>Valores guardados como predeterminados.</source>
         <translation>Values saved as defaults.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="701"/>
-        <location filename="../ui/main_window.py" line="749"/>
+        <location filename="../ui/main_window.py" line="723"/>
+        <location filename="../ui/main_window.py" line="771"/>
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="715"/>
+        <location filename="../ui/main_window.py" line="737"/>
         <source>Detección de cámara</source>
         <translation>Camera detection</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="721"/>
+        <location filename="../ui/main_window.py" line="743"/>
         <source>Modo</source>
         <translation>Mode</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="724"/>
+        <location filename="../ui/main_window.py" line="746"/>
         <source>Manual</source>
         <translation>Manual</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="732"/>
+        <location filename="../ui/main_window.py" line="754"/>
         <source>Tiempo máximo de escaneo</source>
         <translation>Maximum scan time</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="761"/>
+        <location filename="../ui/main_window.py" line="783"/>
         <source>Detección de cámara actualizada.</source>
         <translation>Camera detection updated.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="779"/>
+        <location filename="../ui/main_window.py" line="801"/>
         <source>Puedes añadir, duplicar, renombrar o eliminar nombres.</source>
         <translation>You can add, duplicate, rename or delete names.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="781"/>
+        <location filename="../ui/main_window.py" line="803"/>
         <source>Puedes añadir, renombrar o eliminar nombres.</source>
         <translation>You can add, rename or delete names.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="787"/>
+        <location filename="../ui/main_window.py" line="809"/>
         <source>Buscar...</source>
         <translation>Search...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="818"/>
+        <location filename="../ui/main_window.py" line="840"/>
         <source>Añadir</source>
         <translation>Add</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="818"/>
-        <location filename="../ui/main_window.py" line="835"/>
+        <location filename="../ui/main_window.py" line="840"/>
+        <location filename="../ui/main_window.py" line="857"/>
         <source>Nuevo nombre:</source>
         <translation>New name:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="835"/>
+        <location filename="../ui/main_window.py" line="857"/>
         <source>Renombrar</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="846"/>
-        <location filename="../ui/main_window.py" line="857"/>
-        <location filename="../ui/main_window.py" line="962"/>
-        <location filename="../ui/main_window.py" line="1005"/>
+        <location filename="../ui/main_window.py" line="868"/>
+        <location filename="../ui/main_window.py" line="879"/>
+        <location filename="../ui/main_window.py" line="984"/>
+        <location filename="../ui/main_window.py" line="1027"/>
         <source>Eliminar</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="847"/>
+        <location filename="../ui/main_window.py" line="869"/>
         <source>¿Eliminar '%1'?</source>
         <translation>Delete '%1'?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="855"/>
-        <location filename="../ui/main_window.py" line="1004"/>
+        <location filename="../ui/main_window.py" line="877"/>
+        <location filename="../ui/main_window.py" line="1026"/>
         <source>Añadir...</source>
         <translation>Add...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="856"/>
+        <location filename="../ui/main_window.py" line="878"/>
         <source>Renombrar...</source>
         <translation>Rename...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="862"/>
+        <location filename="../ui/main_window.py" line="884"/>
         <source>Duplicar</source>
         <translation>Duplicate</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="865"/>
-        <location filename="../ui/main_window.py" line="964"/>
-        <location filename="../ui/main_window.py" line="1052"/>
+        <location filename="../ui/main_window.py" line="887"/>
+        <location filename="../ui/main_window.py" line="986"/>
+        <location filename="../ui/main_window.py" line="1074"/>
         <source>Cerrar</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="879"/>
+        <location filename="../ui/main_window.py" line="901"/>
         <source>Personalizar carpeta de footage</source>
         <translation>Customize footage folder</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="889"/>
+        <location filename="../ui/main_window.py" line="911"/>
         <source>Personalizar contenedores de archivos</source>
         <translation>Customize file containers</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="901"/>
+        <location filename="../ui/main_window.py" line="923"/>
         <source>Dispositivos guardados</source>
         <translation>Saved devices</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="908"/>
+        <location filename="../ui/main_window.py" line="930"/>
         <source>Eliminar un dispositivo borra también sus sesiones y archivos registrados.</source>
         <translation>Deleting a device also removes its sessions and registered files.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="941"/>
+        <location filename="../ui/main_window.py" line="963"/>
         <source>Eliminar dispositivo</source>
         <translation>Delete device</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="942"/>
+        <location filename="../ui/main_window.py" line="964"/>
         <source>¿Eliminar este dispositivo y todas sus sesiones?</source>
         <translation>Delete this device and all its sessions?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="973"/>
-        <location filename="../ui/main_window.py" line="2448"/>
-        <location filename="../ui/main_window.py" line="2903"/>
-        <location filename="../ui/main_window.py" line="2964"/>
-        <location filename="../ui/main_window.py" line="3276"/>
-        <location filename="../ui/main_window.py" line="3378"/>
-        <location filename="../ui/main_window.py" line="3545"/>
-        <location filename="../ui/main_window.py" line="3668"/>
+        <location filename="../ui/main_window.py" line="995"/>
+        <location filename="../ui/main_window.py" line="2450"/>
+        <location filename="../ui/main_window.py" line="2909"/>
+        <location filename="../ui/main_window.py" line="2970"/>
+        <location filename="../ui/main_window.py" line="3282"/>
+        <location filename="../ui/main_window.py" line="3384"/>
+        <location filename="../ui/main_window.py" line="3551"/>
+        <location filename="../ui/main_window.py" line="3674"/>
         <source>Sin proyecto</source>
         <translation>No project</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="973"/>
-        <location filename="../ui/main_window.py" line="2448"/>
-        <location filename="../ui/main_window.py" line="2965"/>
+        <location filename="../ui/main_window.py" line="995"/>
+        <location filename="../ui/main_window.py" line="2450"/>
+        <location filename="../ui/main_window.py" line="2971"/>
         <source>Selecciona un proyecto primero.</source>
         <translation>Select a project first.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="976"/>
+        <location filename="../ui/main_window.py" line="998"/>
         <source>Destinos de volcado</source>
         <translation>Dump destinations</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="983"/>
+        <location filename="../ui/main_window.py" line="1005"/>
         <source>Los archivos se repartirán entre estos destinos por orden. Cuando uno esté lleno se pasará al siguiente. Deja vacío para usar la ruta maestra del proyecto.</source>
         <translation>Files will be split among these destinations in order. When one is full, it moves to the next. Leave empty to use the project master path.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="997"/>
+        <location filename="../ui/main_window.py" line="1019"/>
         <source>fecha</source>
         <translation>date</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="999"/>
+        <location filename="../ui/main_window.py" line="1021"/>
         <source>cámara</source>
         <translation>camera</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1006"/>
+        <location filename="../ui/main_window.py" line="1028"/>
         <source>Subir</source>
         <translation>Move up</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1007"/>
+        <location filename="../ui/main_window.py" line="1029"/>
         <source>Bajar</source>
         <translation>Move down</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1015"/>
+        <location filename="../ui/main_window.py" line="1037"/>
         <source>Seleccionar destino de volcado</source>
         <translation>Select dump destination</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1019"/>
+        <location filename="../ui/main_window.py" line="1041"/>
         <source>Destino de volcado</source>
         <translation>Dump destination</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1019"/>
+        <location filename="../ui/main_window.py" line="1041"/>
         <source>Etiqueta (opcional):</source>
         <translation>Label (optional):</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1076"/>
+        <location filename="../ui/main_window.py" line="1098"/>
         <source>-- Selecciona un proyecto --</source>
         <translation>-- Select a project --</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1087"/>
-        <location filename="../ui/main_window.py" line="1188"/>
-        <location filename="../ui/main_window.py" line="1283"/>
-        <location filename="../ui/main_window.py" line="1340"/>
-        <location filename="../ui/main_window.py" line="1586"/>
-        <location filename="../ui/main_window.py" line="3413"/>
-        <location filename="../ui/main_window.py" line="3582"/>
-        <location filename="../ui/main_window.py" line="3629"/>
-        <location filename="../ui/main_window.py" line="3660"/>
+        <location filename="../ui/main_window.py" line="1109"/>
+        <location filename="../ui/main_window.py" line="1210"/>
+        <location filename="../ui/main_window.py" line="1305"/>
+        <location filename="../ui/main_window.py" line="1362"/>
+        <location filename="../ui/main_window.py" line="1608"/>
+        <location filename="../ui/main_window.py" line="3419"/>
+        <location filename="../ui/main_window.py" line="3588"/>
+        <location filename="../ui/main_window.py" line="3635"/>
+        <location filename="../ui/main_window.py" line="3666"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1087"/>
+        <location filename="../ui/main_window.py" line="1109"/>
         <source>No se pudieron cargar los proyectos: %1</source>
         <translation>Could not load projects: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1130"/>
-        <location filename="../ui/main_window.py" line="1947"/>
-        <location filename="../ui/main_window.py" line="3694"/>
+        <location filename="../ui/main_window.py" line="1152"/>
+        <location filename="../ui/main_window.py" line="1942"/>
+        <location filename="../ui/main_window.py" line="3700"/>
         <source>Aviso</source>
         <translation>Warning</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1130"/>
+        <location filename="../ui/main_window.py" line="1152"/>
         <source>Proyecto #%1 no encontrado.</source>
         <translation>Project #%1 not found.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1144"/>
+        <location filename="../ui/main_window.py" line="1166"/>
         <source>(sin ruta)</source>
         <translation>(no path)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1147"/>
-        <location filename="../ui/main_window.py" line="1280"/>
+        <location filename="../ui/main_window.py" line="1169"/>
+        <location filename="../ui/main_window.py" line="1302"/>
         <source>Proyecto: %1</source>
         <translation>Project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1156"/>
+        <location filename="../ui/main_window.py" line="1178"/>
         <source>Nombre del proyecto:</source>
         <translation>Project name:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1160"/>
+        <location filename="../ui/main_window.py" line="1182"/>
         <source>Descripción (opcional):</source>
         <translation>Description (optional):</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1182"/>
+        <location filename="../ui/main_window.py" line="1204"/>
         <source>Proyecto #%1 creado con sesión inicial.</source>
         <translation>Project #%1 created with initial session.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1188"/>
+        <location filename="../ui/main_window.py" line="1210"/>
         <source>No se pudo crear el proyecto: %1</source>
         <translation>Could not create the project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1266"/>
+        <location filename="../ui/main_window.py" line="1288"/>
         <source>Nuevo nombre del proyecto:</source>
         <translation>New project name:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1281"/>
+        <location filename="../ui/main_window.py" line="1303"/>
         <source>Proyecto renombrado a '%1'.</source>
         <translation>Project renamed to '%1'.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1283"/>
+        <location filename="../ui/main_window.py" line="1305"/>
         <source>No se pudo renombrar el proyecto: %1</source>
         <translation>Could not rename the project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1303"/>
+        <location filename="../ui/main_window.py" line="1325"/>
         <source>Nombre del proyecto duplicado:</source>
         <translation>Name of the duplicated project:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1337"/>
+        <location filename="../ui/main_window.py" line="1359"/>
         <source>Proyecto duplicado como '%1' (ID %2).</source>
         <translation>Project duplicated as '%1' (ID %2).</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1340"/>
+        <location filename="../ui/main_window.py" line="1362"/>
         <source>No se pudo duplicar el proyecto: %1</source>
         <translation>Could not duplicate the project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1370"/>
+        <location filename="../ui/main_window.py" line="1392"/>
         <source>Sin orígenes</source>
         <translation>No sources</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1370"/>
+        <location filename="../ui/main_window.py" line="1392"/>
         <source>No hay sesiones con rutas de origen válidas.</source>
         <translation>There are no sessions with valid source paths.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1379"/>
+        <location filename="../ui/main_window.py" line="1401"/>
         <source>Ya en marcha</source>
         <translation>Already running</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1379"/>
+        <location filename="../ui/main_window.py" line="1401"/>
         <source>El monitoreo de la SD ya está activo.</source>
         <translation>SD monitoring is already active.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1488"/>
+        <location filename="../ui/main_window.py" line="1510"/>
         <source>Procesando...</source>
         <translation>Processing...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1490"/>
+        <location filename="../ui/main_window.py" line="1512"/>
         <source>Procesando %1 ruta(s): %2</source>
         <translation>Processing %1 path(s): %2</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1492"/>
+        <location filename="../ui/main_window.py" line="1514"/>
         <source>En progreso</source>
         <translation>In progress</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1503"/>
-        <location filename="../ui/main_window.py" line="1635"/>
-        <location filename="../ui/main_window.py" line="1698"/>
-        <location filename="../ui/main_window.py" line="3817"/>
+        <location filename="../ui/main_window.py" line="1525"/>
+        <location filename="../ui/main_window.py" line="1657"/>
+        <location filename="../ui/main_window.py" line="1720"/>
+        <location filename="../ui/main_window.py" line="3823"/>
         <source>Iniciar Ingesta</source>
         <translation>Start Ingest</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1507"/>
+        <location filename="../ui/main_window.py" line="1529"/>
         <source>Ingesta detenida por el usuario</source>
         <translation>Ingest stopped by user</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1509"/>
+        <location filename="../ui/main_window.py" line="1531"/>
         <source>Detenido</source>
         <translation>Stopped</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1528"/>
-        <location filename="../ui/main_window.py" line="2009"/>
-        <location filename="../ui/main_window.py" line="2150"/>
-        <location filename="../ui/main_window.py" line="2157"/>
-        <location filename="../ui/main_window.py" line="2174"/>
-        <location filename="../ui/main_window.py" line="2206"/>
-        <location filename="../ui/main_window.py" line="2238"/>
+        <location filename="../ui/main_window.py" line="1550"/>
+        <location filename="../ui/main_window.py" line="2004"/>
+        <location filename="../ui/main_window.py" line="2146"/>
+        <location filename="../ui/main_window.py" line="2153"/>
+        <location filename="../ui/main_window.py" line="2170"/>
+        <location filename="../ui/main_window.py" line="2202"/>
+        <location filename="../ui/main_window.py" line="2234"/>
         <source>Sin nombre</source>
         <translation>No name</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1530"/>
+        <location filename="../ui/main_window.py" line="1552"/>
         <source>Detectando...</source>
         <translation>Detecting...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1535"/>
+        <location filename="../ui/main_window.py" line="1557"/>
         <source>Copiando...</source>
         <translation>Copying...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1557"/>
+        <location filename="../ui/main_window.py" line="1579"/>
         <source>Procesando: %1</source>
         <translation>Processing: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1583"/>
-        <location filename="../ui/main_window.py" line="1648"/>
-        <location filename="../ui/main_window.py" line="1872"/>
+        <location filename="../ui/main_window.py" line="1605"/>
+        <location filename="../ui/main_window.py" line="1670"/>
+        <location filename="../ui/main_window.py" line="1890"/>
         <source>Completado</source>
         <translation>Completed</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1615"/>
+        <location filename="../ui/main_window.py" line="1637"/>
         <source>%1 procesados</source>
         <translation>%1 processed</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1616"/>
+        <location filename="../ui/main_window.py" line="1638"/>
         <source>%1 pendientes</source>
         <translation>%1 pending</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1643"/>
+        <location filename="../ui/main_window.py" line="1665"/>
         <source>Ingesta completada: %1 procesados, %2 errores, %3 omitidos.</source>
         <translation>Ingest complete: %1 processed, %2 errors, %3 skipped.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1673"/>
+        <location filename="../ui/main_window.py" line="1695"/>
         <source>formateo de orígenes</source>
         <translation>source formatting</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1675"/>
+        <location filename="../ui/main_window.py" line="1697"/>
         <source>apagado del equipo</source>
         <translation>computer shutdown</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1678"/>
+        <location filename="../ui/main_window.py" line="1700"/>
         <source>Acciones posteriores bloqueadas</source>
         <translation>Post-ingest actions blocked</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1679"/>
+        <location filename="../ui/main_window.py" line="1701"/>
         <source>Hay errores en la ingesta. Por seguridad, se han bloqueado las siguientes acciones:
 • %1</source>
         <translation>There were errors during ingest. For safety, the following actions have been blocked:
 • %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1758"/>
-        <location filename="../ui/main_window.py" line="1763"/>
-        <location filename="../ui/main_window.py" line="1771"/>
-        <location filename="../ui/main_window.py" line="1781"/>
+        <location filename="../ui/main_window.py" line="1780"/>
+        <location filename="../ui/main_window.py" line="1785"/>
+        <location filename="../ui/main_window.py" line="1793"/>
+        <location filename="../ui/main_window.py" line="1803"/>
         <source>Formatear orígenes</source>
         <translation>Format sources</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1759"/>
+        <location filename="../ui/main_window.py" line="1781"/>
         <source>El formateo de tarjetas solo está disponible en Windows.</source>
         <translation>Card formatting is only available on Windows.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1763"/>
+        <location filename="../ui/main_window.py" line="1785"/>
         <source>No hay orígenes que formatear.</source>
         <translation>There are no sources to format.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1766"/>
+        <location filename="../ui/main_window.py" line="1788"/>
         <source>completo</source>
         <translation>full</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1766"/>
+        <location filename="../ui/main_window.py" line="1788"/>
         <source>rápido</source>
         <translation>quick</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1772"/>
+        <location filename="../ui/main_window.py" line="1794"/>
         <source>Ninguno de los orígenes es una unidad extraíble. No se formateará nada.</source>
         <translation>None of the sources is a removable drive. Nothing will be formatted.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1775"/>
+        <location filename="../ui/main_window.py" line="1797"/>
         <source>Se formatearán las unidades extraíbles (modo %1):</source>
         <translation>Removable drives will be formatted (mode %1):</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1778"/>
+        <location filename="../ui/main_window.py" line="1800"/>
         <source>
 Se omitirán (no son unidades extraíbles):</source>
         <translation>
 Will be skipped (not removable drives):</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1782"/>
+        <location filename="../ui/main_window.py" line="1804"/>
         <source>
 
 ¿Continuar?</source>
@@ -1200,31 +1215,31 @@ Will be skipped (not removable drives):</translation>
 Continue?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1788"/>
+        <location filename="../ui/main_window.py" line="1810"/>
         <source>Formateando...</source>
         <translation>Formatting...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1797"/>
-        <location filename="../ui/main_window.py" line="1804"/>
-        <location filename="../ui/main_window.py" line="1810"/>
+        <location filename="../ui/main_window.py" line="1819"/>
+        <location filename="../ui/main_window.py" line="1826"/>
+        <location filename="../ui/main_window.py" line="1832"/>
         <source>Formatear</source>
         <translation>Format</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1797"/>
+        <location filename="../ui/main_window.py" line="1819"/>
         <source>No se pudo completar el formateo:
 %1</source>
         <translation>Formatting could not be completed:
 %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1802"/>
+        <location filename="../ui/main_window.py" line="1824"/>
         <source>Formateados %1/%2 con errores</source>
         <translation>%1/%2 formatted with errors</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1805"/>
+        <location filename="../ui/main_window.py" line="1827"/>
         <source>Formateados %1/%2.
 Errores:
 %3</source>
@@ -1233,922 +1248,890 @@ Errors:
 %3</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1808"/>
+        <location filename="../ui/main_window.py" line="1830"/>
         <source>Orígenes formateados: %1/%2</source>
         <translation>Sources formatted: %1/%2</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1811"/>
+        <location filename="../ui/main_window.py" line="1833"/>
         <source>Orígenes formateados correctamente: %1/%2.</source>
         <translation>Sources formatted successfully: %1/%2.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1817"/>
+        <location filename="../ui/main_window.py" line="1839"/>
         <source>Apagar ordenador</source>
         <translation>Shut down computer</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1818"/>
+        <location filename="../ui/main_window.py" line="1840"/>
         <source>Todas las tareas han finalizado. ¿Apagar el ordenador ahora?</source>
         <translation>All tasks have finished. Shut down the computer now?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1831"/>
+        <location filename="../ui/main_window.py" line="1853"/>
         <source>Apagado programado.</source>
         <translation>Shutdown scheduled.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1833"/>
+        <location filename="../ui/main_window.py" line="1855"/>
         <source>Apagar</source>
         <translation>Shut down</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1833"/>
+        <location filename="../ui/main_window.py" line="1855"/>
         <source>No se pudo programar el apagado:
 %1</source>
         <translation>Could not schedule the shutdown:
 %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1863"/>
+        <location filename="../ui/main_window.py" line="1884"/>
         <source>Eliminar completados</source>
         <translation>Delete completed</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1866"/>
-        <source>Renombrar cámara...</source>
-        <translation>Rename camera...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="1889"/>
-        <source>Sin cámara</source>
-        <translation>No camera</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="1889"/>
-        <source>No se detectó cámara para renombrar.</source>
-        <translation>No camera was detected to rename.</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="1892"/>
-        <location filename="../ui/main_window.py" line="1974"/>
+        <location filename="../ui/main_window.py" line="1969"/>
         <source>Renombrar cámara</source>
         <translation>Rename camera</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1893"/>
-        <source>Nuevo nombre para '%1':</source>
-        <translation>New name for '%1':</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="1904"/>
-        <location filename="../ui/main_window.py" line="1927"/>
+        <location filename="../ui/main_window.py" line="1922"/>
         <source>Cámara renombrada: %1 → %2</source>
         <translation>Camera renamed: %1 → %2</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1916"/>
+        <location filename="../ui/main_window.py" line="1911"/>
         <source>Cámara desconocida detectada</source>
         <translation>Unknown camera detected</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1917"/>
+        <location filename="../ui/main_window.py" line="1912"/>
         <source>Se detectó '%1' sin identificar.
 Introduce un nombre para el dispositivo:</source>
         <translation>'%1' was detected but not identified.
 Enter a name for the device:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1948"/>
+        <location filename="../ui/main_window.py" line="1943"/>
         <source>El origen '%1' ya está en la lista.</source>
         <translation>The source '%1' is already in the list.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1959"/>
+        <location filename="../ui/main_window.py" line="1954"/>
         <source>Origen cambiado: %1</source>
         <translation>Source changed: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1975"/>
+        <location filename="../ui/main_window.py" line="1970"/>
         <source>Nombre de la cámara para este origen:</source>
         <translation>Camera name for this source:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2025"/>
+        <location filename="../ui/main_window.py" line="2021"/>
         <source>QR</source>
         <translation>QR</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2025"/>
+        <location filename="../ui/main_window.py" line="2021"/>
         <source>FTP</source>
         <translation>FTP</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2026"/>
+        <location filename="../ui/main_window.py" line="2022"/>
         <source>Mostrar el código QR de este dispositivo</source>
         <translation>Show the QR code for this device</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2027"/>
+        <location filename="../ui/main_window.py" line="2023"/>
         <source>Configurar este origen FTP</source>
         <translation>Configure this FTP source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2068"/>
-        <location filename="../ui/main_window.py" line="3695"/>
+        <location filename="../ui/main_window.py" line="2064"/>
+        <location filename="../ui/main_window.py" line="3701"/>
         <source>Activa el origen para configurar su contenido.</source>
         <translation>Activate the source to configure its content.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2141"/>
+        <location filename="../ui/main_window.py" line="2137"/>
         <source>Cámara: Sin nombre (manual)</source>
         <translation>Camera: No name (manual)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2170"/>
+        <location filename="../ui/main_window.py" line="2166"/>
         <source>Cámara detectada: %1</source>
         <translation>Camera detected: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2198"/>
+        <location filename="../ui/main_window.py" line="2194"/>
         <source>Escaneo de cámaras: %1 sesion(es) procesada(s).</source>
         <translation>Camera scan: %1 session(s) processed.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2203"/>
+        <location filename="../ui/main_window.py" line="2199"/>
         <source>Cámara no detectada</source>
         <translation>Camera not detected</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2204"/>
+        <location filename="../ui/main_window.py" line="2200"/>
         <source>No se pudo detectar la cámara en %1.</source>
         <translation>Could not detect the camera on %1.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2205"/>
+        <location filename="../ui/main_window.py" line="2201"/>
         <source>¿Qué nombre quieres darle a esta cámara?</source>
         <translation>What name do you want to give this camera?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2207"/>
+        <location filename="../ui/main_window.py" line="2203"/>
         <source>Renombrar…</source>
         <translation>Rename…</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2212"/>
+        <location filename="../ui/main_window.py" line="2208"/>
         <source>Nombre de cámara</source>
         <translation>Camera name</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2213"/>
+        <location filename="../ui/main_window.py" line="2209"/>
         <source>Introduce el nombre de la cámara:</source>
         <translation>Enter the camera name:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2217"/>
-        <location filename="../ui/main_window.py" line="2238"/>
+        <location filename="../ui/main_window.py" line="2213"/>
+        <location filename="../ui/main_window.py" line="2234"/>
         <source>Cámara: %1</source>
         <translation>Camera: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2220"/>
+        <location filename="../ui/main_window.py" line="2216"/>
         <source>Cámara: Sin nombre</source>
         <translation>Camera: No name</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2243"/>
-        <source>Añadir dispositivo WiFi…</source>
-        <translation>Add WiFi device…</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2247"/>
-        <location filename="../ui/main_window.py" line="2265"/>
+        <location filename="../ui/main_window.py" line="2241"/>
+        <location filename="../ui/main_window.py" line="2267"/>
         <source>Eliminar origen</source>
         <translation>Delete source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2266"/>
+        <location filename="../ui/main_window.py" line="2268"/>
         <source>¿Eliminar el origen '%1' y sus sesiones (%2)?</source>
         <translation>Delete the source '%1' and its sessions (%2)?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2304"/>
+        <location filename="../ui/main_window.py" line="2306"/>
         <source>Origen eliminado: %1</source>
         <translation>Source deleted: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2326"/>
+        <location filename="../ui/main_window.py" line="2328"/>
         <source>Origen asignado a sesión #%1</source>
         <translation>Source assigned to session #%1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2333"/>
+        <location filename="../ui/main_window.py" line="2335"/>
         <source>Sesión auto creada para %1</source>
         <translation>Auto session created for %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2339"/>
+        <location filename="../ui/main_window.py" line="2341"/>
         <source>Origen habilitado: %1</source>
         <translation>Source enabled: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2344"/>
+        <location filename="../ui/main_window.py" line="2346"/>
         <source>Origen deshabilitado: %1</source>
         <translation>Source disabled: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2364"/>
+        <location filename="../ui/main_window.py" line="2366"/>
         <source>(Sin sesiones)</source>
         <translation>(No sessions)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2416"/>
         <location filename="../ui/main_window.py" line="2418"/>
+        <location filename="../ui/main_window.py" line="2420"/>
         <source>Origen automático: %1</source>
         <translation>Automatic source: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2420"/>
+        <location filename="../ui/main_window.py" line="2422"/>
         <source>Origen: %1</source>
         <translation>Source: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2421"/>
+        <location filename="../ui/main_window.py" line="2423"/>
         <source>Origen: sin origen (no se ejecutará)</source>
         <translation>Source: no source (will not run)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2451"/>
+        <location filename="../ui/main_window.py" line="2453"/>
         <source>Nueva Sesión manual</source>
         <translation>New Manual Session</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2452"/>
+        <location filename="../ui/main_window.py" line="2454"/>
         <source>Nombre de la sesión:</source>
         <translation>Session name:</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2465"/>
+        <location filename="../ui/main_window.py" line="2467"/>
         <source>Sesión manual '%1' creada (ID: %2)</source>
         <translation>Manual session '%1' created (ID: %2)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2473"/>
+        <location filename="../ui/main_window.py" line="2475"/>
         <source>¿Eliminar la sesión #%1 y todos sus archivos?
 Esta acción no se puede deshacer.</source>
         <translation>Delete session #%1 and all its files?
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2484"/>
+        <location filename="../ui/main_window.py" line="2486"/>
         <source>Sesión #%1 eliminada.</source>
         <translation>Session #%1 deleted.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2510"/>
+        <location filename="../ui/main_window.py" line="2512"/>
         <source>Seleccionar destino de sesión</source>
         <translation>Select session destination</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2526"/>
+        <location filename="../ui/main_window.py" line="2528"/>
         <source>Seleccionar origen de sesión</source>
         <translation>Select session source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2541"/>
+        <location filename="../ui/main_window.py" line="2543"/>
         <source>&amp;Archivo</source>
         <translation>&amp;File</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2543"/>
-        <source>&amp;Nuevo Proyecto...</source>
-        <translation>&amp;New Project...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2548"/>
+        <location filename="../ui/main_window.py" line="2550"/>
         <source>&amp;Recargar proyectos</source>
         <translation>&amp;Reload projects</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2553"/>
-        <source>&amp;Eliminar todos los proyectos...</source>
-        <translation>&amp;Delete all projects...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2559"/>
+        <location filename="../ui/main_window.py" line="2561"/>
         <source>&amp;Salir</source>
         <translation>&amp;Quit</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2564"/>
-        <source>&amp;Rutas</source>
-        <translation>&amp;Routes</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2566"/>
-        <source>Seleccionar &amp;origen (SD)...</source>
-        <translation>Select &amp;source (SD)...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2571"/>
-        <source>Seleccionar &amp;destino del proyecto...</source>
-        <translation>Select project &amp;destination...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2578"/>
+        <location filename="../ui/main_window.py" line="2580"/>
         <source>Auto-detectar &amp;unidades extraíbles al inicio</source>
         <translation>Auto-detect &amp;removable drives at startup</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2587"/>
+        <location filename="../ui/main_window.py" line="2589"/>
         <source>&amp;Detectar unidades extraíbles ahora</source>
         <translation>&amp;Detect removable drives now</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="2593"/>
-        <source>Abrir carpeta &amp;datos...</source>
-        <translation>Open &amp;data folder...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2599"/>
-        <source>Gestionar &amp;destinos de volcado...</source>
-        <translation>Manage &amp;dump destinations...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2603"/>
-        <source>&amp;Detección</source>
-        <translation>&amp;Detection</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2604"/>
         <source>Importar desde dispositivo (MTP)…</source>
         <translation>Import from device (MTP)…</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2607"/>
-        <source>Configurar detección de &amp;cámara...</source>
-        <translation>Configure &amp;camera detection...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2610"/>
-        <source>Detectar &amp;información de tarjeta SD...</source>
-        <translation>Detect &amp;SD card info...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2614"/>
-        <source>&amp;Personalizado</source>
-        <translation>&amp;Customize</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2615"/>
-        <source>Personalizar &amp;carpeta de footage...</source>
-        <translation>Customize &amp;footage folder...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2618"/>
-        <source>Personalizar &amp;contenedores de archivos...</source>
-        <translation>Customize &amp;file containers...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2621"/>
-        <source>Dispositivos guardados...</source>
-        <translation>Saved devices...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2625"/>
+        <location filename="../ui/main_window.py" line="2631"/>
         <source>&amp;Vista</source>
         <translation>&amp;View</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2626"/>
+        <location filename="../ui/main_window.py" line="2632"/>
         <source>Tema</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2631"/>
+        <location filename="../ui/main_window.py" line="2637"/>
         <source>Oscuro</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2632"/>
+        <location filename="../ui/main_window.py" line="2638"/>
         <source>Claro</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2642"/>
+        <location filename="../ui/main_window.py" line="2648"/>
         <source>Acento</source>
         <translation>Accent</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2647"/>
+        <location filename="../ui/main_window.py" line="2653"/>
         <source>Neutro</source>
         <translation>Neutral</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2648"/>
+        <location filename="../ui/main_window.py" line="2654"/>
         <source>Verde</source>
         <translation>Green</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2649"/>
+        <location filename="../ui/main_window.py" line="2655"/>
         <source>Azul</source>
         <translation>Blue</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2650"/>
+        <location filename="../ui/main_window.py" line="2656"/>
         <source>Rosa</source>
         <translation>Pink</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2651"/>
+        <location filename="../ui/main_window.py" line="2657"/>
         <source>Morado</source>
         <translation>Purple</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2652"/>
+        <location filename="../ui/main_window.py" line="2658"/>
         <source>Ámbar</source>
         <translation>Amber</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2666"/>
+        <location filename="../ui/main_window.py" line="2672"/>
         <source>Fondo de trigo</source>
         <translation>Wheat background</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2672"/>
+        <location filename="../ui/main_window.py" line="2678"/>
         <source>A&amp;yuda</source>
         <translation>&amp;Help</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2673"/>
-        <source>&amp;Búsqueda de actualizaciones...</source>
-        <translation>&amp;Check for updates...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2677"/>
-        <source>&amp;Acerca de...</source>
-        <translation>&amp;About...</translation>
-    </message>
-    <message>
-        <location filename="../ui/main_window.py" line="2681"/>
+        <location filename="../ui/main_window.py" line="2687"/>
         <source>&amp;Idioma</source>
         <translation>&amp;Language</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2698"/>
+        <location filename="../ui/main_window.py" line="2704"/>
         <source>Idioma</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2699"/>
+        <location filename="../ui/main_window.py" line="2705"/>
         <source>Reinicia la aplicación para aplicar el idioma.</source>
         <translation>Restart the app to apply the language.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="1942"/>
-        <location filename="../ui/main_window.py" line="2719"/>
+        <location filename="../ui/main_window.py" line="1937"/>
+        <location filename="../ui/main_window.py" line="2725"/>
         <source>Seleccionar carpeta de la Tarjeta SD</source>
         <translation>Select SD Card folder</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="724"/>
+        <location filename="../ui/main_window.py" line="746"/>
         <source>Automático (experimental)</source>
         <translation>Automatic (experimental)</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="727"/>
+        <location filename="../ui/main_window.py" line="749"/>
         <source>El modo automático es experimental: detecta la cámara desde un archivo de muestra y puede no funcionar en todas las tarjetas.</source>
         <translation>Automatic mode is experimental: it detects the camera from a sample file and may not work on every card.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="738"/>
+        <location filename="../ui/main_window.py" line="760"/>
         <source>Segundos que espera el modo automático antes de preguntar por la cámara.</source>
         <translation>Seconds the automatic mode waits before asking for the camera.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2875"/>
+        <location filename="../ui/main_window.py" line="2881"/>
         <source>Origen compartido</source>
         <translation>Shared source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2876"/>
+        <location filename="../ui/main_window.py" line="2882"/>
         <source>El remitente '%1' ya está asignado a la sesión #%2.
 Se añadirá también a la sesión #%3.</source>
         <translation>Sender '%1' is already assigned to session #%2.
 It will also be added to session #%3.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2904"/>
-        <location filename="../ui/main_window.py" line="3277"/>
+        <location filename="../ui/main_window.py" line="2910"/>
+        <location filename="../ui/main_window.py" line="3283"/>
         <source>Selecciona o crea un proyecto antes de elegir un dispositivo.</source>
         <translation>Select or create a project before choosing a device.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2969"/>
+        <location filename="../ui/main_window.py" line="2975"/>
         <source>Añadir dispositivo WiFi</source>
         <translation>Add WiFi device</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2971"/>
+        <location filename="../ui/main_window.py" line="2977"/>
         <source>Nombre del dispositivo (aparecerá en el código QR):</source>
         <translation>Device name (it will appear in the QR code):</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2972"/>
+        <location filename="../ui/main_window.py" line="2978"/>
         <source>Ej.: Móvil de Joan</source>
         <translation>E.g. Joan's phone</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3243"/>
+        <location filename="../ui/main_window.py" line="3249"/>
         <source>Recepción detenida. Pulsa «Reanudar» para continuar.</source>
         <translation>Reception stopped. Press “Resume” to continue.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3341"/>
+        <location filename="../ui/main_window.py" line="3347"/>
         <source>Sincronizando dispositivo (primera pasada)…</source>
         <translation>Syncing device (first pass)…</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3353"/>
+        <location filename="../ui/main_window.py" line="3359"/>
         <source>Dispositivo no disponible</source>
         <translation>Device not available</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3356"/>
+        <location filename="../ui/main_window.py" line="3362"/>
         <source>Dispositivo</source>
         <translation>Device</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3357"/>
+        <location filename="../ui/main_window.py" line="3363"/>
         <source>No se pudo sincronizar el dispositivo: %1</source>
         <translation>Could not sync the device: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3369"/>
+        <location filename="../ui/main_window.py" line="3375"/>
         <source>Dispositivo sincronizado: %1 nuevos, %2 sin cambios, %3 errores.</source>
         <translation>Device synced: %1 new, %2 unchanged, %3 errors.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3379"/>
+        <location filename="../ui/main_window.py" line="3385"/>
         <source>Selecciona o crea un proyecto antes de cambiar su destino.</source>
         <translation>Select or create a project before changing its destination.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3383"/>
+        <location filename="../ui/main_window.py" line="3389"/>
         <source>Seleccionar carpeta maestra del proyecto</source>
         <translation>Select project master folder</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3410"/>
+        <location filename="../ui/main_window.py" line="3416"/>
         <source>Destino maestro actualizado: %1</source>
         <translation>Master destination updated: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3413"/>
+        <location filename="../ui/main_window.py" line="3419"/>
         <source>No se pudo actualizar el destino: %1</source>
         <translation>Could not update the destination: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3545"/>
+        <location filename="../ui/main_window.py" line="3551"/>
         <source>Selecciona un proyecto para eliminar.</source>
         <translation>Select a project to delete.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3550"/>
+        <location filename="../ui/main_window.py" line="3556"/>
         <source>Confirmar eliminación</source>
         <translation>Confirm deletion</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3551"/>
+        <location filename="../ui/main_window.py" line="3557"/>
         <source>¿Eliminar el proyecto #%1 y todos sus datos?
 Esta acción no se puede deshacer.</source>
         <translation>Delete project #%1 and all its data?
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3580"/>
+        <location filename="../ui/main_window.py" line="3586"/>
         <source>Eliminado</source>
         <translation>Deleted</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3580"/>
+        <location filename="../ui/main_window.py" line="3586"/>
         <source>Proyecto eliminado correctamente.</source>
         <translation>Project deleted successfully.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3582"/>
+        <location filename="../ui/main_window.py" line="3588"/>
         <source>Error al eliminar el proyecto: %1</source>
         <translation>Error deleting the project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3592"/>
+        <location filename="../ui/main_window.py" line="3598"/>
         <source>Sin proyectos</source>
         <translation>No projects</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3592"/>
+        <location filename="../ui/main_window.py" line="3598"/>
         <source>No hay proyectos para eliminar.</source>
         <translation>There are no projects to delete.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3597"/>
+        <location filename="../ui/main_window.py" line="3603"/>
         <source>Eliminar todos los proyectos</source>
         <translation>Delete all projects</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3598"/>
+        <location filename="../ui/main_window.py" line="3604"/>
         <source>¿Eliminar los %1 proyectos y todos sus datos?
 Esta acción no se puede deshacer.</source>
         <translation>Delete the %1 projects and all their data?
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3627"/>
+        <location filename="../ui/main_window.py" line="3633"/>
         <source>Eliminados</source>
         <translation>Deleted</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3627"/>
+        <location filename="../ui/main_window.py" line="3633"/>
         <source>Todos los proyectos han sido eliminados.</source>
         <translation>All projects have been deleted.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3629"/>
+        <location filename="../ui/main_window.py" line="3635"/>
         <source>Error al eliminar los proyectos: %1</source>
         <translation>Error deleting the projects: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3669"/>
+        <location filename="../ui/main_window.py" line="3675"/>
         <source>Selecciona o crea un proyecto antes de hacer un volcado selectivo.</source>
         <translation>Select or create a project before doing a selective dump.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3704"/>
+        <location filename="../ui/main_window.py" line="3710"/>
         <source>Contenido del origen %1: %2</source>
         <translation>Content of source %1: %2</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3716"/>
+        <location filename="../ui/main_window.py" line="3722"/>
         <source>Actualización disponible</source>
         <translation>Update available</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3717"/>
+        <location filename="../ui/main_window.py" line="3723"/>
         <source>Hay una nueva versión de CosechaMedia disponible: %1. ¿Quieres ver los detalles?</source>
         <translation>A new version of CosechaMedia is available: %1. Would you like to see the details?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2821"/>
-        <location filename="../ui/main_window.py" line="2825"/>
+        <location filename="../ui/main_window.py" line="2827"/>
+        <location filename="../ui/main_window.py" line="2831"/>
         <source>Origen gestionado</source>
         <translation>Managed source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2822"/>
+        <location filename="../ui/main_window.py" line="2545"/>
+        <source>&amp;Nuevo Proyecto…</source>
+        <translation>&amp;New Project…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2555"/>
+        <source>&amp;Eliminar todos los proyectos…</source>
+        <translation>&amp;Delete all projects…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2566"/>
+        <source>&amp;Ingesta</source>
+        <translation>&amp;Ingest</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2568"/>
+        <source>Seleccionar &amp;origen (SD)…</source>
+        <translation>Select &amp;source (SD)…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2573"/>
+        <source>Seleccionar &amp;destino del proyecto…</source>
+        <translation>Select project &amp;destination…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2597"/>
+        <source>Detectar &amp;información de tarjeta SD…</source>
+        <translation>Detect &amp;SD card info…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2603"/>
+        <source>Gestionar &amp;destinos de volcado…</source>
+        <translation>Manage &amp;dump destinations…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2607"/>
+        <source>Abrir carpeta &amp;datos…</source>
+        <translation>Open &amp;data folder…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2611"/>
+        <source>&amp;Configuración</source>
+        <translation>&amp;Settings</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2613"/>
+        <source>Configurar detección de &amp;cámara…</source>
+        <translation>Configure &amp;camera detection…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2619"/>
+        <source>Personalizar &amp;carpeta de footage…</source>
+        <translation>Customize &amp;footage folder…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2623"/>
+        <source>Personalizar &amp;contenedores de archivos…</source>
+        <translation>Customize &amp;file containers…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2627"/>
+        <source>Dispositivos guardados…</source>
+        <translation>Saved devices…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2679"/>
+        <source>&amp;Búsqueda de actualizaciones…</source>
+        <translation>&amp;Check for updates…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2683"/>
+        <source>&amp;Acerca de…</source>
+        <translation>&amp;About…</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2828"/>
         <source>Ese origen ya está asignado a la sesión #%1.</source>
         <translation>That source is already assigned to session #%1.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2826"/>
+        <location filename="../ui/main_window.py" line="2832"/>
         <source>No puedes usar una caché gestionada como origen manual.</source>
         <translation>You cannot use a managed cache as a manual source.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2893"/>
+        <location filename="../ui/main_window.py" line="2899"/>
         <source>Origen WiFi asignado a la sesión #%1</source>
         <translation>WiFi source assigned to session #%1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2991"/>
+        <location filename="../ui/main_window.py" line="2997"/>
         <source>WiFi</source>
         <translation>WiFi</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="2992"/>
+        <location filename="../ui/main_window.py" line="2998"/>
         <source>No se pudo iniciar el servidor: %1</source>
         <translation>Could not start the server: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3244"/>
+        <location filename="../ui/main_window.py" line="3250"/>
         <source>Recepción WiFi detenida.</source>
         <translation>WiFi reception stopped.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3256"/>
-        <location filename="../ui/main_window.py" line="3257"/>
+        <location filename="../ui/main_window.py" line="3262"/>
+        <location filename="../ui/main_window.py" line="3263"/>
         <source>Recepción WiFi reanudada.</source>
         <translation>WiFi reception resumed.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3420"/>
-        <location filename="../ui/main_window.py" line="3648"/>
+        <location filename="../ui/main_window.py" line="3426"/>
+        <location filename="../ui/main_window.py" line="3654"/>
         <source>Sesión 1</source>
         <translation>Session 1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3450"/>
+        <location filename="../ui/main_window.py" line="3456"/>
         <source>Cambiar carpeta maestra</source>
         <translation>Change master folder</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3452"/>
+        <location filename="../ui/main_window.py" line="3458"/>
         <source>La carpeta maestra tiene %1 archivo(s) completado(s) en la ubicación anterior (%2).</source>
         <translation>The master folder has %1 completed file(s) in the previous location (%2).</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3454"/>
+        <location filename="../ui/main_window.py" line="3460"/>
         <source>¿Qué quieres hacer con ellos?</source>
         <translation>What do you want to do with them?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3456"/>
+        <location filename="../ui/main_window.py" line="3462"/>
         <source>Mover a la nueva ubicación</source>
         <translation>Move to the new location</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3458"/>
+        <location filename="../ui/main_window.py" line="3464"/>
         <source>Eliminar de la tabla de ingesta</source>
         <translation>Remove from the ingest table</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3460"/>
+        <location filename="../ui/main_window.py" line="3466"/>
         <source>Dejar como están</source>
         <translation>Leave as is</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3467"/>
+        <location filename="../ui/main_window.py" line="3473"/>
         <source>Archivos movidos a la nueva carpeta maestra: %1 (%2 con errores).</source>
         <translation>Files moved to the new master folder: %1 (%2 with errors).</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3472"/>
+        <location filename="../ui/main_window.py" line="3478"/>
         <source>Archivos completados eliminados de la tabla de ingesta: %1.</source>
         <translation>Completed files removed from the ingest table: %1.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3642"/>
+        <location filename="../ui/main_window.py" line="3648"/>
         <source>Proyecto por defecto</source>
         <translation>Default project</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3642"/>
+        <location filename="../ui/main_window.py" line="3648"/>
         <source>Proyecto creado automáticamente</source>
         <translation>Project created automatically</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3654"/>
+        <location filename="../ui/main_window.py" line="3660"/>
         <source>Proyecto por defecto creado con sesión inicial.</source>
         <translation>Default project created with initial session.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3660"/>
+        <location filename="../ui/main_window.py" line="3666"/>
         <source>No se pudo crear el proyecto por defecto: %1</source>
         <translation>Could not create the default project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3726"/>
+        <location filename="../ui/main_window.py" line="3732"/>
         <source>Sin origen</source>
         <translation>No source</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3726"/>
+        <location filename="../ui/main_window.py" line="3732"/>
         <source>Selecciona o añade una ruta de tarjeta SD primero.</source>
         <translation>Select or add an SD card path first.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3732"/>
+        <location filename="../ui/main_window.py" line="3738"/>
         <source>Marca: %1</source>
         <translation>Brand: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3734"/>
+        <location filename="../ui/main_window.py" line="3740"/>
         <source>Modelo: %1</source>
         <translation>Model: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3736"/>
+        <location filename="../ui/main_window.py" line="3742"/>
         <source>Serie: %1</source>
         <translation>Serial: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3738"/>
+        <location filename="../ui/main_window.py" line="3744"/>
         <source>Capacidad: %1 GB</source>
         <translation>Capacity: %1 GB</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3740"/>
+        <location filename="../ui/main_window.py" line="3746"/>
         <source>Sistema: %1</source>
         <translation>File system: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3743"/>
+        <location filename="../ui/main_window.py" line="3749"/>
         <source>Uso: %1%</source>
         <translation>Usage: %1%</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3745"/>
+        <location filename="../ui/main_window.py" line="3751"/>
         <source>Errores: %1</source>
         <translation>Errors: %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3746"/>
+        <location filename="../ui/main_window.py" line="3752"/>
         <source>No se pudo detectar información de la tarjeta.</source>
         <translation>Could not detect card information.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3747"/>
+        <location filename="../ui/main_window.py" line="3753"/>
         <source>Información de Tarjeta SD</source>
         <translation>SD Card Information</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3762"/>
+        <location filename="../ui/main_window.py" line="3768"/>
         <source>No se detectaron unidades extraíbles.</source>
         <translation>No removable drives detected.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3795"/>
+        <location filename="../ui/main_window.py" line="3801"/>
         <source>Auto-detect: %1 unidad(es) añadida(s).</source>
         <translation>Auto-detect: %1 drive(s) added.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3798"/>
+        <location filename="../ui/main_window.py" line="3804"/>
         <source>Auto-detect: ninguna unidad nueva.</source>
         <translation>Auto-detect: no new drives.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3802"/>
+        <location filename="../ui/main_window.py" line="3808"/>
         <source>Sin ingesta</source>
         <translation>No ingest</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3802"/>
+        <location filename="../ui/main_window.py" line="3808"/>
         <source>Realiza una ingesta primero.</source>
         <translation>Run an ingest first.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3805"/>
-        <location filename="../ui/main_window.py" line="3820"/>
+        <location filename="../ui/main_window.py" line="3811"/>
+        <location filename="../ui/main_window.py" line="3826"/>
         <source>Reorganizar</source>
         <translation>Reorganize</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3806"/>
+        <location filename="../ui/main_window.py" line="3812"/>
         <source>¿Reorganizar archivos en 'Unknown_Camera' detectando su cámara por metadatos?</source>
         <translation>Reorganize files in 'Unknown_Camera' by detecting their camera via metadata?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3813"/>
+        <location filename="../ui/main_window.py" line="3819"/>
         <source>Reorganizando...</source>
         <translation>Reorganizing...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3820"/>
+        <location filename="../ui/main_window.py" line="3826"/>
         <source>No se pudo reorganizar:
 %1</source>
         <translation>Could not reorganize:
 %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3822"/>
+        <location filename="../ui/main_window.py" line="3828"/>
         <source>Hecho</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3822"/>
+        <location filename="../ui/main_window.py" line="3828"/>
         <source>Archivos reorganizados.</source>
         <translation>Files reorganized.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3830"/>
-        <location filename="../ui/main_window.py" line="3854"/>
-        <location filename="../ui/main_window.py" line="3856"/>
+        <location filename="../ui/main_window.py" line="3836"/>
+        <location filename="../ui/main_window.py" line="3860"/>
+        <location filename="../ui/main_window.py" line="3862"/>
         <source>Proxies</source>
         <translation>Proxies</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3830"/>
+        <location filename="../ui/main_window.py" line="3836"/>
         <source>No se encontraron clips de video en la ingesta.</source>
         <translation>No video clips found in the ingest.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3835"/>
+        <location filename="../ui/main_window.py" line="3841"/>
         <source>Generar proxies %1p para %2 clips de video?</source>
         <translation>Generate %1p proxies for %2 video clips?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3845"/>
+        <location filename="../ui/main_window.py" line="3851"/>
         <source>Generando proxies...</source>
         <translation>Generating proxies...</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3854"/>
+        <location filename="../ui/main_window.py" line="3860"/>
         <source>No se pudieron generar los proxies:
 %1</source>
         <translation>Could not generate the proxies:
 %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="3856"/>
+        <location filename="../ui/main_window.py" line="3862"/>
         <source>Proxies generados: %1</source>
         <translation>Proxies generated: %1</translation>
     </message>
