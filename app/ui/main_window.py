@@ -24,6 +24,7 @@ from app.core import translator
 from app.core import updater
 from app.core.translator import QtString
 from app.ui import theme
+from app.ui import icons
 from app.ui.about_dialog import AboutDialog
 from app.ui.wheat_field import paint_wheat_field
 import app.ui.wheat_field as wheat_field
@@ -281,18 +282,19 @@ class MainWindow(QMainWindow):
         self.project_combo.currentIndexChanged.connect(self.on_project_selected)
         hb.addWidget(self.project_combo)
 
-        for btn, txt, tip in [
-            ("btn_refresh_projects", "⟳", self.tr("Actualizar proyectos")),
-            ("btn_new_project", "+", self.tr("Nuevo proyecto")),
-            ("btn_delete_project", "×", self.tr("Eliminar proyecto…")),
-            ("btn_rename_project", "✎", self.tr("Renombrar proyecto")),
-            ("btn_duplicate_project", "⧉", self.tr("Duplicar proyecto")),
-            ("btn_browse_root", "📁", self.tr("Cambiar ruta maestra del proyecto")),
+        for btn, icon_name, tip in [
+            ("btn_refresh_projects", "refresh", self.tr("Actualizar proyectos")),
+            ("btn_new_project", "plus", self.tr("Nuevo proyecto")),
+            ("btn_delete_project", "x", self.tr("Eliminar proyecto…")),
+            ("btn_rename_project", "pencil", self.tr("Renombrar proyecto")),
+            ("btn_duplicate_project", "copy", self.tr("Duplicar proyecto")),
+            ("btn_browse_root", "folder", self.tr("Cambiar ruta maestra del proyecto")),
         ]:
-            b = QPushButton(txt)
+            b = QPushButton()
             b.setObjectName("IconButton")
             b.setFixedSize(28, 28)
             b.setToolTip(tip)
+            icons.apply(b, icon_name, size=18)
             b.clicked.connect(getattr(self, {
                 "btn_refresh_projects": "load_existing_projects",
                 "btn_new_project": "_show_create_project",
@@ -318,13 +320,14 @@ class MainWindow(QMainWindow):
 
         hb.addStretch()
 
-        for btn, txt, tip, cb in [
-            ("btn_show_metadata", "⚙", self.tr("Configuración"), "_show_metadata_dialog"),
+        for btn, icon_name, tip, cb in [
+            ("btn_show_metadata", "gear", self.tr("Configuración"), "_show_metadata_dialog"),
         ]:
-            b = QPushButton(txt)
+            b = QPushButton()
             b.setObjectName("IconButton")
             b.setFixedSize(28, 28)
             b.setToolTip(tip)
+            icons.apply(b, icon_name, size=18)
             b.clicked.connect(getattr(self, cb))
             setattr(self, btn, b)
             hb.addWidget(b)
@@ -356,10 +359,11 @@ class MainWindow(QMainWindow):
             QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
         desc_layout.addWidget(self.project_description_label)
 
-        self.btn_edit_description = QPushButton("✎")
+        self.btn_edit_description = QPushButton()
         self.btn_edit_description.setObjectName("IconButton")
         self.btn_edit_description.setFixedSize(24, 24)
         self.btn_edit_description.setToolTip(self.tr("Editar descripción del proyecto"))
+        icons.apply(self.btn_edit_description, "pencil", size=16)
         self.btn_edit_description.clicked.connect(self._edit_project_description)
         desc_layout.addWidget(self.btn_edit_description, 0, Qt.AlignTop)
         dash_layout.addWidget(desc_row)
@@ -430,12 +434,14 @@ class MainWindow(QMainWindow):
         left_col.addWidget(self.source_list)
 
         src_scan_row = QHBoxLayout()
-        self.btn_detect_drives = QPushButton(self.tr("⟳ Detectar"))
+        self.btn_detect_drives = QPushButton(self.tr("Detectar"))
         self.btn_detect_drives.setToolTip(self.tr("Detectar unidades extraíbles"))
+        icons.apply(self.btn_detect_drives, "refresh", size=14)
         self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)
         src_scan_row.addWidget(self.btn_detect_drives)
-        self.btn_scan_cameras = QPushButton(self.tr("📷 Escanear cámaras"))
+        self.btn_scan_cameras = QPushButton(self.tr("Escanear cámaras"))
         self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
+        icons.apply(self.btn_scan_cameras, "camera", size=14)
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
 
@@ -460,17 +466,19 @@ class MainWindow(QMainWindow):
         self.sessions_combo.currentIndexChanged.connect(self._on_session_selected)
         sess_top.addWidget(self.sessions_combo)
 
-        self.btn_new_session = QPushButton("+")
+        self.btn_new_session = QPushButton()
         self.btn_new_session.setObjectName("IconButton")
         self.btn_new_session.setFixedSize(28, 28)
         self.btn_new_session.setToolTip(self.tr("Nueva sesión"))
+        icons.apply(self.btn_new_session, "plus", size=18)
         self.btn_new_session.clicked.connect(self._add_manual_session)
         sess_top.addWidget(self.btn_new_session)
 
-        self.btn_delete_session = QPushButton("−")
+        self.btn_delete_session = QPushButton()
         self.btn_delete_session.setObjectName("IconButton")
         self.btn_delete_session.setFixedSize(28, 28)
         self.btn_delete_session.setToolTip(self.tr("Eliminar sesión…"))
+        icons.apply(self.btn_delete_session, "minus", size=18)
         self.btn_delete_session.setEnabled(False)
         self.btn_delete_session.clicked.connect(self._delete_current_session)
         sess_top.addWidget(self.btn_delete_session)
@@ -486,10 +494,11 @@ class MainWindow(QMainWindow):
             QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
         sess_src_row.addWidget(self.session_src_label)
 
-        self._btn_browse_sess_src = QPushButton("📁")
+        self._btn_browse_sess_src = QPushButton()
         self._btn_browse_sess_src.setObjectName("IconButton")
         self._btn_browse_sess_src.setFixedSize(28, 28)
         self._btn_browse_sess_src.setToolTip(self.tr("Examinar origen de sesión…"))
+        icons.apply(self._btn_browse_sess_src, "folder", size=18)
         self._btn_browse_sess_src.clicked.connect(self._browse_session_src)
         sess_src_row.addWidget(self._btn_browse_sess_src)
         left_col.addLayout(sess_src_row)
@@ -509,10 +518,11 @@ class MainWindow(QMainWindow):
         self.session_dest_path.setVisible(False)
         sess_dest_row.addWidget(self.session_dest_path)
 
-        self._btn_browse_sess_dest = QPushButton("📁")
+        self._btn_browse_sess_dest = QPushButton()
         self._btn_browse_sess_dest.setObjectName("IconButton")
         self._btn_browse_sess_dest.setFixedSize(28, 28)
         self._btn_browse_sess_dest.setToolTip(self.tr("Examinar..."))
+        icons.apply(self._btn_browse_sess_dest, "folder", size=18)
         self._btn_browse_sess_dest.clicked.connect(self._browse_session_dest)
         self._btn_browse_sess_dest.setVisible(False)
         sess_dest_row.addWidget(self._btn_browse_sess_dest)
@@ -1250,6 +1260,7 @@ class MainWindow(QMainWindow):
     def _switch_theme(self, name):
         theme.set_theme(name)
         theme.apply_theme()
+        icons.refresh_all()
         self._style_table_viewports()
         self.dashboard_view.update()
         if getattr(self, "_status_color_key", None):
@@ -1258,6 +1269,7 @@ class MainWindow(QMainWindow):
     def _switch_accent(self, name):
         theme.set_accent(name)
         theme.apply_theme()
+        icons.refresh_all()
         self._style_table_viewports()
         self.dashboard_view.update()
         if getattr(self, "_status_color_key", None):
@@ -2101,20 +2113,22 @@ class MainWindow(QMainWindow):
         return btn
 
     def _build_remove_source_button(self, row):
-        btn = QPushButton("🗑")
+        btn = QPushButton()
         btn.setObjectName("IconButton")
         btn.setFixedSize(24, 24)
         btn.setToolTip(self.tr("Eliminar este origen…"))
         btn.setCursor(Qt.PointingHandCursor)
+        icons.apply(btn, "trash", size=16)
         btn.clicked.connect(lambda: self._delete_source_at_row(row))
         return btn
 
     def _build_remove_file_button(self, row_item):
-        btn = QPushButton("🗑")
+        btn = QPushButton()
         btn.setObjectName("IconButton")
         btn.setFixedSize(24, 24)
         btn.setToolTip(self.tr("Quitar de la vista…"))
         btn.setCursor(Qt.PointingHandCursor)
+        icons.apply(btn, "trash", size=16)
         btn.clicked.connect(lambda: self._remove_file_row(row_item))
         return btn
 
@@ -2461,14 +2475,7 @@ class MainWindow(QMainWindow):
             # ruta técnica de la caché local (B-02).
             name = session.get("camera_name") or session.get("device_folder") or ""
             if name:
-                prefix = ""
-                if session.get("device_id") == WIFI_DEVICE_ID:
-                    prefix = "📶 "
-                elif (session.get("device_id") or "").startswith("ftp:"):
-                    prefix = "🌐 "
-                elif session.get("device_id"):
-                    prefix = "📱 "
-                text = self.tr("Origen automático: %1").arg(prefix + name)
+                text = self.tr("Origen automático: %1").arg(name)
             else:
                 text = self.tr("Origen automático: %1").arg(src)
         else:

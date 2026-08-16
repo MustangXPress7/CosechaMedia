@@ -157,7 +157,7 @@ class TestSourceContent(unittest.TestCase):
         btn = self.window.source_list.cellWidget(0, 3)
         self.assertIsNotNone(btn)
         self.assertIsInstance(btn, QPushButton)
-        self.assertEqual(btn.text(), "🗑")
+        self.assertFalse(btn.icon().isNull())
         self.assertFalse(hasattr(self.window, "btn_remove_source"))
 
     def test_source_delete_button_removes_source_with_confirmation(self):

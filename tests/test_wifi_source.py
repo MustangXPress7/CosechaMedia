@@ -420,8 +420,8 @@ class TestWifiSource(unittest.TestCase):
             self.assertTrue(self.window.chk_format_sources.isEnabled())
 
     def test_session_source_shows_wifi_origin(self):
-        """El origen de una sesión WiFi muestra remitente y emoji, y permite
-        cambiar el origen desde el selector."""
+        """El origen de una sesión WiFi muestra el remitente (sin prefijo
+        emoji) y permite cambiar el origen desde el selector."""
         from app.core import shoot_inbox as inboxmod
         self.window._open_wifi_panel()
         alice = next(s for s in self.db.list_wifi_sessions(self.pid)
@@ -432,9 +432,9 @@ class TestWifiSource(unittest.TestCase):
         self.assertFalse(self.window._btn_browse_sess_src.isHidden())
         self.assertIn(self.window.tr("Origen automático:"),
                       self.window.session_src_label.toolTip())
-        # El origen WiFi muestra el remitente y el emoji de conexión.
+        # El origen WiFi muestra el remitente sin prefijo emoji (icono aparte).
         self.assertIn("Alice", self.window.session_src_label.toolTip())
-        self.assertIn("📶", self.window.session_src_label.toolTip())
+        self.assertNotIn("📶", self.window.session_src_label.toolTip())
 
     def test_session_source_shows_mtp_device_name(self):
         """Una sesión MTP muestra el nombre del dispositivo, no la ruta de
@@ -452,7 +452,7 @@ class TestWifiSource(unittest.TestCase):
         self.window._on_session_selected(idx)
         tip = self.window.session_src_label.toolTip()
         self.assertIn(self.window.tr("Origen automático:"), tip)
-        self.assertIn("📱", tip)
+        self.assertNotIn("📱", tip)
         self.assertIn("Canon R5", tip)
         self.assertNotIn(cache, tip)
 

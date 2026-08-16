@@ -458,8 +458,8 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="421"/>
-        <source>⟳ Detectar</source>
-        <translation>⟳ Detect</translation>
+        <source>Detectar</source>
+        <translation>Detect</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="422"/>
@@ -468,8 +468,8 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="425"/>
-        <source>📷 Escanear cámaras</source>
-        <translation>📷 Scan cameras</translation>
+        <source>Escanear cámaras</source>
+        <translation>Scan cameras</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="426"/>
