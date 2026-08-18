@@ -8,8 +8,8 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QTableWidgetItem, QHeaderView, QFrame, QStackedWidget, QDateEdit,
                              QComboBox, QMessageBox, QFileDialog, QMenuBar, QMenu, QCheckBox,
                              QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
-                             QListWidget, QListWidgetItem, QInputDialog, QScrollArea, QFormLayout, QDialog,
-                             QTextEdit, QSpinBox, QSizePolicy)
+                             QListWidget, QListWidgetItem, QInputDialog, QFormLayout, QDialog,
+                             QTextEdit, QSpinBox, QSizePolicy, QSplitter)
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap, QPainter
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
 from app.core.ingestor import Ingestor, DumpTarget
@@ -167,6 +167,8 @@ class MainWindow(QMainWindow):
         self.project_folder_name = "Footage"
         self.project_delicate_mode = False
         self.project_use_metadata_date = True
+        self.project_generate_proxies = False
+        self.project_proxy_resolution = "720p"
         self.project_date = QDate.currentDate()
         self.current_session_id = None
         self._ingestors = []
@@ -345,19 +347,19 @@ class MainWindow(QMainWindow):
 
         dash_layout.addWidget(header_bar)
 
-        # --- Project info line (R-10) ---
-        desc_row = QWidget()
-        desc_row.setObjectName("ProjectDescriptionRow")
-        desc_layout = QHBoxLayout(desc_row)
-        desc_layout.setContentsMargins(12, 0, 12, 2)
-        desc_layout.setSpacing(6)
+        # --- Project description (R-10) ---
+        desc_box = QGroupBox(self.tr("Descripción"))
+        desc_box.setObjectName("DescriptionBox")
+        desc_box_layout = QHBoxLayout(desc_box)
+        desc_box_layout.setContentsMargins(8, 6, 8, 6)
+        desc_box_layout.setSpacing(6)
         self.project_description_label = QLabel("")
         self.project_description_label.setStyleSheet(
             f"color: {theme.color('text_secondary')}; font-size: 11px;")
         self.project_description_label.setWordWrap(True)
         self.project_description_label.setSizePolicy(
             QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
-        desc_layout.addWidget(self.project_description_label)
+        desc_box_layout.addWidget(self.project_description_label, 1)
 
         self.btn_edit_description = QPushButton()
         self.btn_edit_description.setObjectName("IconButton")
@@ -365,22 +367,20 @@ class MainWindow(QMainWindow):
         self.btn_edit_description.setToolTip(self.tr("Editar descripción del proyecto"))
         icons.apply(self.btn_edit_description, "pencil", size=16)
         self.btn_edit_description.clicked.connect(self._edit_project_description)
-        desc_layout.addWidget(self.btn_edit_description, 0, Qt.AlignTop)
-        dash_layout.addWidget(desc_row)
+        desc_box_layout.addWidget(self.btn_edit_description, 0, Qt.AlignRight | Qt.AlignTop)
+        dash_layout.addWidget(desc_box)
 
         # === MAIN CONTENT ===
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setObjectName("DashboardScrollArea")
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setHandleWidth(4)
+        splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
 
-        scroll_content = QWidget()
-        two_col = QHBoxLayout(scroll_content)
-        two_col.setContentsMargins(10, 6, 10, 6)
-        two_col.setSpacing(10)
-
-        left_col = QVBoxLayout()
+        left_widget = QWidget()
+        left_widget.setContentsMargins(10, 6, 6, 6)
+        left_col = QVBoxLayout(left_widget)
+        left_col.setContentsMargins(0, 0, 0, 0)
         left_col.setSpacing(6)
 
         # --- Sources ---
@@ -396,10 +396,11 @@ class MainWindow(QMainWindow):
         self.source_input.setEditable(True)
         self.source_input.setPlaceholderText(self.tr("E:\\DCIM..."))
         self.source_input.currentTextChanged.connect(self.update_start_button_state)
-        src_top.addWidget(self.source_input, 1)
+        src_top.addWidget(self.source_input)
 
         self.btn_add_source = QPushButton(self.tr("Añadir origen…"))
         self.btn_add_source.setToolTip(self.tr("Añadir un origen guardado, un dispositivo USB, WiFi o FTP"))
+        self.btn_add_source.setFixedWidth(120)
         self.btn_add_source.clicked.connect(self._add_source_entry)
         src_top.addWidget(self.btn_add_source)
 
@@ -413,19 +414,17 @@ class MainWindow(QMainWindow):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.Stretch)
         header.setSectionResizeMode(3, QHeaderView.Fixed)
-        header.setMinimumSectionSize(40)
-        header.resizeSection(0, 320)
-        header.resizeSection(1, 160)
-        header.resizeSection(2, 110)
-        header.resizeSection(3, 40)
+        header.setMinimumSectionSize(32)
+        header.resizeSection(0, 100)
+        header.resizeSection(1, 60)
+        header.resizeSection(3, 36)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
-        # La tabla crece con el contenido y aprovecha el espacio vertical.
         self.source_list.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
+            QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
         self.source_list.itemChanged.connect(self._on_source_check_changed)
         self.source_list.itemDoubleClicked.connect(self._on_source_double_clicked)
         self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -454,14 +453,16 @@ class MainWindow(QMainWindow):
         left_col.addLayout(src_scan_row)
 
         # --- Sessions ---
-        sess_label = QLabel(self.tr("Sesiones:"))
-        sess_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
-        left_col.addWidget(sess_label)
+        sess_box = QGroupBox(self.tr("Sesiones"))
+        sess_box.setObjectName("SessionsBox")
+        sess_box_layout = QVBoxLayout(sess_box)
+        sess_box_layout.setContentsMargins(8, 6, 8, 6)
+        sess_box_layout.setSpacing(4)
 
         sess_top = QHBoxLayout()
         self.sessions_combo = QComboBox()
-        self.sessions_combo.setMinimumWidth(160)
-        self.sessions_combo.setMaximumWidth(360)
+        self.sessions_combo.setMinimumWidth(100)
+        self.sessions_combo.setMaximumWidth(200)
         self.sessions_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.sessions_combo.currentIndexChanged.connect(self._on_session_selected)
         sess_top.addWidget(self.sessions_combo)
@@ -484,16 +485,9 @@ class MainWindow(QMainWindow):
         sess_top.addWidget(self.btn_delete_session)
 
         sess_top.addStretch()
-        left_col.addLayout(sess_top)
+        sess_box_layout.addLayout(sess_top)
 
         sess_src_row = QHBoxLayout()
-        sess_src_row.addWidget(QLabel(self.tr("Origen:")))
-        self.session_src_label = QLabel("")
-        self.session_src_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 11px;")
-        self.session_src_label.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
-        sess_src_row.addWidget(self.session_src_label)
-
         self._btn_browse_sess_src = QPushButton()
         self._btn_browse_sess_src.setObjectName("IconButton")
         self._btn_browse_sess_src.setFixedSize(28, 28)
@@ -501,95 +495,34 @@ class MainWindow(QMainWindow):
         icons.apply(self._btn_browse_sess_src, "folder", size=18)
         self._btn_browse_sess_src.clicked.connect(self._browse_session_src)
         sess_src_row.addWidget(self._btn_browse_sess_src)
-        left_col.addLayout(sess_src_row)
+        sess_src_row.addWidget(QLabel(self.tr("Origen:")))
+        self.session_src_label = QLabel("")
+        self.session_src_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 11px;")
+        self.session_src_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        sess_src_row.addWidget(self.session_src_label)
+        sess_box_layout.addLayout(sess_src_row)
 
         sess_dest_row = QHBoxLayout()
-        sess_dest_row.addWidget(QLabel(self.tr("Destino:")))
-        self.session_dest_combo = QComboBox()
-        self.session_dest_combo.addItems([self.tr("Por defecto"), self.tr("Personalizado")])
-        self.session_dest_combo.setFixedWidth(110)
-        self.session_dest_combo.activated.connect(self._on_session_dest_type_changed)
-        sess_dest_row.addWidget(self.session_dest_combo)
-
-        self.session_dest_path = QLineEdit()
-        self.session_dest_path.setPlaceholderText(self.tr("Ruta..."))
-        self.session_dest_path.setFixedWidth(200)
-        self.session_dest_path.editingFinished.connect(self._save_session_override)
-        self.session_dest_path.setVisible(False)
-        sess_dest_row.addWidget(self.session_dest_path)
-
         self._btn_browse_sess_dest = QPushButton()
         self._btn_browse_sess_dest.setObjectName("IconButton")
         self._btn_browse_sess_dest.setFixedSize(28, 28)
-        self._btn_browse_sess_dest.setToolTip(self.tr("Examinar..."))
+        self._btn_browse_sess_dest.setToolTip(self.tr("Examinar destino de sesión…"))
         icons.apply(self._btn_browse_sess_dest, "folder", size=18)
         self._btn_browse_sess_dest.clicked.connect(self._browse_session_dest)
-        self._btn_browse_sess_dest.setVisible(False)
         sess_dest_row.addWidget(self._btn_browse_sess_dest)
+        sess_dest_row.addWidget(QLabel(self.tr("Destino:")))
+        self.session_dest_label = QLabel(self.tr("Por defecto"))
+        self.session_dest_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 11px;")
+        self.session_dest_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        sess_dest_row.addWidget(self.session_dest_label)
+        sess_box_layout.addLayout(sess_dest_row)
 
-        sess_dest_row.addStretch()
-        left_col.addLayout(sess_dest_row)
-
-        self.chk_session_delicate = QCheckBox(self.tr("Modo delicado"))
-        self.chk_session_delicate.stateChanged.connect(self._save_session_override)
-        left_col.addWidget(self.chk_session_delicate)
-
-        # --- Action buttons ---
-        action_row = QHBoxLayout()
-        self.btn_start = QPushButton(self.tr("INICIAR INGESTA"))
-        self.btn_start.setObjectName("PrimaryAction")
-        self.btn_start.setEnabled(False)
-        self.btn_start.setMinimumHeight(36)
-        self.btn_start.clicked.connect(self.start_ingest)
-
-        self.btn_stop = QPushButton(self.tr("DETENER"))
-        self.btn_stop.setObjectName("DangerAction")
-        self.btn_stop.setEnabled(False)
-        self.btn_stop.setMinimumHeight(36)
-        self.btn_stop.clicked.connect(self.stop_ingest)
-
-        action_row.addWidget(self.btn_start)
-        action_row.addWidget(self.btn_stop)
-        left_col.addLayout(action_row)
-
-        self.ingest_status_label = QLabel("")
-        self.ingest_status_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-style: italic; font-size: 10px;")
-        left_col.addWidget(self.ingest_status_label)
-
-        # --- Progress ---
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
-        self.progress_bar.setMinimumHeight(18)
-        self.progress_bar.setFormat(self.tr("%v / %m archivos"))
-        left_col.addWidget(self.progress_bar)
-
-        proxy_row = QHBoxLayout()
-        proxy_row.setSpacing(6)
-        self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies"))
-        self.chk_generate_proxies.setToolTip(self.tr("Genera proxies de los clips de video tras la ingesta"))
-        proxy_row.addWidget(self.chk_generate_proxies)
-        self.proxy_resolution = QComboBox()
-        self.proxy_resolution.addItem("720p", 720)
-        self.proxy_resolution.addItem("1080p", 1080)
-        self.proxy_resolution.setEnabled(False)
-        proxy_row.addWidget(self.proxy_resolution)
-        proxy_row.addStretch()
-        left_col.addLayout(proxy_row)
-
-        self.chk_generate_proxies.toggled.connect(self.proxy_resolution.setEnabled)
-
-        stats_row = QHBoxLayout()
-        self.lbl_files_processed = QLabel(self.tr("0 procesados"))
-        self.lbl_files_processed.setStyleSheet(f"color: {theme.color('success')}; font-weight: bold; font-size: 10px;")
-        self.lbl_files_pending = QLabel(self.tr("0 pendientes"))
-        self.lbl_files_pending.setStyleSheet(f"color: {theme.color('warning')}; font-weight: bold; font-size: 10px;")
-        self.lbl_files_errors = QLabel(self.tr("0 errores"))
-        self.lbl_files_errors.setStyleSheet(f"color: {theme.color('danger')}; font-weight: bold; font-size: 10px;")
-        stats_row.addWidget(self.lbl_files_processed)
-        stats_row.addWidget(self.lbl_files_pending)
-        stats_row.addWidget(self.lbl_files_errors)
-        stats_row.addStretch()
-        left_col.addLayout(stats_row)
+        sess_post_row = QHBoxLayout()
+        sess_post_row.setSpacing(10)
+        sess_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sess_post_row.addWidget(sess_box, 1)
 
         # --- Post-ingest actions (R-01: subgrupos "Al terminar" / "Operaciones") ---
         post_box = QGroupBox(self.tr("Acciones post-ingesta"))
@@ -647,9 +580,52 @@ class MainWindow(QMainWindow):
 
         post_box_layout.addLayout(post_operaciones)
 
-        left_col.addWidget(post_box)
+        post_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sess_post_row.addWidget(post_box, 1)
+        left_col.addLayout(sess_post_row)
 
         left_col.addStretch()
+
+        # --- Action buttons ---
+        action_row = QHBoxLayout()
+        self.btn_start = QPushButton(self.tr("INICIAR INGESTA"))
+        self.btn_start.setObjectName("PrimaryAction")
+        self.btn_start.setEnabled(False)
+        self.btn_start.setMinimumHeight(36)
+        self.btn_start.clicked.connect(self.start_ingest)
+
+        self.btn_stop = QPushButton(self.tr("DETENER"))
+        self.btn_stop.setObjectName("DangerAction")
+        self.btn_stop.setEnabled(False)
+        self.btn_stop.setMinimumHeight(36)
+        self.btn_stop.clicked.connect(self.stop_ingest)
+
+        action_row.addWidget(self.btn_start)
+        action_row.addWidget(self.btn_stop)
+        left_col.addLayout(action_row)
+
+        self.ingest_status_label = QLabel("")
+        self.ingest_status_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-style: italic; font-size: 10px; padding: 4px 10px;")
+
+        # --- Progress ---
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        self.progress_bar.setMinimumHeight(18)
+        self.progress_bar.setFormat(self.tr("%v / %m archivos"))
+        left_col.addWidget(self.progress_bar)
+
+        stats_row = QHBoxLayout()
+        self.lbl_files_processed = QLabel(self.tr("0 procesados"))
+        self.lbl_files_processed.setStyleSheet(f"color: {theme.color('success')}; font-weight: bold; font-size: 10px;")
+        self.lbl_files_pending = QLabel(self.tr("0 pendientes"))
+        self.lbl_files_pending.setStyleSheet(f"color: {theme.color('warning')}; font-weight: bold; font-size: 10px;")
+        self.lbl_files_errors = QLabel(self.tr("0 errores"))
+        self.lbl_files_errors.setStyleSheet(f"color: {theme.color('danger')}; font-weight: bold; font-size: 10px;")
+        stats_row.addWidget(self.lbl_files_processed)
+        stats_row.addWidget(self.lbl_files_pending)
+        stats_row.addWidget(self.lbl_files_errors)
+        stats_row.addStretch()
+        left_col.addLayout(stats_row)
 
         # --- Files table ---
         self.table = QTableWidget(0, 6)
@@ -673,11 +649,11 @@ class MainWindow(QMainWindow):
         self.table.customContextMenuRequested.connect(self._show_table_context_menu)
         self._style_table_viewports()
 
-        two_col.addLayout(left_col, 0)
-        two_col.addWidget(self.table, 1)
+        splitter.addWidget(left_widget)
+        splitter.addWidget(self.table)
+        splitter.setSizes([400, 800])
 
-        scroll.setWidget(scroll_content)
-        dash_layout.addWidget(scroll)
+        dash_layout.addWidget(splitter, 1)
 
         self.main_layout.addWidget(self.dashboard_view)
 
@@ -725,6 +701,20 @@ class MainWindow(QMainWindow):
 
         layout.addRow("", QWidget())
 
+        # Proxies
+        chk_gen_proxies = QCheckBox(self.tr("Generar proxies tras la ingesta"))
+        chk_gen_proxies.setChecked(self.project_generate_proxies)
+        layout.addRow(self.tr("Proxies:"), chk_gen_proxies)
+
+        proxy_res_combo = QComboBox()
+        proxy_res_combo.addItems(["720p", "1080p"])
+        proxy_res_combo.setCurrentText(self.project_proxy_resolution)
+        proxy_res_combo.setEnabled(self.project_generate_proxies)
+        layout.addRow(self.tr("Resolución proxy:"), proxy_res_combo)
+        chk_gen_proxies.toggled.connect(proxy_res_combo.setEnabled)
+
+        layout.addRow("", QWidget())
+
         # Ruta maestra
         root_btn = QPushButton(self.tr("Cambiar..."))
         root_label = QLabel(self.dest_root or self.tr("(sin definir)"))
@@ -754,13 +744,19 @@ class MainWindow(QMainWindow):
             self.project_duration_type = {0: 1, 1: 2, 2: 3}.get(dur_idx, 1)
             self.project_use_metadata_date = chk_use_meta.isChecked()
             self.project_date = date_input.date()
+            self.project_generate_proxies = chk_gen_proxies.isChecked()
+            self.project_proxy_resolution = proxy_res_combo.currentText()
             if self.current_project_id is not None:
                 db.add_footage_folder(self.project_folder_name)
                 conn = db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute(
-                    'UPDATE projects SET folder_name=?, organization_type=?, duration_type=?, use_metadata_date=? WHERE id=?',
-                    (self.project_folder_name, self.project_organization_type, self.project_duration_type, int(self.project_use_metadata_date), self.current_project_id)
+                    'UPDATE projects SET folder_name=?, organization_type=?, duration_type=?, '
+                    'use_metadata_date=?, generate_proxies=?, proxy_resolution=? WHERE id=?',
+                    (self.project_folder_name, self.project_organization_type,
+                     self.project_duration_type, int(self.project_use_metadata_date),
+                     int(self.project_generate_proxies), self.project_proxy_resolution,
+                     self.current_project_id)
                 )
                 conn.commit()
                 conn.close()
@@ -1136,7 +1132,8 @@ class MainWindow(QMainWindow):
         cursor = conn.cursor()
         cursor.execute(
             'SELECT name, root_path, description, organization_type, duration_type, default_camera, '
-            'folder_name, delicate_mode, use_metadata_date FROM projects WHERE id = ?',
+            'folder_name, delicate_mode, use_metadata_date, generate_proxies, proxy_resolution '
+            'FROM projects WHERE id = ?',
             (project_id,)
         )
         res = cursor.fetchone()
@@ -1155,6 +1152,8 @@ class MainWindow(QMainWindow):
         self.project_folder_name = res["folder_name"] or "Footage"
         self.project_delicate_mode = bool(res["delicate_mode"]) if res["delicate_mode"] is not None else False
         self.project_use_metadata_date = bool(res["use_metadata_date"]) if res["use_metadata_date"] is not None else True
+        self.project_generate_proxies = bool(res["generate_proxies"]) if res["generate_proxies"] is not None else False
+        self.project_proxy_resolution = res["proxy_resolution"] or "720p"
 
         name = res["name"]
         root = self.dest_root or self.tr("(sin ruta)")
@@ -1474,8 +1473,12 @@ class MainWindow(QMainWindow):
             s_cam = self.project_default_camera if s_cam is None else s_cam
             s_use_meta = sess.get("use_metadata_date")
             s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
-            s_delicate = sess.get("delicate_mode")
-            s_delicate = self.project_delicate_mode if s_delicate is None else s_delicate
+            device_key = sess.get("device_id") or sess.get("source_path") or ""
+            dev_delicate = db.get_device_delicate(device_key)
+            if dev_delicate is not None:
+                s_delicate = bool(dev_delicate)
+            else:
+                s_delicate = self.project_delicate_mode
 
             s_content_filter = None
             try:
@@ -1738,7 +1741,7 @@ class MainWindow(QMainWindow):
             self._pending_actions = []
             if self.chk_format_sources.isChecked() and can_destroy:
                 self._pending_actions.append("format")
-            if self.chk_generate_proxies.isChecked():
+            if self.project_generate_proxies:
                 self._pending_actions.append("proxies")
             if self.chk_shutdown.isChecked() and can_destroy:
                 self._pending_actions.append("shutdown")
@@ -1961,10 +1964,9 @@ class MainWindow(QMainWindow):
             self._prompt_rename_camera(item.row())
 
     def _prompt_change_source_path(self, row):
-        path_item = self.source_list.item(row, 0)
-        if not path_item:
+        if row < 0 or row >= len(self._source_paths):
             return
-        old = path_item.text()
+        old = self._source_paths[row]
         start = old if os.path.isdir(old) else os.path.expanduser("~")
         new = QFileDialog.getExistingDirectory(
             self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start)
@@ -2022,17 +2024,13 @@ class MainWindow(QMainWindow):
                 by_path.setdefault(sp, []).append(s)
         for row, path in enumerate(self._source_paths):
             self.source_list.insertRow(row)
-            # Column 0: source path with checkbox
-            item = QTableWidgetItem(path)
-            item.setToolTip(path)
-            item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+            # Column 0: source path with checkbox + optional QR/FTP button
             path_sessions = by_path.get(path) or []
             sess = path_sessions[0] if path_sessions else None
             any_enabled = any(s.get("enabled", True) for s in path_sessions)
-            item.setCheckState(
-                Qt.Checked if (sess is not None and any_enabled)
-                else Qt.Unchecked)
-            self.source_list.setItem(row, 0, item)
+            checked = (sess is not None and any_enabled)
+            self.source_list.setCellWidget(row, 0, self._build_path_widget(row, path, sess, checked))
+
             # Column 1: camera name
             cam = sess.get("camera_name") if sess else None
             cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
@@ -2040,7 +2038,7 @@ class MainWindow(QMainWindow):
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
-            # Column 2: content filter
+            # Column 2: content filter (always, including WiFi/FTP)
             self.source_list.setCellWidget(row, 2, self._build_content_button(row, sess))
             # Column 3: per-row delete
             self.source_list.setCellWidget(row, 3, self._build_remove_source_button(row))
@@ -2058,34 +2056,91 @@ class MainWindow(QMainWindow):
         height = header + self.source_list.rowCount() * row_h
         self.source_list.setMinimumHeight(max(56, height))
 
-    def _build_content_button(self, row, session):
+    def _build_path_widget(self, row, path, session, checked):
+        widget = QWidget()
+        lay = QHBoxLayout(widget)
+        lay.setContentsMargins(4, 0, 4, 0)
+        lay.setSpacing(4)
+        cb = QCheckBox()
+        cb.setChecked(checked)
+        cb.stateChanged.connect(lambda state, r=row, p=path: self._on_source_widget_check_changed(r, p, state))
+        lay.addWidget(cb)
+        lbl = QLabel(path)
+        lbl.setStyleSheet(f"font-size: 11px;")
+        lbl.setToolTip(path)
+        lbl.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        lay.addWidget(lbl, 1)
         device_id = (session or {}).get("device_id") or ""
         is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
         is_ftp = bool(session) and device_id.startswith("ftp:")
         if is_wifi or is_ftp:
-            # Origen remoto (WiFi/FTP): el contenido es la conexión/QR.
-            text = self.tr("QR") if is_wifi else self.tr("FTP")
-            tip = (self.tr("Mostrar el código QR de este dispositivo")
-                   if is_wifi else self.tr("Configurar este origen FTP"))
-            btn = QPushButton(text)
-            btn.setToolTip(tip)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setStyleSheet(
-                "QPushButton { border: none; text-align: left; padding: 2px 6px;"
-                " color: %s; font-size: 11px; }"
-                "QPushButton:hover { color: %s; }"
-                "QPushButton:disabled { color: %s; }"
-                % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
-            )
-            if is_wifi:
-                sender_name = (session.get("camera_name")
-                               or session.get("device_folder") or "")
-                btn.clicked.connect(
-                    lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
+            remote_btn = self._build_remote_source_button(row, session, is_wifi)
+            lay.addWidget(remote_btn)
+        return widget
+
+    def _on_source_widget_check_changed(self, row, path, state):
+        checked = state == Qt.Checked
+        if self.current_project_id is None:
+            return
+        existing = db.get_sessions(self.current_project_id)
+        with_path = [s for s in existing if s.get("source_path") == path]
+        if checked:
+            if not with_path:
+                no_source = [s for s in existing if not s.get("source_path")]
+                base = self._drive_label(path)
+                name = f"Auto ({base})"
+                if no_source:
+                    sid = no_source[0]["id"]
+                    db.update_session_config(sid, source_path=path, name=name)
+                    self.ingest_status_label.setText(self.tr("Origen asignado a sesión #%1").arg(sid))
+                else:
+                    sid = db.create_session(
+                        self.current_project_id, name,
+                        QDate.currentDate().toString("yyyy-MM-dd"), "active",
+                        source_path=path
+                    )
+                    self.ingest_status_label.setText(self.tr("Sesión auto creada para %1").arg(path))
+                self.current_session_id = sid
+                self._detect_camera_for_session(sid, path)
             else:
-                btn.clicked.connect(
-                    lambda _=False, s=session: self._reconfigure_ftp_source(s))
-            return btn
+                for s in with_path:
+                    db.update_session_config(s["id"], enabled=1)
+                self.ingest_status_label.setText(self.tr("Origen habilitado: %1").arg(path))
+        else:
+            if with_path:
+                for s in with_path:
+                    db.update_session_config(s["id"], enabled=0)
+                self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+
+    def _build_remote_source_button(self, row, session, is_wifi):
+        text = self.tr("QR") if is_wifi else self.tr("FTP")
+        tip = (self.tr("Mostrar el código QR de este dispositivo")
+               if is_wifi else self.tr("Configurar este origen FTP"))
+        btn = QPushButton(text)
+        btn.setToolTip(tip)
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.setStyleSheet(
+            "QPushButton { border: none; text-align: left; padding: 2px 6px;"
+            " color: %s; font-size: 11px; }"
+            "QPushButton:hover { color: %s; }"
+            "QPushButton:disabled { color: %s; }"
+            % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
+        )
+        if is_wifi:
+            sender_name = (session.get("camera_name")
+                           or session.get("device_folder") or "")
+            btn.clicked.connect(
+                lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
+        else:
+            btn.clicked.connect(
+                lambda _=False, s=session: self._reconfigure_ftp_source(s))
+        return btn
+
+    def _build_content_button(self, row, session):
+        device_id = (session or {}).get("device_id") or ""
+        device_key = device_id or ((session or {}).get("source_path") or "")
         filt = None
         if session:
             try:
@@ -2095,6 +2150,12 @@ class MainWindow(QMainWindow):
             except (TypeError, ValueError):
                 filt = None
         text = content_summary(filt)
+
+        wrapper = QWidget()
+        wrapper_lay = QHBoxLayout(wrapper)
+        wrapper_lay.setContentsMargins(0, 0, 0, 0)
+        wrapper_lay.setSpacing(2)
+
         btn = QPushButton(text)
         btn.setToolTip(text)
         btn.setCursor(Qt.PointingHandCursor)
@@ -2110,7 +2171,28 @@ class MainWindow(QMainWindow):
             btn.setToolTip(self.tr("Activa el origen para configurar su contenido."))
         else:
             btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
-        return btn
+        wrapper_lay.addWidget(btn, 1)
+
+        delicate_btn = QPushButton()
+        delicate_btn.setObjectName("IconButton")
+        delicate_btn.setFixedSize(22, 22)
+        delicate_btn.setCursor(Qt.PointingHandCursor)
+        delicate_btn.setToolTip(self.tr("Cambiar modo: rápido / delicado"))
+        is_delicate = bool(db.get_device_delicate(device_key)) if device_key else False
+        icons.apply(delicate_btn, "snail" if is_delicate else "zap", size=14)
+        if session:
+            delicate_btn.clicked.connect(
+                lambda _=False, dk=device_key, b=delicate_btn: self._toggle_device_delicate(dk, b))
+        else:
+            delicate_btn.setEnabled(False)
+        wrapper_lay.addWidget(delicate_btn, 0, Qt.AlignRight)
+
+        return wrapper
+
+    def _toggle_device_delicate(self, device_key, btn):
+        current = bool(db.get_device_delicate(device_key))
+        db.set_device_delicate(device_key, not current)
+        icons.apply(btn, "snail" if not current else "zap", size=14)
 
     def _build_remove_source_button(self, row):
         btn = QPushButton()
@@ -2376,41 +2458,6 @@ class MainWindow(QMainWindow):
         if item.column() == 1:
             self._on_camera_cell_edited(item)
             return
-        if item.column() != 0:
-            return
-        path = item.text()
-        checked = item.checkState() == Qt.Checked
-        existing = db.get_sessions(self.current_project_id)
-        with_path = [s for s in existing if s.get("source_path") == path]
-        if checked:
-            if not with_path:
-                no_source = [s for s in existing if not s.get("source_path")]
-                base = self._drive_label(path)
-                name = f"Auto ({base})"
-                if no_source:
-                    sid = no_source[0]["id"]
-                    db.update_session_config(sid, source_path=path, name=name)
-                    self.ingest_status_label.setText(self.tr("Origen asignado a sesión #%1").arg(sid))
-                else:
-                    sid = db.create_session(
-                        self.current_project_id, name,
-                        QDate.currentDate().toString("yyyy-MM-dd"), "active",
-                        source_path=path
-                    )
-                    self.ingest_status_label.setText(self.tr("Sesión auto creada para %1").arg(path))
-                self.current_session_id = sid
-                self._detect_camera_for_session(sid, path)
-            else:
-                for s in with_path:
-                    db.update_session_config(s["id"], enabled=1)
-                self.ingest_status_label.setText(self.tr("Origen habilitado: %1").arg(path))
-        else:
-            if with_path:
-                for s in with_path:
-                    db.update_session_config(s["id"], enabled=0)
-                self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
-        self._refresh_sessions_combo()
-        self.update_start_button_state()
 
     def _refresh_sessions_combo(self):
         prev_id = self.sessions_combo.currentData()
@@ -2421,9 +2468,8 @@ class MainWindow(QMainWindow):
             self.btn_delete_session.setEnabled(False)
             self.session_src_label.setText("")
             self._btn_browse_sess_src.setVisible(False)
-            self.session_dest_combo.setVisible(False)
+            self.session_dest_label.setText(self.tr("Por defecto"))
             self._btn_browse_sess_dest.setVisible(False)
-            self.chk_session_delicate.setVisible(False)
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
@@ -2455,9 +2501,8 @@ class MainWindow(QMainWindow):
             self.btn_delete_session.setEnabled(False)
             self.session_src_label.setText("")
             self._btn_browse_sess_src.setVisible(False)
-            self.session_dest_combo.setVisible(False)
+            self.session_dest_label.setText(self.tr("Por defecto"))
             self._btn_browse_sess_dest.setVisible(False)
-            self.chk_session_delicate.setVisible(False)
             return
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
@@ -2468,7 +2513,7 @@ class MainWindow(QMainWindow):
         # El origen de cualquier sesión se puede cambiar desde el selector
         # (otro remitente WiFi, una carpeta…), también en las gestionadas.
         self._btn_browse_sess_src.setVisible(True)
-        self.session_dest_combo.setVisible(True)
+        self._btn_browse_sess_dest.setVisible(True)
         src = session.get("source_path") or ""
         if managed and src:
             # Muestra el nombre del dispositivo (cámara/móvil) en lugar de la
@@ -2483,25 +2528,9 @@ class MainWindow(QMainWindow):
                     else self.tr("Origen: sin origen (no se ejecutará)"))
         self.session_src_label.setText(text)
         self.session_src_label.setToolTip(text)
-        self.session_dest_combo.blockSignals(True)
         dest = session.get("destination_override")
-        if dest:
-            self.session_dest_combo.setCurrentIndex(1)
-            self.session_dest_path.setText(dest)
-            self.session_dest_path.setVisible(True)
-            self._btn_browse_sess_dest.setVisible(True)
-        else:
-            self.session_dest_combo.setCurrentIndex(0)
-            self.session_dest_path.setText("")
-            self.session_dest_path.setVisible(False)
-            self._btn_browse_sess_dest.setVisible(False)
-        self.session_dest_combo.blockSignals(False)
-        self.chk_session_delicate.blockSignals(True)
-        if session.get("delicate_mode") is not None:
-            self.chk_session_delicate.setChecked(bool(session["delicate_mode"]))
-        else:
-            self.chk_session_delicate.setChecked(self.project_delicate_mode)
-        self.chk_session_delicate.blockSignals(False)
+        self.session_dest_label.setText(dest if dest else self.tr("Por defecto"))
+        self.session_dest_label.setToolTip(dest or "")
 
     def _add_manual_session(self):
         if self.current_project_id is None:
@@ -2545,34 +2574,29 @@ class MainWindow(QMainWindow):
         self.ingest_status_label.setText(self.tr("Sesión #%1 eliminada.").arg(sid))
 
     def _on_session_dest_type_changed(self, index):
-        is_alt = index == 1
-        self.session_dest_path.setVisible(is_alt)
-        self._btn_browse_sess_dest.setVisible(is_alt)
-        if not is_alt:
-            if self.current_session_id is not None:
-                db.update_session_config(self.current_session_id, destination_override=None)
-        elif self.session_dest_path.text().strip():
-            self._save_session_override()
+        pass
 
     def _save_session_override(self):
         if self.current_session_id is None:
             return
-        kw = {}
-        if self.session_dest_combo.currentIndex() == 1:
-            alt = self.session_dest_path.text().strip()
-            kw["destination_override"] = alt if alt else None
-        else:
-            kw["destination_override"] = None
-        kw["delicate_mode"] = int(self.chk_session_delicate.isChecked())
+        dest_text = self.session_dest_label.text().strip()
+        is_custom = dest_text and dest_text != self.tr("Por defecto")
+        kw = {
+            "destination_override": dest_text if is_custom else None,
+        }
         db.update_session_config(self.current_session_id, **kw)
 
     def _browse_session_dest(self):
+        current = self.session_dest_label.text().strip()
+        if current == self.tr("Por defecto"):
+            current = ""
         path = QFileDialog.getExistingDirectory(
             self, self.tr("Seleccionar destino de sesión"),
-            self.session_dest_path.text().strip() or self.dest_root or os.path.expanduser("~")
+            current or self.dest_root or os.path.expanduser("~")
         )
         if path:
-            self.session_dest_path.setText(path)
+            self.session_dest_label.setText(path)
+            self.session_dest_label.setToolTip(path)
             self._save_session_override()
 
     def _browse_session_src(self):
@@ -3187,8 +3211,12 @@ class MainWindow(QMainWindow):
         s_cam = self.project_default_camera if s_cam is None else s_cam
         s_use_meta = session.get("use_metadata_date")
         s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
-        s_delicate = session.get("delicate_mode")
-        s_delicate = self.project_delicate_mode if s_delicate is None else s_delicate
+        device_key = session.get("device_id") or session.get("source_path") or ""
+        dev_delicate = db.get_device_delicate(device_key)
+        if dev_delicate is not None:
+            s_delicate = bool(dev_delicate)
+        else:
+            s_delicate = self.project_delicate_mode
         s_content_filter = None
         try:
             raw_filter = session.get("content_filter")
@@ -3954,7 +3982,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, self.tr("Hecho"), self.tr("Archivos reorganizados."))
 
     def _proxy_resolution_height(self) -> int:
-        return self.proxy_resolution.currentData() or 720
+        return int(self.project_proxy_resolution.replace("p", "")) if self.project_proxy_resolution else 720
 
     def _generate_proxies_after_ingest(self) -> bool:
         videos = list(dict.fromkeys(self._ingested_videos))

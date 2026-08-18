@@ -1,11 +1,11 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
 
 ## Test Framework
 
 **Runner:**
-- Python's standard library `unittest` (Python 3.11). Pytest is not installed and not used anywhere — all 13 test modules use `unittest.TestCase`.
+- Python's standard library `unittest` (Python 3.11). Pytest is not installed and not used anywhere — all 15 test modules use `unittest.TestCase`.
 - No test configuration files exist (`pytest.ini`, `setup.cfg`, `pyproject.toml`, `tox.ini` — none present).
 - `tests/__init__.py` (11 lines) changes the working directory to a fresh `tempfile.mkdtemp(prefix="sdimport_tests_")` **at import time** so app code never touches the real `data/sd_import.db`, and inserts the repo root into `sys.path` so `from app.core...` imports resolve.
 
@@ -28,9 +28,9 @@ python -m unittest tests.test_ingestor tests.test_updater   # Multiple modules
 - All tests live in `tests/` — one file per app module, never co-located with sources.
 
 **Naming:**
-- Files: `test_<module>.py` → `tests/test_db.py`, `tests/test_ingestor.py`, `tests/test_updater.py`, `tests/test_metadata_engine.py`, `tests/test_ftp.py`, `tests/test_mtp.py`, `tests/test_shoot_inbox.py`, `tests/test_selective_dump.py`, `tests/test_source_picker.py`, `tests/test_source_content.py`.
+- Files: `test_<module>.py` → `tests/test_db.py`, `tests/test_ingestor.py`, `tests/test_updater.py`, `tests/test_metadata_engine.py`, `tests/test_ftp.py`, `tests/test_mtp.py`, `tests/test_shoot_inbox.py`, `tests/test_selective_dump.py`, `tests/test_source_picker.py`, `tests/test_source_content.py`, `tests/test_icons.py`, `tests/test_main_window.py`.
 - `tests/test_wifi_source.py` (905 lines, the largest) covers `app/ui/wifi_panel.py` and `app/ui/wifi_picker.py`; `tests/test_e2e.py` drives the full `MainWindow`.
-- Classes: `Test<Area>` — `TestDatabaseManager`, `TestIngestor`, `TestMetadataEngine`, `TestUpdater`, `TestFtpClient`, `TestFtpSyncWorker`, `TestShootInbox`, `TestDumpTarget`.
+- Classes: `Test<Area>` — `TestDatabaseManager`, `TestIngestor`, `TestMetadataEngine`, `TestUpdater`, `TestFtpClient`, `TestFtpSyncWorker`, `TestShootInbox`, `TestDumpTarget`, `TestCameraDetectionToken`, `TestRenameCamera`, `TestFreeSpace`, `TestIntegrityReport`, `TestIcons`.
 - Methods: `test_<behavior_in_english>` — descriptive snake_case like `test_copy_verified_removes_partial_on_failure`, `test_create_session_rejects_invalid_source`.
 
 **Structure:**
@@ -49,6 +49,8 @@ tests/
 ├── test_wifi_source.py          # WiFi panel/picker UI tests
 ├── test_source_picker.py        # Source picker dialog tests
 ├── test_source_content.py       # Source content dialog tests
+├── test_icons.py                # SVG icon tinting + registry tests
+├── test_main_window.py          # MainWindow regression tests (camera detection, rename, free space, reports)
 └── test_e2e.py                  # Full offscreen ingest flow through MainWindow
 ```
 
@@ -69,7 +71,7 @@ class TestDatabaseManager(unittest.TestCase):
 
 **Patterns:**
 - Fixture setup in `setUp`, cleanup in `tearDown` with `shutil.rmtree(tmp, ignore_errors=True)` — every test uses an isolated temp dir.
-- App-level fixture in `setUpClass` (Qt tests): `cls.app = QApplication.instance() or QApplication([])` (`tests/test_source_picker.py:14-15`, `tests/test_selective_dump.py:23`, `tests/test_wifi_source.py:47-49`, `tests/test_e2e.py:16`).
+- App-level fixture in `setUpClass` (Qt tests): `cls.app = QApplication.instance() or QApplication([])` (`tests/test_source_picker.py:14-15`, `tests/test_selective_dump.py:23`, `tests/test_wifi_source.py:47-49`, `tests/test_e2e.py:16`, `tests/test_main_window.py:30-31`, `tests/test_icons.py:33-34`).
 - Module-level `_make_source()`, `_tree()`, `_assets()` helper functions build fixtures per test module (`tests/test_mtp.py:14-45`, `tests/test_wifi_source.py:90-120`).
 - Regression tests named with the bug number in the docstring: `test_qr_ingest_registers_status_in_table` with `"""Bug 1: ..."""` (`tests/test_wifi_source.py:180-187`), `test_wifi_panel_stop_toggles_to_resume` with `"""Bug 6: ..."""` (`tests/test_wifi_source.py:291-295`).
 - Mixed language: test method names and assertion messages in English; docstrings and inline comments mostly Spanish.
@@ -96,7 +98,18 @@ class TestIngestor(unittest.TestCase):
         self.db.close()
         shutil.rmtree(self.tmp, ignore_errors=True)
 ```
-This works because consumers reference `from app.core.ingestor import db` — actually they use the module attribute at call time; the same pattern patches `main_window_module.db`, `selective_dump_module.db`, `mtp_module.db` (`tests/test_selective_dump.py:27-36`, `tests/test_wifi_source.py:51-57`).
+This works because consumers reference `from app.core.ingestor import db` — actually they use the module attribute at call time; the same pattern patches `main_window_module.db`, `selective_dump_module.db`, `mtp_module.db` (`tests/test_selective_dump.py:27-36`, `tests/test_wifi_source.py:51-57`, `tests/test_main_window.py:35-41`).
+
+Multi-module singleton patching (for `MainWindow` tests that touch ingestor + metadata_engine):
+```python
+# tests/test_main_window.py:35-41 — patch all three singletons used by MainWindow
+self._orig_db = mw.db
+self._orig_ing_db = ingestor_module.db
+self._orig_me_db = me_module.db
+mw.db = self.db
+ingestor_module.db = self.db
+me_module.db = self.db
+```
 
 `mock.patch` / `patch.object` (used in `tests/test_updater.py`, `tests/test_metadata_engine.py`, `tests/test_ftp.py`):
 ```python
@@ -167,6 +180,8 @@ python -m coverage report
 - DB layer: full CRUD against real SQLite temp files — `TestDatabaseManager` covers sessions, configs, FTP profiles, QR payloads, migrations (`tests/test_db.py`).
 - Pure logic: version parsing/comparison (`tests/test_updater.py`), date scanning (`tests/test_metadata_engine.py`), sanitizers (`tests/test_shoot_inbox.py`, `tests/test_db.py:185-210`), `DumpTarget` date/organize resolution (`tests/test_ingestor.py:198-240`).
 - Copy path: real-file copy with MD5 verification, partial-copy cleanup on failure (`tests/test_ingestor.py`).
+- Icon system: SVG tinting, weakref registry, `refresh_all()` dead-ref cleanup (`tests/test_icons.py`).
+- MainWindow regression: camera detection token race prevention, `rename_camera` separator handling, `_free_space` edge cases, `generate_integrity_report` CSV output (`tests/test_main_window.py`).
 
 **Integration Tests:**
 - MTP staging walk/download with fake session trees but real cache-dir logic (`tests/test_mtp.py`).
@@ -221,17 +236,27 @@ with self.assertRaises(urllib.error.HTTPError):
 import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 ```
-(see `tests/test_e2e.py:1-8`, `tests/test_wifi_source.py:1-9`, `tests/test_selective_dump.py:1-12`).
+(see `tests/test_e2e.py:1-8`, `tests/test_wifi_source.py:1-9`, `tests/test_selective_dump.py:1-12`, `tests/test_main_window.py:14`, `tests/test_icons.py:17`).
 - Use `QTest.mouseClick(widget, Qt.LeftButton)` for real widget interaction and `QApplication.processEvents()` to flush pending signals.
 - Assert UI state directly on widgets: `window.btn_start.text()`, `window.table.rowCount()`, `window.status_label.text()` (`tests/test_wifi_source.py`).
+
+**subTest for Parameterized Checks:**
+```python
+# tests/test_icons.py:36-39 — iterate catalog without separate test methods
+def test_icon_returns_non_null_for_all_names(self):
+    for name in ICON_NAMES:
+        with self.subTest(name=name):
+            self.assertFalse(icons.icon(name).isNull())
+```
 
 ## Coverage Gaps
 
 - **CI runs no tests**: `.github/workflows/build.yml` only installs deps and runs PyInstaller — a regression can be merged without any test execution.
-- `app/ui/main_window.py` (3870 lines) has no dedicated test module; the only coverage is indirect through `test_e2e.py`, `test_wifi_source.py`, and `test_selective_dump.py`.
+- `app/ui/main_window.py` (4131 lines) has only `test_main_window.py` (10 tests covering camera detection, rename, free space, integrity reports) plus indirect coverage from `test_e2e.py`, `test_wifi_source.py`, and `test_selective_dump.py`. No dedicated test for source list operations, session management UI, or formatting flows.
 - `app/core/watcher.py` and `app/core/notifications.py` (sound/dialog paths) have no direct tests; `app/core/sd_reader.py` (card brand detection) has none.
+- `app/ui/icons.py` is tested but only for the 13-icon catalog — edge cases like missing SVG directory, corrupted SVG, or concurrent `refresh_all()` during widget creation are not covered.
 - No coverage measurement exists, so untested branches are invisible.
 
 ---
 
-*Testing analysis: 2026-08-15*
+*Testing analysis: 2026-08-17*

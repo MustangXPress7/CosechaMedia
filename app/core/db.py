@@ -60,6 +60,8 @@ class DatabaseManager:
             ("dump_path", "TEXT"),
             ("camera_detection_mode", "TEXT DEFAULT 'auto'"),
             ("camera_detection_timeout", "INTEGER DEFAULT 5"),
+            ("generate_proxies", "INTEGER DEFAULT 0"),
+            ("proxy_resolution", "TEXT DEFAULT '720p'"),
         ]
         for col_name, col_def in project_migrations:
             if col_name not in existing_cols:
@@ -183,10 +185,16 @@ class DatabaseManager:
                 brand TEXT,
                 model TEXT,
                 capacity_gb REAL,
+                camera_name TEXT,
                 first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        cursor.execute("PRAGMA table_info(sd_cards)")
+        sd_cols = [row[1] for row in cursor.fetchall()]
+        if "camera_name" not in sd_cols:
+            cursor.execute("ALTER TABLE sd_cards ADD COLUMN camera_name TEXT")
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS recent_paths (
@@ -232,6 +240,13 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS containers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS device_settings (
+                device_key TEXT PRIMARY KEY,
+                delicate_mode INTEGER DEFAULT 0
             )
         ''')
         default_containers = [
@@ -521,6 +536,20 @@ class DatabaseManager:
             "device_folder": r[17],
             "enabled": r[18],
         }
+
+    def get_files_by_session(self, session_id: int):
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT source_path, dest_path, file_size, md5_hash, status, verified_at
+               FROM files WHERE session_id = ? ORDER BY id''',
+            (session_id,)
+        )
+        rows = [{"source_path": r[0], "dest_path": r[1], "file_size": r[2],
+                 "md5_hash": r[3], "status": r[4], "verified_at": r[5]}
+                for r in cursor.fetchall()]
+        conn.close()
+        return rows
 
     def update_session_config(self, session_id: int, **kwargs):
         if not kwargs:
@@ -881,5 +910,79 @@ class DatabaseManager:
             )
         conn.commit()
         conn.close()
+
+    def save_card_camera(self, volume_serial: str, camera_name: str, brand: str = None, model: str = None):
+        """Guarda o actualiza el mapeo serial→cámara para una tarjeta SD."""
+        if not volume_serial or not camera_name:
+            return
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT id FROM sd_cards WHERE serial = ?', (volume_serial,)
+        )
+        row = cursor.fetchone()
+        if row:
+            updates = ['camera_name = ?', 'last_used = CURRENT_TIMESTAMP']
+            params = [camera_name]
+            if brand:
+                updates.append('brand = ?')
+                params.append(brand)
+            if model:
+                updates.append('model = ?')
+                params.append(model)
+            params.append(volume_serial)
+            cursor.execute(
+                f'UPDATE sd_cards SET {", ".join(updates)} WHERE serial = ?', params
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO sd_cards (serial, brand, model, camera_name) VALUES (?, ?, ?, ?)',
+                (volume_serial, brand, model, camera_name)
+            )
+        conn.commit()
+        conn.close()
+
+    def get_camera_for_card(self, volume_serial: str):
+        """Devuelve el nombre de cámara conocido para un serial de tarjeta, o None."""
+        if not volume_serial:
+            return None
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT camera_name FROM sd_cards WHERE serial = ?', (volume_serial,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row and row['camera_name']:
+            return row['camera_name']
+        return None
+
+    def get_device_delicate(self, device_key: str):
+        """Devuelve el modo delicado para un dispositivo (0/1), o None si no hay config."""
+        if not device_key:
+            return None
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT delicate_mode FROM device_settings WHERE device_key = ?',
+            (device_key,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        return int(row['delicate_mode']) if row else None
+
+    def set_device_delicate(self, device_key: str, delicate: bool):
+        """Guarda el modo delicado para un dispositivo."""
+        if not device_key:
+            return
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT OR REPLACE INTO device_settings (device_key, delicate_mode) VALUES (?, ?)',
+            (device_key, int(delicate))
+        )
+        conn.commit()
+        conn.close()
+
 
 db = DatabaseManager()

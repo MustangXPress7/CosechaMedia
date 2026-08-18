@@ -1,7 +1,7 @@
-<!-- refreshed: 2026-08-15 -->
+<!-- refreshed: 2026-08-17 -->
 # Architecture
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
 
 ## System Overview
 
@@ -15,6 +15,7 @@
 │                      │  `app/ui/source_picker.py`    │  `app/ui/wifi_panel.py`│
 │                      │  `app/ui/selective_dump.py`   │  `app/ui/wifi_picker.py`│
 │                      │  `app/ui/project_wizard.py`   │  `app/ui/about_dialog.py`│
+│                      │  `app/ui/icons.py`            │                          │
 └──────────┬───────────┴──────────────┬────────┴──────────────┬────────────┘
            │ Qt Signals / direct calls │                        │
            ▼                           ▼                        │
@@ -41,12 +42,12 @@
 
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| `MainWindow` | Orchestrates everything: project/session CRUD, source registration, ingest start/stop, wifi/FTP/MTP flows, post-ingest actions, auto-sync, updates | `app/ui/main_window.py` |
-| `Ingestor` | Verified (MD5) file copy pipeline, camera/date resolution, multi-disk rotation, resume state, Qt signals for UI progress | `app/core/ingestor.py` |
+| `MainWindow` | Orchestrates everything: project/session CRUD, source registration, ingest start/stop, wifi/FTP/MTP flows, post-ingest actions, auto-sync, updates, camera detection per source | `app/ui/main_window.py` (4,131 lines) |
+| `Ingestor` | Verified (MD5) file copy pipeline, camera/date resolution, multi-disk rotation, resume state, Qt signals for UI progress, content filter, delicate mode | `app/core/ingestor.py` |
 | `FileSystemWatcher` | Polls a source dir on a daemon thread and feeds new files to an `Ingestor` | `app/core/watcher.py` |
 | `MetadataEngine` | ffprobe metadata extraction (camera, date, codec, fps), LRU cache with mtime invalidation, file type classification | `app/core/metadata_engine.py` |
 | `FFmpegProcessor` | Proxy (720p/1080p) generation via `ffmpeg` subprocess | `app/core/ffmpeg_utils.py` |
-| `DatabaseManager` | SQLite schema, migrations (ALTER TABLE backfill), sessions/projects/files/containers/FTP profiles/inbox senders | `app/core/db.py` |
+| `DatabaseManager` | SQLite schema, migrations (ALTER TABLE backfill), sessions/projects/files/containers/FTP profiles/inbox senders, device_settings, sd_cards camera mapping | `app/core/db.py` |
 | `MtpBackend` / `WpdBackend` | Device abstraction interface + real Windows WPD COM implementation; incremental staging with manifest | `app/core/mtp.py` |
 | `FtpBackend` | FTP implementation of the MtpBackend session interface; subnet discovery; passive/active auto-flip | `app/core/ftp.py` |
 | `ShootInboxServer` | Embedded `ThreadingHTTPServer` receiving phone uploads (PairDrop-style); per-sender tokens; `.part` uploads | `app/core/shoot_inbox.py` |
@@ -54,6 +55,10 @@
 | `NotificationManager` | Ingest-complete/error sounds + dialogs | `app/core/notifications.py` |
 | `updater` | GitHub Releases check, SHA-256 verify, platform install helpers (Windows/macOS/Linux) | `app/core/updater.py` |
 | `theme` | Single palette source; QSS template with `@key` placeholders; dark/light + accents | `app/ui/theme.py` |
+| `icons` | SVG icon tinting with theme palette colors; weakref registry for theme-change re-tint | `app/ui/icons.py` |
+| `ElidedLabel` | Custom `QLabel` subclass that elides text with "..." when it exceeds `maximumWidth()` | `app/ui/main_window.py:149-154` |
+| `DashboardBackground` | QWidget with wheat-field animated background painting | `app/ui/main_window.py:121-127` |
+| `ProjectWizard` | First-run setup dialog (`QDialog` subclass for proper QSS styling) | `app/ui/project_wizard.py` |
 | Dialogs | `DevicePickerDialog`, `FtpPickerDialog`, `SourcePickerDialog`, `SelectiveDumpAssistant`, `WifiMethodDialog`, `ShootInboxPanel`, `AboutDialog`, `ProjectWizard` | `app/ui/*.py` |
 
 ## Pattern Overview
@@ -61,25 +66,31 @@
 **Overall:** Two-layer desktop app — Qt UI layer (`app/ui/`) over a business-logic layer (`app/core/`) — connected by Qt signals for threading and by module-level singleton service objects (`db`, `metadata_engine`, `ffmpeg`, `sd_reader`). The `MainWindow` is a single orchestrator that wires UI events to core services.
 
 **Key Characteristics:**
-- **Signal-driven progress:** Core emits Qt `Signal`s (e.g. `Ingestor.file_finished`, `copy_progress`, `ingest_complete`) that the UI connects to for safe cross-thread updates (`app/core/ingestor.py:115-121`, connected in `app/ui/main_window.py:1482-1494`)
+- **Signal-driven progress:** Core emits Qt `Signal`s (e.g. `Ingestor.file_finished`, `copy_progress`, `ingest_complete`) that the UI connects to for safe cross-thread updates (`app/core/ingestor.py:115-121`, connected in `app/ui/main_window.py:1534-1546`)
 - **Reactive ingestion:** `FileSystemWatcher` polls source dirs and pushes each new file into `Ingestor.handle_new_file`; the Ingestor dedupes, classifies, and dispatches to a `ThreadPoolExecutor` (`app/core/ingestor.py:235-262`)
 - **Backend-interface reuse:** `MtpBackend` (interface) is implemented by `WpdBackend` (COM) and `FtpBackend` (network); both share the incremental staging engine `_stage_session` (`app/core/mtp.py:55-104`, `app/core/ftp.py:338`)
-- **SQLite as system of record:** projects, sessions, files, cameras, containers, FTP profiles, inbox senders — all in one DB via `DatabaseManager` (`app/core/db.py:20`)
+- **SQLite as system of record:** projects, sessions, files, cameras, containers, FTP profiles, inbox senders, `device_settings`, `sd_cards` — all in one DB via `DatabaseManager` (`app/core/db.py:20`)
 - **Frozen-aware paths:** `resource_path()` and `_resolve_db_path()` switch between `sys._MEIPASS`/`sys.executable` (PyInstaller) and repo-relative paths in dev (`app/core/utils.py:6-12`, `app/core/db.py:8-15`)
+- **Per-device delicate mode:** Device-level settings stored in `device_settings` table keyed by `device_key`; read at ingest start to override session-level setting (`app/ui/main_window.py:1496-1499`, `app/core/db.py:247-251,960-985`)
+- **Camera detection with memory:** Scans the smallest media file via ffprobe, remembers cameras by SD card serial in `sd_cards.camera_name`, prompts user on failure with a timeout-based fallback (`app/ui/main_window.py:2309-2378`)
 
 ## Layers
 
 **UI Layer:**
 - Purpose: Present the interface, capture user intent, render progress
 - Location: `app/ui/`
-- Contains: `MainWindow`, picker dialogs, wizard, wifi panel, theme, wheat-field background painter, logos
+- Contains: `MainWindow`, picker dialogs, wizard, wifi panel, theme, wheat-field background painter, icons, logos
 - Depends on: `app/core` (all modules), Qt
 - Used by: `main.py` only (`app/ui/main_window.py` imports every other UI module)
+- Key UI widgets:
+  - `ElidedLabel` (`app/ui/main_window.py:149-154`) — custom QLabel for path text elision
+  - `DashboardBackground` (`app/ui/main_window.py:121-127`) — animated wheat-field background
+  - `SessionsBox` (`app/ui/main_window.py:471-549`) — QGroupBox wrapping session controls
 
 **Core Layer:**
 - Purpose: Business logic — ingest, metadata, device access, storage, updates, i18n
 - Location: `app/core/`
-- Contains: 12 modules; the only Qt dependency is `QObject`/`Signal` (in `app/core/ingestor.py` and `app/core/translator.py`) plus `QMessageBox` (in `app/core/notifications.py`)
+- Contains: 13 modules; the only Qt dependency is `QObject`/`Signal` (in `app/core/ingestor.py` and `app/core/translator.py`) plus `QMessageBox` (in `app/core/notifications.py`)
 - Depends on: stdlib (`sqlite3`, `subprocess`, `ftplib`, `http.server`, `threading`, `concurrent.futures`), `PySide6.QtCore`, `comtypes` (Windows), external CLIs (ffmpeg/ffprobe), GitHub API
 - Used by: `app/ui/`, `tests/`
 
@@ -92,9 +103,9 @@
 
 ### Primary Request Path — SD card ingest
 
-1. `MainWindow.start_ingest()` collects active sessions from `db.get_sessions()`, builds one `Ingestor` per active source, and connects its signals to UI handlers (`app/ui/main_window.py:1366-1495`)
+1. `MainWindow.start_ingest()` collects active sessions from `db.get_sessions()`, builds one `Ingestor` per active source, reads per-device delicate mode from `db.get_device_delicate(device_key)` to override session-level setting, and connects its signals to UI handlers (`app/ui/main_window.py:1414-1559`)
 2. A `FileSystemWatcher` per source starts on a daemon thread, walks the dir, and calls `ingestor.handle_new_file(path)` for every new non-system file (`app/core/watcher.py:25-57`)
-3. `Ingestor.handle_new_file` dedupes (`processed_files`, `_copied_files`), applies the content filter, classifies via `metadata_engine.get_file_type_info`, and submits `_process_single_file` to a `ThreadPoolExecutor` (`app/core/ingestor.py:235-262`)
+3. `Ingestor.handle_new_file` dedupes (`processed_files`, `_copied_files`), applies the content filter, classifies via `metadata_engine.get_file_type_info`, and submits `_process_single_file` to a `ThreadPoolExecutor` (max 1 worker in delicate mode, 4 otherwise) (`app/core/ingestor.py:235-262`)
 4. `_run_single_file` resolves camera (known map → ffprobe metadata → default → `camera_rename_needed` signal), determines the shoot date (metadata → manual → today), picks a dump target (`_pick_dump_target` rotates across `DumpTarget`s when a disk fills), and performs the MD5-verified copy (`app/core/ingestor.py:315-400`)
 5. On success the `files` row is inserted via `db` and `file_finished` is emitted; the UI updates the table row and progress (`app/core/ingestor.py:361-381`, `app/ui/main_window.py:1596-1639`)
 6. When all watchers complete and no file is in flight, `ingest_complete` fires; `_finalize_ingest` runs queued post-actions (format sources, generate proxies, shutdown) (`app/core/ingestor.py:208-229`, `app/ui/main_window.py:1647-1737`)
@@ -104,7 +115,7 @@
 1. `MainWindow._pick_device_source` opens `DevicePickerDialog`; `_pick_ftp_source` opens `FtpPickerDialog` (network scan via `scan_network_ftp`) (`app/ui/main_window.py:2901-2930`, `app/ui/main_window.py:3274-3296`)
 2. The chosen folder is staged in the background: `_StageWorker` (QThread) calls `backend.stage()` which walks the device tree and downloads incrementally into `data/device_cache/<sha1>/<folder>`, tracked by `.sync_manifest.json` (size+mtime) (`app/ui/main_window.py:91-121`, `app/core/mtp.py:597-638`)
 3. `_register_device_source` creates a `sessions` row with `device_id` (`MTP PnP id` or `ftp:<profile_id>`) and `source_path` = cache dir; later ingestion treats the cache like a card (`app/ui/main_window.py:3297-3330`)
-4. `MainWindow._auto_sync_check` runs every 5 s (throttled to 60 s per device) and re-stages any reachable device with sessions (`app/ui/main_window.py:223-259`)
+4. `MainWindow._auto_sync_check` runs every 5 s (throttled to 60 s per device) and re-stages any reachable device with sessions (`app/ui/main_window.py:233-269`)
 
 ### WiFi inbox flow (PairDrop-style)
 
@@ -113,12 +124,21 @@
 3. The phone POSTs to `/upload`; `_UploadHandler` writes to `.part` then renames atomically into `data/inbox/<alias>`, then invokes the callback (`app/core/shoot_inbox.py:347-412`)
 4. `MainWindow._on_wifi_file_received` starts/refeeds a per-session `Ingestor` watching that inbox dir; after completion the cache is cleaned (`app/ui/main_window.py:3221-3263`)
 
+### Camera detection flow
+
+1. `_detect_camera_for_session(session_id, source_path)` is called when a source is registered or on explicit scan (`app/ui/main_window.py:2309-2378`)
+2. In manual mode: sets `camera_name=None` and returns (`app/ui/main_window.py:2310-2315`)
+3. Checks SD card serial → `db.get_camera_for_card(vol_serial)` for a remembered camera (`app/ui/main_window.py:2317-2325`)
+4. If unknown: shows "Escaneando..." in the camera cell, starts a background thread to ffprobe the smallest media file, with a timeout that falls back to `_prompt_unknown_camera` (`app/ui/main_window.py:2327-2378`)
+5. On detection: saves via `db.update_session_config` and `db.save_card_camera` to remember for future inserts (`app/ui/main_window.py:2360-2364`)
+
 **State Management:**
-- **Persistent state:** SQLite via `DatabaseManager` (`app/core/db.py`) — projects, sessions, files, containers, footage folders, FTP profiles, inbox senders
+- **Persistent state:** SQLite via `DatabaseManager` (`app/core/db.py`) — projects, sessions, files, containers, footage folders, FTP profiles, inbox senders, `device_settings`, `sd_cards`
 - **Resume state:** `Ingestor` persists copied-file sets to `.sdimport_session_<id>.json` beside the destination root; a legacy `.sdimport_session.json` is also read (`app/core/ingestor.py:155-202`)
-- **In-memory UI state:** `MainWindow` attributes for project/session config, `_ingestors`, `watchers`, `_file_row_map` (`app/ui/main_window.py:163-191`)
+- **In-memory UI state:** `MainWindow` attributes for project/session config, `_ingestors`, `watchers`, `_file_row_map`, `_cam_detection_token` (`app/ui/main_window.py:171-195`)
 - **Settings:** Qt `QSettings` (org "Audiovisual Production", app "CosechaMedia") — language, theme, accent, camera detection mode, window geometry (`app/ui/theme.py:8-13`, `app/core/translator.py:38`)
 - **Thread-state:** `_inflight`, `_remaining_watchers`, `_complete_emitted` guarded by `_inflight_lock` to decide when an ingest is truly complete (`app/core/ingestor.py:178-233`)
+- **Device settings:** `device_settings` table stores per-device `delicate_mode`; `sd_cards` table stores `camera_name` by volume serial for card recognition (`app/core/db.py:247-251,914-985`)
 
 ## Key Abstractions
 
@@ -131,16 +151,27 @@
 - Purpose: Copy any source (card, inbox cache, device cache) into the project with MD5 verification, camera/date organization, disk rotation, and progress signals
 - Examples: `app/core/ingestor.py`, reused by `MainWindow.start_ingest`, `_start_wifi_ingestor`, `_ensure_wifi_ingestion`
 - Pattern: `QObject` + `ThreadPoolExecutor`; external events (`handle_new_file`) are serialized through `processed_files` and a stop event; completion is tracked with an inflight/watcher counter
+- Delicate mode: When `delicate_mode=True`, `max_workers=1` forces sequential copying (`app/core/ingestor.py:145`)
 
 **Module-level singletons:**
 - Purpose: One shared service instance across UI and core
-- Examples: `db = DatabaseManager()` (`app/core/db.py:863`), `metadata_engine = MetadataEngine()` (`app/core/metadata_engine.py:429`), `ffmpeg = FFmpegProcessor()` (`app/core/ffmpeg_utils.py:59`), `sd_reader = SDReader()` (`app/core/sd_reader.py:179`)
+- Examples: `db = DatabaseManager()` (`app/core/db.py:988`), `metadata_engine = MetadataEngine()` (`app/core/metadata_engine.py:429`), `ffmpeg = FFmpegProcessor()` (`app/core/ffmpeg_utils.py:59`), `sd_reader = SDReader()` (`app/core/sd_reader.py:179`)
 - Pattern: module-scope instance; tests monkey-patch the module attribute to inject fakes (e.g. `ingestor_module.db = self.db` in `tests/test_ingestor.py:40`)
 
 **Theme palette + QSS template:**
 - Purpose: Single source of color truth; a QSS template with `@key` placeholders is filled per theme/accent
 - Examples: `app/ui/theme.py` (`DARK`/`LIGHT` palettes, `ACCENTS`, `_QSS_TEMPLATE`), `theme.color(...)` used throughout UI files
 - Pattern: palettes are dicts; `apply_theme(app)` renders the template with the selected palette + accent tint (`app/ui/theme.py:17-120`)
+
+**`ElidedLabel` (text-eliding label):**
+- Purpose: Displays long paths with "..." when text exceeds widget width
+- Examples: `app/ui/main_window.py:149-154`, used for project path label (`app/ui/main_window.py:325`) and source cell labels (`app/ui/main_window.py:2108`)
+- Pattern: Overrides `QLabel.setText()` to elide via `QFontMetrics.elidedText` with `Qt.ElideMiddle`
+
+**`ProjectWizard` (QDialog):**
+- Purpose: First-run project creation dialog
+- Examples: `app/ui/project_wizard.py`
+- Pattern: `QDialog` subclass (not `QWidget`) for proper QSS styling with window semantics; calls `accept()` on completion
 
 **`tr()` / `QtString`:**
 - Purpose: i18n with Qt-style `%1` placeholders; every dialog defines a `tr` method and core modules use `translator.tr(...)`
@@ -155,9 +186,9 @@
 - Responsibilities: Create `QApplication`, set font/org/app names, load translation, apply theme + icon, instantiate and show `MainWindow`, run the event loop (`main.py:11-28`)
 
 **Ingest start (`MainWindow.start_ingest`):**
-- Location: `app/ui/main_window.py:1366`
+- Location: `app/ui/main_window.py:1414`
 - Triggers: "INICIAR INGESTA" button (`btn_start`)
-- Responsibilities: Validate sources, reset UI state, build per-source `Ingestor`s, start `FileSystemWatcher`s, mark sessions active
+- Responsibilities: Validate sources, read per-device delicate mode from DB, reset UI state, build per-source `Ingestor`s with camera maps, start `FileSystemWatcher`s, mark sessions active
 
 **WiFi server (`ShootInboxServer.start`):**
 - Location: `app/core/shoot_inbox.py:441`
@@ -165,7 +196,7 @@
 - Responsibilities: Bind `ThreadingHTTPServer` on `0.0.0.0:0`, serve upload page + `/upload` + `/health`
 
 **Auto device sync (`MainWindow._auto_sync_check`):**
-- Location: `app/ui/main_window.py:223`
+- Location: `app/ui/main_window.py:233`
 - Triggers: 5-second `QTimer`; throttled per device to 60 s
 - Responsibilities: Detect reachable MTP/FTP devices with sessions and re-stage their folders incrementally
 
@@ -176,7 +207,7 @@
 
 ## Architectural Constraints
 
-- **Threading:** UI runs on the Qt main thread. Background work: `ThreadPoolExecutor` (default `max_workers=4`, `1` in delicate mode) inside `Ingestor` (`app/core/ingestor.py:145`); polling daemon threads for `FileSystemWatcher` (`app/core/watcher.py:19`) and `ShootInboxServer` (`app/core/shoot_inbox.py:453`); `QThread` + `_TaskWorker`/`_StageWorker` for staging and post-ingest jobs (`app/ui/main_window.py:91-147`); COM must be initialized on the thread that uses it — `_WpdSession` pairs `CoInitialize`/`CoUninitialize` (`app/core/mtp.py:192-222`)
+- **Threading:** UI runs on the Qt main thread. Background work: `ThreadPoolExecutor` (default `max_workers=4`, `1` in delicate mode) inside `Ingestor` (`app/core/ingestor.py:145`); polling daemon threads for `FileSystemWatcher` (`app/core/watcher.py:19`) and `ShootInboxServer` (`app/core/shoot_inbox.py:453`); `QThread` + `_TaskWorker`/`_StageWorker` for staging and post-ingest jobs (`app/ui/main_window.py:91-147`); camera detection uses a background `threading.Thread` with `QTimer.singleShot(0, ...)` to marshal results back to the UI thread (`app/ui/main_window.py:2343-2378`); COM must be initialized on the thread that uses it — `_WpdSession` pairs `CoInitialize`/`CoUninitialize` (`app/core/mtp.py:192-222`)
 - **Global state:** module-level singletons `db`, `metadata_engine`, `ffmpeg`, `sd_reader`; `_translator` in `app/core/translator.py:17`; `_DEVICE_MANAGER` and `_types_loaded` in `app/core/mtp.py:153-154,439`. Tests rely on replacing module attributes
 - **Circular imports:** none detected — `app/core/` imports only from `app.core` and Qt; `app/ui/` imports from `app.core` and `app.ui`. `shoot_inbox` imports `ftp.local_ip`; `ingestor` imports `metadata_engine` which imports `db`
 - **Frozen vs dev paths:** every path helper must honor `sys.frozen` (`resource_path`, `_resolve_db_path`, `application_dir`); the DB lives next to the executable when frozen, in CWD in dev (`app/core/db.py:8-15`)
@@ -186,9 +217,9 @@
 
 ### God object `MainWindow`
 
-**What happens:** `app/ui/main_window.py` is 3,870 lines: UI construction (`setup_views`), project CRUD, session management, ingest orchestration, WiFi/QR, MTP/FTP staging, auto-sync, formatting, shutdown scheduling, proxy generation, camera detection, update checks — all methods on one class.
+**What happens:** `app/ui/main_window.py` is 4,131 lines: UI construction (`setup_views`), project CRUD, session management, ingest orchestration, WiFi/QR, MTP/FTP staging, auto-sync, formatting, shutdown scheduling, proxy generation, camera detection, update checks — all methods on one class.
 **Why it's wrong:** Any change touches a huge, low-cohesion class; the orchestrator cannot be reused or tested in isolation; signal wiring is dense (one method per handler).
-**Do this instead:** Split into focused controllers (e.g. an `IngestController`, `DeviceSyncController`, `WifiController`) that own the flow and emit signals, with `MainWindow` only composing views. `app/ui/selective_dump.py` (assistant dialog with its own worker) is the existing pattern worth following.
+**Do this instead:** Split into focused controllers (e.g. an `IngestController`, `DeviceSyncController`, `WifiController`, `CameraDetectionController`) that own the flow and emit signals, with `MainWindow` only composing views. `app/ui/selective_dump.py` (assistant dialog with its own worker) is the existing pattern worth following.
 
 ### Core layer importing the UI layer
 
@@ -227,7 +258,8 @@
 **Authentication:** WiFi uploads use per-sender bearer tokens from `inbox_senders` (`app/core/db.py:686-696`); FTP uses profile username/password stored in the DB (`app/core/db.py:202-214`); no other auth surface.
 **Internationalization:** Every user-facing string goes through `tr()`; the UI dialog classes define a `tr` instance method returning `QtString`; catalogs in `app/i18n/`; translation pipeline in `tools/update_translations.ps1` + `tools/translate_en.py`.
 **Persistence of runtime data:** all under `data/` next to the DB — inbox caches, device staging caches with `.sync_manifest.json` manifests (`app/core/mtp.py:573-594`), and session resume JSON.
+**Device settings persistence:** `device_settings` table keyed by `device_key` (MTP PnP id, `ftp:<profile_id>`, or SD card serial); `sd_cards` table keyed by volume serial with `camera_name` for card-to-camera memory (`app/core/db.py:247-251,914-985`).
 
 ---
 
-*Architecture analysis: 2026-08-15*
+*Architecture analysis: 2026-08-17*

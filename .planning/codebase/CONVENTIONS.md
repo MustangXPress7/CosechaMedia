@@ -1,6 +1,6 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
 
 ## Language & Runtime Context
 
@@ -12,18 +12,21 @@
 
 **Files:**
 - snake_case matching the module's main symbol: `app/core/metadata_engine.py`, `app/core/db.py`, `app/ui/main_window.py`.
-- Test files: `tests/test_<module>.py` (`test_db.py`, `test_ingestor.py`).
+- Test files: `tests/test_<module>.py` (`test_db.py`, `test_ingestor.py`, `test_main_window.py`).
 
 **Classes:**
-- PascalCase: `DatabaseManager` (`app/core/db.py:20`), `Ingestor` (`app/core/ingestor.py:114`), `MainWindow` (`app/ui/main_window.py:149`), `DumpTarget` (`app/core/ingestor.py:91`).
+- PascalCase: `DatabaseManager` (`app/core/db.py:20`), `Ingestor` (`app/core/ingestor.py:114`), `MainWindow` (`app/ui/main_window.py:157`), `DumpTarget` (`app/core/ingestor.py:91`).
 - Exception classes end in `Error`: `UpdateError` (`app/core/updater.py:32`), `MtpError` (`app/core/mtp.py:29`).
 - Non-exported UI/helper classes prefixed with `_`: `_SilentMessageBox` (`app/core/notifications.py:12`), `_StageWorker`, `_TaskWorker` (`app/ui/main_window.py:91,130`).
+- Reusable custom `QWidget` subclasses use PascalCase without `_` prefix: `ElidedLabel` (`app/ui/main_window.py:149`) — a `QLabel` that elides text with `'...'` when it exceeds `maximumWidth()`.
 - PySide6 `QObject`/`QMainWindow`/`QDialog` subclasses declare Qt signals at class level: `file_started = Signal(str)` etc. (`app/core/ingestor.py:115-121`).
 
 **Functions/Methods:**
 - snake_case: `get_connection`, `create_session`, `handle_new_file`, `date_key_for_file`.
 - Module-private helpers get a leading `_`: `_free_space` (`app/core/ingestor.py:24`), `_is_system_entry` (`app/core/metadata_engine.py:26`), `_parse_version` (`app/core/updater.py:41`), `_windows_mounted_drives` (`app/core/utils.py:53`).
 - Private methods of classes also use `_`: `_process_single_file`, `_copy_verified`, `_determine_date` (`app/core/ingestor.py`). Tests exercise these private methods directly (`self.ing._process_single_file(...)` in `tests/test_ingestor.py:65`) — private methods are part of the testable surface.
+- MainWindow private helper methods follow `_verb_noun` pattern: `_device_key_for_source()` (`app/ui/main_window.py:2198`), `_build_source_cell()` (`app/ui/main_window.py:2082`), `_toggle_device_delicate()` (`app/ui/main_window.py:2206`), `_detect_camera_for_session()` (`app/ui/main_window.py:2309`). These are all `MainWindow` methods called internally.
+- Build helper methods for table cell widgets: `_build_source_cell()`, `_build_delicate_button()`, `_build_content_button()`, `_build_remove_source_button()` — all return a `QWidget` for a `QTableWidget` cell.
 
 **Variables:**
 - snake_case instance attributes, including private ones with `_` prefix: `self._stop_event`, `self._inflight_lock`, `self._session_file` (`app/core/ingestor.py:148-181`).
@@ -91,7 +94,7 @@ Example from `app/ui/main_window.py:1-39` and `app/core/ingestor.py:1-13`.
 
 **JSDoc/TSDoc:**
 - Not applicable (Python). Docstrings are triple-quoted (`"""..."""`) and predominantly Spanish:
-  - Module docstrings for non-obvious modules: `app/core/mtp.py:1-17`, `app/core/updater.py:1-7`, `app/ui/theme.py:1-6`.
+  - Module docstrings for non-obvious modules: `app/core/mtp.py:1-17`, `app/core/updater.py:1-7`, `app/ui/theme.py:1-6`, `app/ui/icons.py:1-12`.
   - Function docstrings for non-trivial behavior, often documenting callbacks and return shapes: `scan_for_dates_batch` (`app/core/metadata_engine.py:298-312`), `get_or_create_wifi_session` (`app/core/db.py:714-724`), `copy_verified` (`app/core/ingestor.py:31-35`).
   - One-line docstrings for simple functions: `resource_path` (`app/core/utils.py:7`).
 
@@ -111,11 +114,44 @@ Example from `app/ui/main_window.py:1-39` and `app/core/ingestor.py:1-13`.
 ## Module Design
 
 **Exports:**
-- Modules define classes and module-level singleton instances: `db = DatabaseManager()` (`app/core/db.py:863`), `metadata_engine = MetadataEngine()` (`app/core/metadata_engine.py:429`), `sd_reader = SDReader()` (`app/core/sd_reader.py:179`).
+- Modules define classes and module-level singleton instances: `db = DatabaseManager()` (`app/core/db.py:988`), `metadata_engine = MetadataEngine()` (`app/core/metadata_engine.py:429`), `sd_reader = SDReader()` (`app/core/sd_reader.py:179`).
 - Consumer modules import the singleton and call it directly: `from app.core.db import db`, `from app.core.metadata_engine import metadata_engine` (`app/core/ingestor.py:9-11`, `app/ui/main_window.py:17-22`).
 - Tests monkeypatch attributes of these singletons or replace the module-level reference (`ingestor_module.db = self.db` in `tests/test_ingestor.py:40`) — keep singletons attribute-replaceable at module scope.
 
 **Barrel Files:** Not used. `app/__init__.py` only holds `__version__` (`app/__init__.py:3`). Import directly from the defining module.
+
+## Database Patterns
+
+**Schema additions:**
+- New tables are added to `_init_schema()` in `app/core/db.py` via `CREATE TABLE IF NOT EXISTS`. Example: `device_settings` table with `device_key TEXT PRIMARY KEY` (`app/core/db.py:247-250`).
+- Table naming: lowercase plural (`device_settings`, `sessions`, `projects`).
+- Primary key convention: `device_key TEXT PRIMARY KEY` for composite identifiers (e.g. FTP profile IDs, WPD PnP IDs, volume serials).
+
+**CRUD pattern:**
+- Each table gets a pair of getter/setter methods on `DatabaseManager`: `get_device_delicate(device_key)` / `set_device_delicate(device_key, delicate)` (`app/core/db.py:960-985`).
+- Getter returns the value or `None` if not found. Setter uses `INSERT OR REPLACE`.
+- Always `conn.commit()` then `conn.close()` in the setter; getter calls `conn.close()` after fetching.
+
+## UI Patterns
+
+**Source list columns (QTableWidget, 5 columns):**
+| Column | Content | Resize | Widget |
+|--------|---------|--------|--------|
+| 0 | Source path (text item + cell widget with checkbox + path label + optional device button) | Interactive, 300px | `QTableWidgetItem` (hidden text) + `_build_source_cell()` widget |
+| 1 | Camera name | Interactive, 150px | `QTableWidgetItem` (editable in manual mode) |
+| 2 | Delicate mode toggle | Fixed, 32px | `_build_delicate_button()` → `QPushButton` |
+| 3 | Content filter | Interactive, 100px | `_build_content_button()` |
+| 4 | Remove source | Fixed, 40px | `_build_remove_source_button()` → icon `QPushButton` |
+
+Configured at `app/ui/main_window.py:420-447`. Refreshed by `_refresh_source_list()` (`app/ui/main_window.py:2032-2070`).
+
+**Custom reusable widgets:**
+- `ElidedLabel` (`app/ui/main_window.py:149-154`): `QLabel` subclass that overrides `setText()` to elide text with `'...'` via `fontMetrics().elidedText()` when text exceeds `maximumWidth()`. Use for truncated paths in table cells.
+
+**Icon system:**
+- SVG icons rendered from `app/ui/assets/icons/*.svg` with `#FF00FF` placeholder replaced by palette color (`app/ui/icons.py:24`).
+- `icons.apply(button, name, size)` sets the icon and registers the button for `refresh_all()` re-tinting on theme change (`app/ui/icons.py:82-85`).
+- 13 icons in catalog: `refresh`, `plus`, `minus`, `x`, `pencil`, `copy`, `folder`, `gear`, `trash`, `camera`, `phone`, `wifi`, `globe` (`tests/test_icons.py:25-28`).
 
 ## Cross-Cutting Conventions
 
@@ -136,4 +172,4 @@ Example from `app/ui/main_window.py:1-39` and `app/core/ingestor.py:1-13`.
 
 ---
 
-*Convention analysis: 2026-08-15*
+*Convention analysis: 2026-08-17*

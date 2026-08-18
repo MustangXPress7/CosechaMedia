@@ -1,11 +1,33 @@
-<!-- refreshed: 2026-08-15 -->
+<!-- refreshed: 2026-08-17 -->
 # Codebase Concerns
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
+
+## Resolved Concerns (Since 2026-08-15)
+
+**`rename_camera` LIKE pattern — FIXED:**
+- Resolution: `app/core/ingestor.py:567-574` now runs two UPDATE queries — one for `/` separators and one for `\` separators. Tested in `tests/test_main_window.py:160-181` (`TestRenameCamera`).
+
+**`_free_space` returns 0 on error — FIXED:**
+- Resolution: `app/core/ingestor.py:28` now returns `-1` on error instead of `0`. The `-1` sentinel is handled by `_pick_dump_target` and `_copy_verified_with_progress` to treat "unknown" space as a last-resort target rather than "full". Tested in `tests/test_main_window.py:184-193` (`TestFreeSpace`).
+
+**Camera detection race (`_cam_done`) — FIXED:**
+- Resolution: Replaced single `_cam_done` flag with `_cam_detection_token` pattern (`app/ui/main_window.py:192`). Each detection call increments the token (`main_window.py:2331`) and only the latest token can set state or show the prompt. Old timers are stopped before new detection starts. Tested in `tests/test_main_window.py:66-101` (`TestCameraDetectionToken`).
+
+**Duplicated device name in MTP session — FIXED:**
+- Resolution: `app/core/mtp.py:214` now builds `devicename = f"{self.name}_{self.serial}"` (was `f"{self.name}_{self.name}_{self.serial}"`).
+
+**ThreadPoolExecutor never shut down — FIXED:**
+- Resolution: `app/core/ingestor.py:207` now calls `self.executor.shutdown(wait=False)` in `stop()`.
+
+**`chk_session_delicate` removed from UI — CONFIRMED REMOVED:**
+- No references to `chk_session_delicate` exist anywhere in the codebase. Per-device delicate mode is now managed through `_build_delicate_button` (`app/ui/main_window.py:2176-2196`) and `db.set_device_delicate`/`db.get_device_delicate` (`app/core/db.py:960-985`).
+
+---
 
 ## Tech Debt
 
-**`main_window.py` god object (3870 lines):**
+**`main_window.py` god object (4131 lines):**
 - Issue: `app/ui/main_window.py` mixes UI construction, business orchestration (MTP/FTP/WiFi), worker threading (`_TaskWorker`, `_StageWorker`, `_format_sources_worker`, `_reorganize_worker`), and DB calls in a single class. New features keep adding methods (rename flows, WiFi reception, staging) instead of extracting services.
 - Files: `app/ui/main_window.py`
 - Impact: Any change risks UI-thread freezes, cross-wiring of signals, and merge conflicts. Testability near zero (see Test Coverage Gaps).
@@ -19,15 +41,9 @@
 
 **No logging framework — bare `print()`/`traceback.print_exc()`:**
 - Issue: Error reporting is scattered `print()` calls (~16 sites) plus `traceback.print_exc()` in `app/ui/selective_dump.py:122`. No `logging` module anywhere. End users get no log file to send for support.
-- Files: `app/core/ingestor.py:69,299,384`, `app/core/ffmpeg_utils.py:52,55`, `app/core/metadata_engine.py:257`, `app/core/notifications.py:35,162`, `app/core/utils.py:50`, `app/core/watcher.py:27,61`, `app/ui/main_window.py:146,1714,3515,3765`, `app/ui/selective_dump.py:785`
+- Files: `app/core/ingestor.py:69,299,303`, `app/core/ffmpeg_utils.py:52,55`, `app/core/metadata_engine.py:257`, `app/core/notifications.py:35,162`, `app/core/utils.py:50`, `app/core/watcher.py:27,61`, `app/ui/main_window.py:146,1714,3515,3765`, `app/ui/selective_dump.py:785`
 - Impact: Silent failures in production (exceptions swallowed) with no diagnostics trail.
 - Fix approach: Add a `logging` setup in `app/core/logging_setup.py` writing to `data/logs/cosechamedia.log` (rotating), and replace prints progressively.
-
-**Duplicated device name in MTP session:**
-- Issue: `app/core/mtp.py:211` builds `devicename = f"{self.name}_{self.name}_{self.serial}"` — the friendly name is duplicated, which produces odd folder names like `CANON_CANON_12345`.
-- Files: `app/core/mtp.py`
-- Impact: Cosmetic garbage in destination paths; may confuse operators comparing names.
-- Fix approach: Use `f"{self.name}_{self.serial}"` and keep a one-time DB migration if folders already created (or accept cosmetic-only change).
 
 **Files table FK type mismatch:**
 - Issue: `files.session_id TEXT` references `sessions.id INTEGER PRIMARY KEY AUTOINCREMENT` (`app/core/db.py:163`). SQLite allows it but joins rely on string coercion.
@@ -41,42 +57,26 @@
 - Impact: Wrong user-facing strings in Spanish/English for some messages.
 - Fix approach: Implement `replace("%1", v)` for all occurrences, or assert on leftover placeholders at load time.
 
+**`delicate_mode` column in `sessions` table — dead data:**
+- Issue: `app/core/db.py:130,148` defines `delicate_mode INTEGER` in the `sessions` table, and `sessions` queries return it (`app/core/db.py:473,491,509,530,559,607,626`). However, the UI no longer sets this per-session — delicate mode is now per-device via `device_settings` table (`app/core/db.py:960-985`). The session-level column is never written to with meaningful data from the new UI flow.
+- Files: `app/core/db.py:130,148,473,491,509,530,559,607,626`, `app/ui/main_window.py:1396,1430,1494-1495`
+- Impact: Confusing dead data in DB schema; queries return unused column; future developers may incorrectly use it.
+- Fix approach: Deprecate with a comment; remove in a future schema migration after confirming no user data depends on it.
+
+**`project_delicate_mode` attribute potentially redundant:**
+- Issue: `app/ui/main_window.py:177` declares `self.project_delicate_mode = False`, populated at `main_window.py:1171` from the project's `delicate_mode` column. It's used as a fallback at `main_window.py:1495` and `3321` when a session's `delicate_mode` is `None`. With per-device settings now authoritative, this fallback chain is confusing.
+- Files: `app/ui/main_window.py:177,1171,1494-1495,3320-3321`
+- Impact: Three-level fallback (device → session → project) for a boolean that should have one source of truth. Developers must understand all three to reason about behavior.
+- Fix approach: Document the precedence clearly; consider removing `project_delicate_mode` and always defaulting to `False` when no device-level config exists.
+
 ## Known Bugs
 
-**`rename_camera` uses forward-slash LIKE pattern that never matches Windows paths:**
-- Symptoms: Renaming a camera does not update `files.source_path`/`dest_path` rows on Windows.
-- Files: `app/core/ingestor.py` (`rename_camera`), invoked from `app/ui/main_window.py` `_on_camera_rename_needed` (1877-1885)
-- Trigger: User renames a camera after files ingested; DB UPDATE uses `LIKE '%/{old}/%'` with `/` separators while stored paths use `\`.
-- Workaround: None; paths stay stale. Manual DB edit required.
-- Fix approach: Use `os.sep`/both separators or `instr()` checks per row with Python-side path normalization.
-
-**`_free_space` returns 0 on error → dump targets treated as full:**
-- Symptoms: "Disco lleno" messages and file dump failure even though the drive has space.
-- Files: `app/core/ingestor.py` (`_free_space`, used by `_pick_dump_target` / `_copy_verified_with_progress`)
-- Trigger: Any exception in `shutil.disk_usage` (permission, exotic volume) → 0 → target skipped; if all targets are 0, ingest aborts.
-- Workaround: Re-select dump paths / restart.
-- Fix approach: Distinguish "unknown" (−1) from "full" (0) and treat unknown as last-resort target.
-
-**Camera detection race in `_detect_camera_for_session`:**
-- Symptoms: Wrong camera assigned to a session, or camera prompt shown twice; `_cam_done` flag is shared across sessions and never reset between runs.
-- Files: `app/ui/main_window.py:2130-2163` (`_detect_camera_for_session`, `_prompt_unknown_camera`), called from ~6 paths (2189, 2337, 2790, 2814, 3378, 3797)
-- Trigger: Multiple sessions start ingesting concurrently, or user starts a new session while a previous detection timer is pending. The single-shot `_cam_timer` is recreated per call, so earlier timers can fire after later ones and overwrite state.
-- Workaround: Restart app; detection result is written to DB so a manual rename fixes the session.
-- Fix approach: Guard with a per-session token/id; cancel pending timers before starting a new detection; reset `_cam_done` when a detection completes or times out.
-
-**DB path depends on working directory when not frozen:**
-- Symptoms: Two launches from different directories use different `data/sd_import.db` files → "lost" sessions/projects.
-- Files: `app/core/db.py:8-30` (`_resolve_db_path`)
-- Trigger: Running `python main.py` from a different CWD than the packaged app uses.
-- Workaround: Always launch from the same directory.
-- Fix approach: Anchor to `Path(__file__).resolve().parents[2]` (project root) for dev, exe dir only when frozen.
-
-**Watcher re-ingests files after `scanned_files` pruning:**
-- Symptoms: Files already copied get copied again (duplicates with new MD5 rows) after a long idle session.
-- Files: `app/core/watcher.py` (`_watch`, prunes `scanned_files` at 10000 entries; comment "Keep set size")
-- Trigger: SD folder with >10k entries, or watcher left running for a long time while the source directory churns.
-- Workaround: None; the `files` table check may skip some via MD5 but paths differ.
-- Fix approach: Prune by age (drop oldest known paths) instead of hard cap, or persist scanned inventory to DB.
+**Camera detection race — Token guard in place but edge cases remain:**
+- Symptoms: Multiple concurrent detection timers could still interact with the UI table refresh. The token guard (`_cam_detection_token`) prevents stale state overwrites but doesn't address the case where two `_detect_camera_for_session` calls are in-flight with the same token value if the first hasn't incremented yet.
+- Files: `app/ui/main_window.py:2331-2372`
+- Trigger: Rapid session starts where the first detection's `QTimer.singleShot` hasn't fired yet.
+- Workaround: Detection result is written to DB so a manual rename fixes the session.
+- Fix approach: Use a per-detection unique token generated at call site rather than a shared counter.
 
 **FFprobe timeout yields silent "Unknown" metadata + `file_size=0`:**
 - Symptoms: Files categorized as "Unknown" camera and `size 0` rows in `files`, breaking post-ingest organization and reports.
@@ -85,12 +85,19 @@
 - Workaround: None visible; re-run detection doesn't revisit completed files.
 - Fix approach: Retry with longer timeout or duration-only probe; fall back to mtime+extension with a visible warning flag instead of silent 0.
 
-**Ingestor ThreadPoolExecutor never shut down:**
-- Symptoms: `ThreadPoolExecutor` created in `Ingestor.__init__` (`app/core/ingestor.py:110-150`) is never `shutdown()`; `.stop()` only sets `_stop_event` and saves state. Threads linger until process exit.
-- Files: `app/core/ingestor.py`
-- Trigger: Every ingest; heavy on repeated start/stop cycles.
-- Workaround: None (bounded workers, but still leaked threads across sessions).
-- Fix approach: `shutdown(wait=False)` in `stop()`; recreate pool per ingest run.
+**Watcher re-ingests files after `scanned_files` pruning:**
+- Symptoms: Files already copied get copied again (duplicates with new MD5 rows) after pruning resets the set.
+- Files: `app/core/watcher.py` (`_watch`, prunes `scanned_files` at 10000 entries at line 47-48)
+- Trigger: Source directory with >10k entries, or long idle while source directory churns.
+- Workaround: None; the `files` table check may skip some via MD5 but paths differ.
+- Fix approach: Prune by age (drop oldest known paths) instead of hard cap, or persist scanned inventory to DB.
+
+**DB path depends on working directory when not frozen:**
+- Symptoms: Two launches from different directories use different `data/sd_import.db` files → "lost" sessions/projects.
+- Files: `app/core/db.py:8-30` (`_resolve_db_path`)
+- Trigger: Running `python main.py` from a different CWD than the packaged app uses.
+- Workaround: Always launch from the same directory.
+- Fix approach: Anchor to `Path(__file__).resolve().parents[2]` (project root) for dev, exe dir only when frozen.
 
 ## Security Considerations
 
@@ -164,12 +171,6 @@
 
 ## Fragile Areas
 
-**Shared camera-detection state (`_cam_done`, `_cam_timer`):**
-- Files: `app/ui/main_window.py:2130-2163`
-- Why fragile: Single flag + single-shot timer reused by many call sites; no ownership tracking; races between timer fire, scan thread completion, and `_prompt_unknown_camera`.
-- Safe modification: Add a monotonically increasing detection token; only the latest token may set `_cam_done` or show the prompt; cancel timers on token change.
-- Test coverage: None (see gaps).
-
 **Global COM singleton `mtp._DEVICE_MANAGER`:**
 - Files: `app/core/mtp.py` (`_manager()`), used from `main_window` (UI thread) and worker threads.
 - Why fragile: COM object created once, reused across threads with per-call `CoInitialize`/`CoUninitialize`; `_value_to_filetime` reads a generated inner COM attribute (`__MIDL____MIDL_itf_PortableDeviceApi_0001_00000001`) that may differ across comtypes/Windows versions.
@@ -191,6 +192,26 @@
 - Files: `app/core/updater.py:200-262`
 - Why fragile: Script text embedded in Python; quoting edge cases (spaces in paths, non-ASCII temp dirs) can break the move/relaunch; `zipfile.extractall` on macOS has traversal risk.
 - Safe modification: Keep scripts minimal, use `subprocess` list-args, test in non-ASCII paths, prefer `os.replace` loops over bat for move.
+
+## New Concerns
+
+**MTP detection reliability — ffprobe needs staged files:**
+- Problem: `SDReader._extract_card_from_video` (`app/core/sd_reader.py:148-171`) calls `metadata_engine.get_video_metadata()` to extract camera make/model/serial from video files on the card. For MTP/USB phones, files must first be staged to the local cache before ffprobe can read them. On first connection, the device may not have all files enumerated yet, causing ffprobe to fail or return incomplete metadata.
+- Files: `app/core/sd_reader.py:148-171`, `app/core/metadata_engine.py` (metadata extraction)
+- Impact: Camera detection may fail on first connection for MTP devices, requiring a second detection pass after staging completes.
+- Fix approach: Run camera detection after staging completes, not before; or cache ffprobe results per-file and retry on staged files.
+
+**Cross-platform MTP: Windows-only (COM/WPD):**
+- Problem: `app/core/mtp.py` uses Windows Portable Devices (WPD) via COM (`comtypes`), which only works on Windows. The `MtpBackend` interface exists but only `WpdBackend` is implemented — there is no macOS or Linux MTP backend.
+- Files: `app/core/mtp.py` (entire file), `app/core/ftp.py` (FTP fallback exists)
+- Impact: MTP phone/camera import via USB only works on Windows. macOS/Linux users must use FTP or WiFi methods.
+- Fix approach: Accept as a platform limitation; document clearly; consider libmtp (Python bindings) for cross-platform MTP if needed in future.
+
+**Volume serial: Windows-only via `GetVolumeInformationW`:**
+- Problem: `SDReader.get_volume_serial()` (`app/core/sd_reader.py:76-89`) uses `ctypes.windll.kernel32.GetVolumeInformationW` which is Windows-only. On macOS/Linux, the function returns `None`, meaning SD card identity detection (`save_card_camera`/`get_camera_for_card`) won't work for cross-platform card-to-camera mapping.
+- Files: `app/core/sd_reader.py:76-89`, `app/core/db.py:914-952` (`save_card_camera`, `get_camera_for_card`)
+- Impact: Card-to-camera mapping (I-03) only works on Windows. Operators on macOS/Linux won't get automatic camera association from card serial.
+- Fix approach: Implement platform-specific serial extraction (macOS: `diskutil info`, Linux: `/sys/block/*/serial`), or fall back to card filesystem label as identity key.
 
 ## Scaling Limits
 
@@ -251,8 +272,8 @@
 
 ## Test Coverage Gaps
 
-**`main_window.py` (3870 lines) — untested:**
-- What's not tested: Session start/stop flow, camera detection races, WiFi reception lifecycle, format/shutdown actions, auto-sync polling, rename flows.
+**`main_window.py` (4131 lines) — mostly untested:**
+- What's not tested: Session start/stop flow, WiFi reception lifecycle, format/shutdown actions, auto-sync polling, rename flows (partial: `TestRenameCamera` covers DB update but not UI flow).
 - Files: `app/ui/main_window.py`
 - Risk: The two confirmed bugs in this file (`_cam_done` race, rename LIKE pattern) shipped without detection; UI-thread freezes go unnoticed.
 - Priority: High
@@ -277,10 +298,10 @@
 
 **No CI workflow:**
 - What's not tested: Nothing runs automatically on push; `tests/` (all `unittest`) rely on the developer running them manually.
-- Files: (no `.github/workflows/`)
+- Files: (no `.github/workflows/` test workflow — only `build.yml`)
 - Risk: Regressions reach users untested.
 - Priority: High
 
 ---
 
-*Concerns audit: 2026-08-15*
+*Concerns audit: 2026-08-17*

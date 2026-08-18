@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
 
 ## Languages
 
@@ -39,7 +39,7 @@
 ## Key Dependencies
 
 **Critical:**
-- `PySide6>=6.5,<7` - The whole GUI, threading via signals, i18n, settings
+- `PySide6>=6.5,<7` - The whole GUI, threading via signals, i18n, settings, `QSvgRenderer` (for tinted SVG icons in `app/ui/icons.py`)
 - `comtypes>=1.4.0` - COM interop for Windows Portable Devices (MTP phone/camera access) in `app/core/mtp.py`
 - `qrcode>=7.4` - Generates the QR codes for phone WiFi upload in `app/ui/wifi_panel.py`
 
@@ -48,7 +48,7 @@
 - SQLite - stdlib `sqlite3`, WAL mode, no ORM (`app/core/db.py`)
 - `ftplib` - stdlib FTP client for phone FTP ingestion (`app/core/ftp.py`)
 - `http.server.ThreadingHTTPServer` - stdlib embedded HTTP server for WiFi file reception (`app/core/shoot_inbox.py`)
-- `ctypes`/`winsound`/`win32` kernel32 calls - Windows-specific drive detection, volume labels, sound (`app/core/utils.py`, `app/core/notifications.py`, `app/core/sd_reader.py`)
+- `ctypes`/`winsound`/`win32` kernel32 calls - Windows-specific drive detection, volume labels, sound, volume serial detection (`app/core/utils.py`, `app/core/notifications.py`, `app/core/sd_reader.py`)
 
 ## Configuration
 
@@ -63,6 +63,67 @@
 - `Compilar.bat` (Windows local build), `setup_mac.command` (macOS local build)
 - Version source of truth: `app/__init__.py` (`__version__ = "1.2.1"`); CI validates the git tag matches it
 
+## Database Schema (Runtime)
+
+**Tables** (`data/sd_import.db` via `app/core/db.py:create_tables`):
+
+| Table | Purpose | Notable columns |
+|-------|---------|-----------------|
+| `projects` | Project config (org, duration, dump path, proxy settings) | `dump_path`, `delicate_mode`, `camera_detection_mode`, `generate_proxies`, `proxy_resolution` |
+| `sessions` | Per-source ingest sessions | `device_id`, `device_folder`, `camera_name`, `content_filter`, `delicate_mode`, `enabled` |
+| `files` | Copied file records with MD5 verification | `dump_location_id` (multi-target support) |
+| `sd_cards` | SD card serial→camera mapping | `serial` (UNIQUE), `camera_name` (I-03), `brand`, `model`, `capacity_gb` |
+| `device_settings` | Per-device configuration (B-14) | `device_key` (TEXT PK), `delicate_mode` (INTEGER DEFAULT 0) |
+| `dump_locations` | Multi-target dump paths per project | `path`, `label`, `include_date`, `include_camera`, `order_index` |
+| `cameras` | Camera definitions | `name`, `folder_name` |
+| `recent_paths` | MRU source/dest paths | `path`, `path_type`, `use_count` |
+| `ftp_profiles` | Saved FTP connection profiles | `host`, `port`, `username`, `password`, `passive`, `timeout` |
+| `inbox_senders` | WiFi upload sender identities | `name`, `location`, `token` (bearer) |
+| `containers` | Recognized file extensions | `.mp4`, `.mov`, `.jpg`, `.cr2`, etc. |
+| `footage_folders` | Configurable footage folder names | `Footage`, `Material`, `Rodaje`, etc. |
+
+**Migration strategy:** additive `ALTER TABLE ... ADD COLUMN` with `PRAGMA table_info` checks plus backfill inside `create_tables()`. No version numbering; new columns are detected at startup.
+
+## New DB Methods (Recent Additions)
+
+- `DatabaseManager.save_card_camera(volume_serial, camera_name, brand, model)` — maps an SD card volume serial to a camera name (`app/core/db.py:914`). Upserts into `sd_cards`.
+- `DatabaseManager.get_camera_for_card(volume_serial)` → `Optional[str]` — retrieves the remembered camera name for a card serial (`app/core/db.py:945`).
+- `DatabaseManager.get_device_delicate(device_key)` → `Optional[int]` — reads the delicate mode flag from `device_settings` (`app/core/db.py:960`).
+- `DatabaseManager.set_device_delicate(device_key, delicate)` — persists the per-device delicate mode (`app/core/db.py:974`).
+
+## UI Components (Recent Additions)
+
+**`ElidedLabel`** (`app/ui/main_window.py:149`):
+- Custom `QLabel` subclass that elides text with `...` via `QFontMetrics.elidedText(ElideMiddle)` when the path is too long for the column width.
+- Used in source_list column 0 to display long file paths without overflow.
+
+**`source_list` QTableWidget** (`app/ui/main_window.py:420`):
+- 5-column table: `[Path | Camera | Delicate toggle | Content filter | Remove]`
+- Column widths: 300px (path), 150px (camera), 32px (delicate), 100px (content), 40px (remove)
+- Column 0 uses a composite cell widget: checkbox + `ElidedLabel` + optional device button (QR/FTP)
+- Column 1 camera cell is editable only when `camera_detection_mode == "manual"`
+- Column 2 is a ⚡/🐌 toggle button for per-device delicate mode (B-14)
+- Column 3 opens the content filter dialog
+- Auto-sizing via `_update_source_list_height()` (B-06)
+
+**Device Delicate Toggle** (`app/ui/main_window.py:2176`):
+- `_build_delicate_button()` creates a 24×24 `QPushButton` with ⚡ (normal) or 🐌 (delicate) icon
+- Reads/writes `db.get_device_delicate()` / `db.set_device_delicate()` per device key
+- Device key derived from `session.device_id` or `sd_reader.get_volume_serial()` fallback
+- 3-tier override chain: `device_settings` > `session.delicate_mode` > `project.delicate_mode`
+
+**`SessionsBox`** (`app/ui/main_window.py:470`):
+- `QGroupBox("Sesiones")` with `objectName = "SessionsBox"`, styled via QSS (`#SessionsPanel` in `app/ui/theme.py:584`)
+- Contains: session combo (`sessions_combo`), new/delete session buttons, source label, camera name, config overrides
+
+**`ProjectWizard`** (`app/ui/project_wizard.py:11`):
+- Now inherits `QDialog` (was `QWidget`), enabling modal `exec()` behavior and proper dialog semantics (I-12 fix)
+
+**`icons.py` SVG Icon System** (`app/ui/icons.py`):
+- Replaces unicode/emoji button glyphs with tinted SVG icons from `app/ui/assets/icons/`
+- Uses `QSvgRenderer` + placeholder color replacement + weakref registry for theme-aware re-tinting
+- Called via `icons.apply(button, "name", size=N)` throughout UI
+
 ## Platform Requirements
 
 **Development:**
@@ -75,7 +136,8 @@
 - End users receive compiled binaries from GitHub Releases (`CosechaMedia-windows-x86_64.exe`, `CosechaMedia-macos.app.zip`, `CosechaMedia-linux-x86_64`) — no Python runtime needed
 - FFmpeg/ffprobe still required at runtime on the machine
 - MTP import is Windows-only; FTP/WiFi ingestion is cross-platform
+- Windows volume serial detection (`GetVolumeInformationW`) is Windows-only; `get_volume_serial()` returns `None` on other platforms
 
 ---
 
-*Stack analysis: 2026-08-15*
+*Stack analysis: 2026-08-17*

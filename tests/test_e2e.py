@@ -81,6 +81,10 @@ class TestEndToEndIngest(unittest.TestCase):
         self.window.project_date = self.window.project_date  # hoy
 
     def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
         self.window.close()
         mw.db = self._orig_db
         ingestor_module.db = self._orig_ing_db

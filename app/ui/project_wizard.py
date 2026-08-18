@@ -1,13 +1,14 @@
 import os
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                               QPushButton, QLineEdit, QMessageBox,
-                              QGroupBox, QRadioButton, QButtonGroup, QComboBox, QCheckBox)
-from PySide6.QtCore import Qt
+                              QGroupBox, QRadioButton, QButtonGroup, QComboBox, QCheckBox,
+                              QFileDialog)
+from PySide6.QtCore import Qt, QSettings
 from app.core.db import db
 from app.ui import theme
 from app.core.translator import QtString
  
-class ProjectWizard(QWidget):
+class ProjectWizard(QDialog):
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
 
@@ -46,12 +47,18 @@ class ProjectWizard(QWidget):
         desc_layout.addWidget(self.desc_input)
         self.layout.addWidget(desc_group)
 
-        dest_group = QGroupBox(self.tr("Ruta de Destino"))
-        dest_layout = QVBoxLayout(dest_group)
+        dest_group = QGroupBox(self.tr("Ruta Maestra"))
+        dest_layout = QHBoxLayout(dest_group)
+        dest_layout.setSpacing(6)
         self.dest_input = QLineEdit()
         self.dest_input.setPlaceholderText(self.tr("Ej: H:/Produccion/Proyectos"))
         self.dest_input.setMinimumHeight(36)
         dest_layout.addWidget(self.dest_input)
+        btn_browse = QPushButton(self.tr("Examinar..."))
+        btn_browse.setMinimumHeight(36)
+        btn_browse.setMinimumWidth(90)
+        btn_browse.clicked.connect(self._browse_dest)
+        dest_layout.addWidget(btn_browse)
         self.layout.addWidget(dest_group)
         
         config_row = QHBoxLayout()
@@ -117,6 +124,27 @@ class ProjectWizard(QWidget):
         btn_row.addWidget(btn_finish)
         
         self.layout.addLayout(btn_row)
+
+        settings = QSettings("Audiovisual Production", "CosechaMedia")
+        saved_dur = settings.value("default_duration_type", 1, type=int)
+        dur_map = {1: self.radio_one_day, 2: self.radio_multiple_days, 3: self.radio_no_date}
+        btn = dur_map.get(saved_dur)
+        if btn:
+            btn.setChecked(True)
+        saved_org = settings.value("default_organization_type", 0, type=int)
+        if 0 <= saved_org < self.org_combo.count():
+            self.org_combo.setCurrentIndex(saved_org)
+        self.chk_use_metadata_date.setChecked(
+            settings.value("default_use_metadata_date", True, type=bool)
+        )
+        
+    def _browse_dest(self):
+        folder = QFileDialog.getExistingDirectory(
+            self, self.tr("Seleccionar ruta maestra"),
+            self.dest_input.text() or ""
+        )
+        if folder:
+            self.dest_input.setText(folder)
         
     def _cancel(self):
         if self.on_cancel_callback:

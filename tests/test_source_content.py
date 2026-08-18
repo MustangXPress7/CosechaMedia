@@ -8,7 +8,8 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QPushButton
+from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QHeaderView,
+                              QPushButton, QWidget)
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -19,6 +20,14 @@ class TestSourceContent(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+
+    @staticmethod
+    def _content_button(row, table):
+        wrapper = table.cellWidget(row, 2)
+        if isinstance(wrapper, QWidget):
+            for child in wrapper.findChildren(QPushButton):
+                return child
+        return wrapper
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="sdimport_src_")
@@ -70,7 +79,7 @@ class TestSourceContent(unittest.TestCase):
     def test_source_list_has_content_column_with_button(self):
         self.window._refresh_source_list()
         self.assertEqual(self.window.source_list.columnCount(), 4)
-        btn = self.window.source_list.cellWidget(0, 2)
+        btn = self._content_button(0, self.window.source_list)
         self.assertIsNotNone(btn)
         self.assertEqual(btn.text(), "Todo")
         self.assertTrue(btn.isEnabled())
@@ -80,14 +89,14 @@ class TestSourceContent(unittest.TestCase):
         os.makedirs(other)
         self.window._source_paths = [self.src, other]
         self.window._refresh_source_list()
-        btn = self.window.source_list.cellWidget(1, 2)
+        btn = self._content_button(1, self.window.source_list)
         self.assertFalse(btn.isEnabled())
 
     def test_content_button_shows_summary(self):
         filt = json.dumps({"dates": ["2025-05-25", "2025-05-26"], "include_nodate": False})
         self.db.update_session_config(self.sid, content_filter=filt)
         self.window._refresh_source_list()
-        btn = self.window.source_list.cellWidget(0, 2)
+        btn = self._content_button(0, self.window.source_list)
         self.assertEqual(btn.text(), "del 25-5-25 al 26-5-25")
 
     def test_change_source_path_updates_session(self):
@@ -147,7 +156,7 @@ class TestSourceContent(unittest.TestCase):
         header = self.window.source_list.horizontalHeader()
         self.assertEqual(header.sectionResizeMode(0), QHeaderView.Interactive)
         self.assertFalse(header.stretchLastSection())
-        self.assertEqual(header.sectionSize(0), 320)
+        self.assertEqual(header.sectionSize(0), 100)
         header.resizeSection(0, 200)
         self.assertEqual(header.sectionSize(0), 200)
 
@@ -224,12 +233,11 @@ class TestSourceContent(unittest.TestCase):
         self.assertFalse(self.window._btn_browse_sess_src.isHidden())
 
         custom = os.path.join(self.tmp, "custom_dest")
-        self.window.session_dest_combo.setCurrentIndex(1)  # Personalizado
-        self.window.session_dest_path.setText(custom)
+        self.window.session_dest_label.setText(custom)
         self.window._save_session_override()
         self.assertEqual(self.db.get_session(self.sid)["destination_override"], custom)
 
-        self.window.session_dest_combo.setCurrentIndex(0)  # Por defecto
+        self.window.session_dest_label.setText(self.window.tr("Por defecto"))
         self.window._save_session_override()
         self.assertIsNone(self.db.get_session(self.sid)["destination_override"])
 

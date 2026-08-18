@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-08-15
+**Analysis Date:** 2026-08-17
 
 ## APIs & External Services
 
@@ -18,7 +18,22 @@
   - SDK/Client: none — `subprocess` calls to `ffmpeg`/`ffprobe` binaries
   - Auth: n/a — local CLI tools required in `PATH`
 
-**Phone/camera ingestion (MTP over Windows WPD):**
+## System Integrations (Native OS APIs)
+
+**Windows kernel32 Volume Serial Detection (NEW — I-03):**
+- `ctypes.windll.kernel32.GetVolumeInformationW()` — retrieves the 32-bit volume serial number from a drive letter
+  - Location: `app/core/sd_reader.py:76-89` (`SDReader.get_volume_serial(path)`)
+  - Returns: zero-padded 8-char hex string (e.g., `"a1b2c3d4"`) or `None` on failure/non-Windows
+  - Purpose: stable identity key for SD cards across insertion cycles — used as `device_key` in `device_settings` table and for `sd_cards` camera mapping (`save_card_camera`/`get_camera_for_card`)
+  - Called from: `app/ui/main_window.py:2203` (`_device_key_for_source`), `app/ui/main_window.py:2317` (`_detect_camera_for_session`), `app/ui/main_window.py:2417,2441` (camera rename)
+  - Platform: Windows only; `get_volume_serial()` returns `None` on macOS/Linux
+
+**Windows kernel32 Volume Information (existing):**
+- `ctypes.windll.kernel32.GetVolumeInformationW()` — retrieves filesystem type (exFAT, NTFS, etc.)
+  - Location: `app/core/sd_reader.py:62-73` (`SDReader._detect_filesystem(path)`)
+  - Used for card info detection and display
+
+**Windows WPD COM API (existing):**
 - Windows Portable Devices (WPD) COM API - USB MTP access to phones and cameras via `comtypes` against typelibs `portabledeviceapi.dll` / `portabledevicetypes.dll` (`app/core/mtp.py`)
   - SDK/Client: `comtypes>=1.4.0` (`comtypes.client.GetModule`, `comtypes.gen.PortableDeviceApiLib` / `PortableDeviceTypesLib`)
   - Auth: none — Windows system API; client registered as `"CosechaMedia"` (`WPD_CLIENT_NAME`)
@@ -42,8 +57,22 @@
 - SQLite (embedded, stdlib `sqlite3`) — `data/sd_import.db` in the app directory (frozen) or CWD (dev)
   - Connection: no env var — resolved by `app/core/db.py:_resolve_db_path()`
   - Client: raw `sqlite3` with `PRAGMA journal_mode=WAL`, `check_same_thread=False`, `row_factory=sqlite3.Row`; no ORM
-  - Tables: `projects`, `dump_locations`, `cameras`, `sessions`, `files`, `sd_cards`, `recent_paths`, `ftp_profiles`, `inbox_senders`, `containers`, `footage_folders`
+  - Tables: `projects`, `dump_locations`, `cameras`, `sessions`, `files`, `sd_cards`, `recent_paths`, `ftp_profiles`, `inbox_senders`, `containers`, `footage_folders`, `device_settings`
   - Migration strategy: additive `ALTER TABLE ... ADD COLUMN` with `PRAGMA table_info` checks plus backfill (e.g., `dump_locations` → `projects.dump_path`) inside `create_tables()`
+
+**`device_settings` table (B-14):**
+- Stores per-device configuration; currently only `delicate_mode`
+  - Schema: `device_key TEXT PRIMARY KEY, delicate_mode INTEGER DEFAULT 0`
+  - `device_key` is either a WPD device ID (`device_id` from sessions) or a Windows volume serial hex string from `sd_reader.get_volume_serial()`
+  - Read via `db.get_device_delicate(device_key)`, written via `db.set_device_delicate(device_key, delicate)`
+  - Delicate mode override chain: `device_settings` → `session.delicate_mode` → `project.delicate_mode`
+
+**`sd_cards.camera_name` column (I-03):**
+- Maps SD card volume serials to known camera names for auto-detection
+  - Schema: `serial TEXT UNIQUE, brand TEXT, model TEXT, capacity_gb REAL, camera_name TEXT, first_seen TIMESTAMP, last_used TIMESTAMP`
+  - Written via `db.save_card_camera(volume_serial, camera_name, brand, model)` — upserts by serial
+  - Read via `db.get_camera_for_card(volume_serial)` → `Optional[str]`
+  - Used in `MainWindow._detect_camera_for_session()` to skip ffprobe scanning when the card is already known
 
 **File Storage:**
 - Local filesystem only. Ingest dumps to user-chosen project roots (`Footage/<Camera>/<Date>` organization); caches under `data/` (`inbox`, `device_cache`); `_reference/` for non-media files (`app/core/ingestor.py:271`)
@@ -60,6 +89,7 @@
   - Implementation: per-sender bearer tokens for the WiFi inbox (`secrets.token_urlsafe(12)` in `app/core/db.py:691`, checked in `app/core/shoot_inbox.py:360`)
   - FTP profiles authenticate with username/password stored in the local SQLite `ftp_profiles` table (plain text)
   - SD-card identity derived from ffprobe metadata (serial/make/model) via `app/core/sd_reader.py`
+  - SD-card identity (volume serial) derived from Windows kernel32 `GetVolumeInformationW` via `app/core/sd_reader.py:get_volume_serial()` — stable across insertion cycles
 
 ## Monitoring & Observability
 
@@ -99,4 +129,4 @@
 
 ---
 
-*Integration audit: 2026-08-15*
+*Integration audit: 2026-08-17*

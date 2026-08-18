@@ -25,7 +25,7 @@ def _free_space(path: str) -> int:
     try:
         return shutil.disk_usage(path).free
     except Exception:
-        return 0
+        return -1
 
 
 def copy_verified(source_path: str, dest_path: str, progress_cb=None) -> bool:
@@ -106,7 +106,7 @@ class DumpTarget:
                 self.include_date, self.include_camera, folder_name
             )
             free = _free_space(self.path)
-            if free < file_size + (50 * 1024 * 1024):
+            if free >= 0 and free < file_size + (50 * 1024 * 1024):
                 return None
             return target
 
@@ -174,6 +174,7 @@ class Ingestor(QObject):
         self._source_camera_map = dict(camera_map) if camera_map else {}
         self._camera_lock = threading.Lock()
         self._db_lock = threading.Lock()
+        self._stats_lock = threading.Lock()
 
         self._inflight = 0
         self._inflight_lock = threading.Lock()
@@ -198,11 +199,12 @@ class Ingestor(QObject):
                     "copied_files": list(self._copied_files),
                     "last_update": datetime.now().isoformat()
                 }, f, indent=2)
-        except:
+        except Exception:
             pass
 
     def stop(self):
         self._stop_event.set()
+        self.executor.shutdown(wait=False)
         self._save_copied_files()
 
     def begin_watching(self, watcher_count: int):
@@ -237,14 +239,16 @@ class Ingestor(QObject):
             return
         
         if source_path in self._copied_files:
-            self._stats["skipped"] += 1
+            with self._stats_lock:
+                self._stats["skipped"] += 1
             return
         
         if self._stop_event.is_set():
             return
 
         if self._content_filter and not self._matches_filter(source_path):
-            self._stats["skipped"] += 1
+            with self._stats_lock:
+                self._stats["skipped"] += 1
             return
 
         self.processed_files.add(source_path)
@@ -343,7 +347,8 @@ class Ingestor(QObject):
                 actual_camera, shoot_date, file_size
             )
             if dest_dir is None:
-                self._stats["errors"] += 1
+                with self._stats_lock:
+                    self._stats["errors"] += 1
                 self.file_finished.emit(source_path, "", False, metadata)
                 return
 
@@ -351,7 +356,8 @@ class Ingestor(QObject):
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
             if not self._copy_verified(source_path, dest_path):
-                self._stats["errors"] += 1
+                with self._stats_lock:
+                    self._stats["errors"] += 1
                 self.file_finished.emit(source_path, "", False, metadata)
                 return
 
@@ -376,13 +382,15 @@ class Ingestor(QObject):
             self._copied_files.add(source_path)
             self._save_copied_files()
 
-            self._stats["processed"] += 1
+            with self._stats_lock:
+                self._stats["processed"] += 1
 
             self.file_finished.emit(source_path, dest_path, True, metadata)
 
         except Exception as e:
             print(f"Error processing {source_path}: {e}")
-            self._stats["errors"] += 1
+            with self._stats_lock:
+                self._stats["errors"] += 1
             self.file_finished.emit(source_path, "", False, {})
 
     def _copy_verified(self, source_path: str, dest_path: str) -> bool:
@@ -517,7 +525,7 @@ class Ingestor(QObject):
                     n += 1
                 try:
                     shutil.move(file_path, new_path)
-                except:
+                except Exception:
                     pass
 
     def get_stats(self) -> Dict:
@@ -560,5 +568,35 @@ class Ingestor(QObject):
                 "UPDATE files SET dest_path = REPLACE(dest_path, ?, ?) WHERE dest_path LIKE ?",
                 (f"/{old_name}/", f"/{new_name}/", f"%/{old_name}/%")
             )
+            cursor.execute(
+                "UPDATE files SET dest_path = REPLACE(dest_path, ?, ?) WHERE dest_path LIKE ?",
+                (f"\\{old_name}\\", f"\\{new_name}\\", f"%\\{old_name}\\%")
+            )
             conn.commit()
             conn.close()
+
+
+def generate_integrity_report(session_id: int, output_path: str) -> bool:
+    """Genera un CSV de integridad para una sesión con hash, fechas y destino."""
+    import csv
+    session = db.get_session(session_id)
+    if not session:
+        return False
+    files = db.get_files_by_session(session_id)
+    try:
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Sesión', session.get('name', ''),
+                             'Fecha', session.get('date', ''),
+                             'Cámara', session.get('camera_name', '')])
+            writer.writerow([])
+            writer.writerow(['Origen', 'Destino', 'Tamaño (bytes)',
+                             'MD5', 'Estado', 'Verificado el'])
+            for fi in files:
+                writer.writerow([
+                    fi['source_path'], fi['dest_path'], fi['file_size'],
+                    fi['md5_hash'], fi['status'], fi['verified_at']
+                ])
+        return True
+    except Exception:
+        return False

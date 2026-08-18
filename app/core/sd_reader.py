@@ -72,6 +72,21 @@ class SDReader:
                 return str(stat.f_fsid)
         except:
             return "Unknown"
+
+    def get_volume_serial(self, path: str):
+        """Devuelve el serial del volumen (Windows) o None si no se puede obtener."""
+        try:
+            if os.name == 'nt':
+                import ctypes
+                drive = os.path.splitdrive(path)[0] + "\\"
+                serial = ctypes.c_ulong()
+                ctypes.windll.kernel32.GetVolumeInformationW(
+                    drive, None, 0, ctypes.byref(serial), None, None, None, 0
+                )
+                return f"{serial.value:08x}"
+        except Exception:
+            pass
+        return None
     
     def _detect_brand_from_files(self, sd_path: str, info: Dict):
         private_path = os.path.join(sd_path, "PRIVATE")
