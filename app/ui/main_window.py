@@ -1991,10 +1991,9 @@ class MainWindow(QMainWindow):
     def _prompt_rename_camera(self, row):
         if self.current_project_id is None:
             return
-        path_item = self.source_list.item(row, 0)
-        if not path_item:
+        if row < 0 or row >= len(self._source_paths):
             return
-        path = path_item.text()
+        path = self._source_paths[row]
         sessions = db.get_sessions(self.current_project_id)
         session = next((s for s in sessions if s.get("source_path") == path), None)
         if not session:
@@ -2264,8 +2263,7 @@ class MainWindow(QMainWindow):
 
     def _set_camera_cell_text(self, source_path, text):
         for row in range(self.source_list.rowCount()):
-            path_item = self.source_list.item(row, 0)
-            if path_item and path_item.text() == source_path:
+            if row < len(self._source_paths) and self._source_paths[row] == source_path:
                 cam_item = self.source_list.item(row, 1)
                 if cam_item:
                     self.source_list.blockSignals(True)
@@ -2374,10 +2372,9 @@ class MainWindow(QMainWindow):
 
     def _on_camera_cell_edited(self, item):
         row = item.row()
-        path_item = self.source_list.item(row, 0)
-        if not path_item:
+        if row < 0 or row >= len(self._source_paths):
             return
-        path = path_item.text()
+        path = self._source_paths[row]
         sessions = db.get_sessions(self.current_project_id)
         session = next((s for s in sessions if s.get("source_path") == path), None)
         if not session:
@@ -2398,10 +2395,9 @@ class MainWindow(QMainWindow):
         menu.exec(self.source_list.viewport().mapToGlobal(pos))
 
     def _delete_source_at_row(self, row):
-        item = self.source_list.item(row, 0)
-        if item is None:
+        if row < 0 or row >= len(self._source_paths):
             return
-        path = item.text()
+        path = self._source_paths[row]
         if self.current_project_id is None:
             return
         sessions = [s for s in db.get_sessions(self.current_project_id)
@@ -3843,10 +3839,9 @@ class MainWindow(QMainWindow):
     def _open_content_filter(self, row):
         if self.current_project_id is None:
             return
-        path_item = self.source_list.item(row, 0)
-        if not path_item:
+        if row < 0 or row >= len(self._source_paths):
             return
-        path = path_item.text()
+        path = self._source_paths[row]
         session = next((s for s in db.get_sessions(self.current_project_id)
                         if s.get("source_path") == path), None)
         if not session:

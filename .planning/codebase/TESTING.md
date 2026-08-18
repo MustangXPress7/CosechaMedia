@@ -5,7 +5,7 @@
 ## Test Framework
 
 **Runner:**
-- Python's standard library `unittest` (Python 3.11). Pytest is not installed and not used anywhere — all 15 test modules use `unittest.TestCase`.
+- Python's standard library `unittest` (Python 3.11). Pytest is not installed and not used anywhere — all 16 test modules use `unittest.TestCase`.
 - No test configuration files exist (`pytest.ini`, `setup.cfg`, `pyproject.toml`, `tox.ini` — none present).
 - `tests/__init__.py` (11 lines) changes the working directory to a fresh `tempfile.mkdtemp(prefix="sdimport_tests_")` **at import time** so app code never touches the real `data/sd_import.db`, and inserts the repo root into `sys.path` so `from app.core...` imports resolve.
 
@@ -252,7 +252,7 @@ def test_icon_returns_non_null_for_all_names(self):
 ## Coverage Gaps
 
 - **CI runs no tests**: `.github/workflows/build.yml` only installs deps and runs PyInstaller — a regression can be merged without any test execution.
-- `app/ui/main_window.py` (4131 lines) has only `test_main_window.py` (10 tests covering camera detection, rename, free space, integrity reports) plus indirect coverage from `test_e2e.py`, `test_wifi_source.py`, and `test_selective_dump.py`. No dedicated test for source list operations, session management UI, or formatting flows.
+- `app/ui/main_window.py` (~4000 lines) has `test_main_window.py` (10 tests) plus indirect coverage from `test_e2e.py`, `test_wifi_source.py`, `test_source_content.py`, and `test_selective_dump.py`. No dedicated test for session management UI, formatting flows, or the new QSplitter/delicate toggle layout.
 - `app/core/watcher.py` and `app/core/notifications.py` (sound/dialog paths) have no direct tests; `app/core/sd_reader.py` (card brand detection) has none.
 - `app/ui/icons.py` is tested but only for the 13-icon catalog — edge cases like missing SVG directory, corrupted SVG, or concurrent `refresh_all()` during widget creation are not covered.
 - No coverage measurement exists, so untested branches are invisible.

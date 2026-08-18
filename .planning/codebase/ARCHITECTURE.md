@@ -42,7 +42,7 @@
 
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| `MainWindow` | Orchestrates everything: project/session CRUD, source registration, ingest start/stop, wifi/FTP/MTP flows, post-ingest actions, auto-sync, updates, camera detection per source | `app/ui/main_window.py` (4,131 lines) |
+| `MainWindow` | Orchestrates everything: project/session CRUD, source registration, ingest start/stop, wifi/FTP/MTP flows, post-ingest actions, auto-sync, updates, camera detection per source | `app/ui/main_window.py` (~4,000 lines) |
 | `Ingestor` | Verified (MD5) file copy pipeline, camera/date resolution, multi-disk rotation, resume state, Qt signals for UI progress, content filter, delicate mode | `app/core/ingestor.py` |
 | `FileSystemWatcher` | Polls a source dir on a daemon thread and feeds new files to an `Ingestor` | `app/core/watcher.py` |
 | `MetadataEngine` | ffprobe metadata extraction (camera, date, codec, fps), LRU cache with mtime invalidation, file type classification | `app/core/metadata_engine.py` |
@@ -85,7 +85,14 @@
 - Key UI widgets:
   - `ElidedLabel` (`app/ui/main_window.py:149-154`) — custom QLabel for path text elision
   - `DashboardBackground` (`app/ui/main_window.py:121-127`) — animated wheat-field background
-  - `SessionsBox` (`app/ui/main_window.py:471-549`) — QGroupBox wrapping session controls
+  - `SessionsBox` (`app/ui/main_window.py:~453`) — QGroupBox wrapping session controls
+  - `PostActionsBox` (`app/ui/main_window.py:~533`) — QGroupBox for post-ingest actions
+  - `DescriptionBox` (`app/ui/main_window.py:~350`) — QGroupBox wrapping project description with edit pencil
+  - `QSplitter` (`app/ui/main_window.py:~375`) — horizontal splitter replacing QScrollArea+QHBoxLayout for left/right panels
+  - `sess_post_row` (`app/ui/main_window.py:~526`) — QHBoxLayout placing SessionsBox and PostActionsBox side by side
+  - `_build_path_widget()` (`app/ui/main_window.py:~2055`) — composite QWidget for source list col 0: checkbox + path label + optional QR/FTP button
+  - `_build_content_button()` (`app/ui/main_window.py:~2138`) — QWidget wrapper for content summary + delicate mode toggle (zap/snail)
+  - Icons: `zap.svg` (fast mode), `snail.svg` (delicate mode) in `app/ui/assets/icons/`
 
 **Core Layer:**
 - Purpose: Business logic — ingest, metadata, device access, storage, updates, i18n

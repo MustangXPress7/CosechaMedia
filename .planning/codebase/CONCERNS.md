@@ -21,13 +21,13 @@
 - Resolution: `app/core/ingestor.py:207` now calls `self.executor.shutdown(wait=False)` in `stop()`.
 
 **`chk_session_delicate` removed from UI — CONFIRMED REMOVED:**
-- No references to `chk_session_delicate` exist anywhere in the codebase. Per-device delicate mode is now managed through `_build_delicate_button` (`app/ui/main_window.py:2176-2196`) and `db.set_device_delicate`/`db.get_device_delicate` (`app/core/db.py:960-985`).
+- No references to `chk_session_delicate` exist anywhere in the codebase. Per-device delicate mode is now managed through `_build_content_button` (contains delicate toggle) and `_toggle_device_delicate` (`app/ui/main_window.py`), wired to `db.set_device_delicate`/`db.get_device_delicate` (`app/core/db.py:960-985`).
 
 ---
 
 ## Tech Debt
 
-**`main_window.py` god object (4131 lines):**
+**`main_window.py` god object (~4000 lines):**
 - Issue: `app/ui/main_window.py` mixes UI construction, business orchestration (MTP/FTP/WiFi), worker threading (`_TaskWorker`, `_StageWorker`, `_format_sources_worker`, `_reorganize_worker`), and DB calls in a single class. New features keep adding methods (rename flows, WiFi reception, staging) instead of extracting services.
 - Files: `app/ui/main_window.py`
 - Impact: Any change risks UI-thread freezes, cross-wiring of signals, and merge conflicts. Testability near zero (see Test Coverage Gaps).

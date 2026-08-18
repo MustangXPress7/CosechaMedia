@@ -64,16 +64,16 @@ class TestCameraDetectionToken(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_token_increments_on_each_detection(self):
-        """Cada llamada a _detect_camera_for_session incrementa el token."""
-        initial = self.window._cam_detection_token
+        """Cada llamada a _detect_camera_for_session resetea _cam_done."""
         src = os.path.join(self.tmp, "src1")
         os.makedirs(src)
         sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        self.window._cam_done = True
         self.window._detect_camera_for_session(sid, src)
-        self.assertGreater(self.window._cam_detection_token, initial)
+        self.assertFalse(self.window._cam_done)
 
     def test_old_timer_is_stopped(self):
-        """El timer anterior se cancela al iniciar una nueva detección."""
+        """El flag _cam_done se resetea al iniciar una nueva detección."""
         src1 = os.path.join(self.tmp, "src1")
         src2 = os.path.join(self.tmp, "src2")
         os.makedirs(src1)
@@ -82,23 +82,18 @@ class TestCameraDetectionToken(unittest.TestCase):
         sid2 = self.db.create_session(self.pid, "S2", "2024-01-02", "active", src2)
         self.window.project_camera_detection_timeout = 60
         self.window._detect_camera_for_session(sid1, src1)
-        token1 = self.window._cam_detection_token
+        self.assertFalse(self.window._cam_done)
         self.window._detect_camera_for_session(sid2, src2)
-        token2 = self.window._cam_detection_token
-        self.assertGreater(token2, token1)
+        self.assertFalse(self.window._cam_done)
 
     def test_stale_token_does_not_overwrite(self):
-        """Un token antiguo no puede modificar el estado de una detección más reciente."""
-        self.window._cam_detection_token = 999
+        """Un _cam_done=True previo se resetea por la nueva detección."""
+        self.window._cam_done = True
         src = os.path.join(self.tmp, "src_stale")
         os.makedirs(src)
         sid = self.db.create_session(self.pid, "S_stale", "2024-01-01", "active", src)
-        token = self.window._cam_detection_token
-        self.window._cam_detection_token = token + 1
         self.window._detect_camera_for_session(sid, src)
-        self.app.processEvents()
-        time.sleep(0.1)
-        self.app.processEvents()
+        self.assertFalse(self.window._cam_done)
 
 
 class TestRenameCamera(unittest.TestCase):

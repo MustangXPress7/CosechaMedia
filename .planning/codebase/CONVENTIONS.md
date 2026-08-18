@@ -25,8 +25,8 @@
 - snake_case: `get_connection`, `create_session`, `handle_new_file`, `date_key_for_file`.
 - Module-private helpers get a leading `_`: `_free_space` (`app/core/ingestor.py:24`), `_is_system_entry` (`app/core/metadata_engine.py:26`), `_parse_version` (`app/core/updater.py:41`), `_windows_mounted_drives` (`app/core/utils.py:53`).
 - Private methods of classes also use `_`: `_process_single_file`, `_copy_verified`, `_determine_date` (`app/core/ingestor.py`). Tests exercise these private methods directly (`self.ing._process_single_file(...)` in `tests/test_ingestor.py:65`) — private methods are part of the testable surface.
-- MainWindow private helper methods follow `_verb_noun` pattern: `_device_key_for_source()` (`app/ui/main_window.py:2198`), `_build_source_cell()` (`app/ui/main_window.py:2082`), `_toggle_device_delicate()` (`app/ui/main_window.py:2206`), `_detect_camera_for_session()` (`app/ui/main_window.py:2309`). These are all `MainWindow` methods called internally.
-- Build helper methods for table cell widgets: `_build_source_cell()`, `_build_delicate_button()`, `_build_content_button()`, `_build_remove_source_button()` — all return a `QWidget` for a `QTableWidget` cell.
+- MainWindow private helper methods follow `_verb_noun` pattern: `_device_key_for_source()`, `_build_path_widget()`, `_build_content_button()`, `_build_remote_source_button()`, `_toggle_device_delicate()`, `_on_source_widget_check_changed()`, `_detect_camera_for_session()`.
+- Build helper methods for table cell widgets: `_build_path_widget()` (col 0: checkbox+path+QR/FTP), `_build_content_button()` (col 2: content summary+delicate toggle), `_build_remote_source_button()` (QR/FTP button), `_build_remove_source_button()` (col 3: trash icon) — all return a `QWidget` for a `QTableWidget` cell.
 
 **Variables:**
 - snake_case instance attributes, including private ones with `_` prefix: `self._stop_event`, `self._inflight_lock`, `self._session_file` (`app/core/ingestor.py:148-181`).
