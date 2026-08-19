@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 01
-current_phase_name: Auditoría UI y Plan de Reubicación
-status: complete
-stopped_at: Completed 260816-mcj-PLAN.md (quick)
-last_updated: "2026-08-16T14:05:26.575Z"
-last_activity: 2026-08-16
-last_activity_desc: Quick task 260816-x3b completado — glifos emoji sustituidos por iconos SVG vectoriales tintables (app/ui/icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado).
+milestone: v1.5
+milestone_name: Consolidación y bugs
+current_phase: 00
+current_phase_name: Bugs conocidos + features v1.5
+status: active
+stopped_at: None
+last_updated: "2026-08-19T00:00:00.000Z"
+last_activity: 2026-08-19
+last_activity_desc: UI layout fixes completados (9 items), splitter handle temático, status label transversal, toggle flotante, focus visible. Backlog auditado: 4 items ya resueltos, 2 pendientes estética.
 progress:
-  total_phases: 1
-  completed_phases: 0
+  total_phases: 3
+  completed_phases: 1
   total_plans: 5
   completed_plans: 4
 ---
@@ -23,16 +23,43 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo del proyecto de forma fiable y sin perder datos — cada archivo copiado con verificación de integridad y organizado correctamente.
-**Current focus:** Phase 01 — Auditoría UI y Plan de Reubicación
+**Current focus:** v1.5 — Consolidación de bugs + features pendientes (excepto modo guiado, reservado para v2.0)
+
+## Objective: v1.5
+
+**Alcance de v1.5 (todo excepto I-01 "acciones rápidas/modo guiado"):**
+
+### Bugs conocidos (CONCERNS.md)
+- FFprobe timeout → metadata "Unknown" + file_size=0
+- Watcher re-ingesta tras pruning >10k archivos
+- DB path depende de CWD cuando no está frozen
+- Doble hash MD5 por copia (rendimiento)
+- Device polling en UI thread (freezes)
+
+### Features pendientes (IDEAS.md → v1.5)
+- I-03: Cámara ↔ ID de tarjeta persistida
+- I-06: Reporte CSV de contenido de tarjeta
+- I-07: WiFi reanudar subidas + MD5 en móvil
+- I-11: Crear proyecto en un solo paso
+- I-12: Fix "establecer como predeterminado" ✅
+- I-14: Forzar nombre de cámara al registrar origen
+- Fase 2: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
+
+### Estética (BACKLOG_UI_V2 → v1.5)
+- B-09: Tipografía con jerarquía
+- B-10: Espaciado y superficies
+- B-11: Microinteracciones y botón primario
+- B-12: Auditoría estética formal
+
+### Reservado para v2.0
+- I-01: Acciones rápidas / modo guiado
+- I-13: Pantalla de bienvenida (ligada a I-01)
 
 ## Current Position
 
-Phase: 01 (Auditoría UI y Plan de Reubicación) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 01
-Last activity: 2026-08-16 - Completed quick task 260816-x3b: glifos emoji sustituidos por iconos SVG vectoriales tintables (icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado)
-
-Progress: [████████░░] 80%
+Phase: 00 (Bugs + features v1.5) — STARTING
+Status: Investigando bugs conocidos de CONCERNS.md
+Last activity: 2026-08-19 - UI layout fixes completados + backlog auditado
 
 ## Performance Metrics
 
@@ -81,12 +108,15 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- Investigar y fixear bugs conocidos de CONCERNS.md (FFprobe timeout, watcher re-ingesta, DB path CWD, doble MD5, device polling UI thread)
+- Features v1.5: I-03, I-06, I-07, I-11, I-14, Fase 2
+- Estética v1.5: B-09, B-10, B-11, B-12
 
 ### Blockers/Concerns
 
-- [Roadmap]: Implementación de reubicaciones fuera de alcance del milestone (decisión explícita) — la fase posterior deberá partir del plan UI-03
-- [Contexto]: `main_window.py` (3.870 líneas) sin tests y con bugs conocidos (carrera `_cam_done`, rename con `/`) — documentados en CONCERNS.md, fuera del alcance de esta iniciativa
+- [Core]: `main_window.py` (~4100 líneas) — god object, bugs conocidos documentados en CONCERNS.md
+- [Core]: Sin framework de logging — solo `print()` en 16 sitios
+- [Core]: Migraciones DB inline sin versión — riesgo en upgrades
 
 ### Quick Tasks Completed
 

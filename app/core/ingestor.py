@@ -28,9 +28,10 @@ def _free_space(path: str) -> int:
         return -1
 
 
-def copy_verified(source_path: str, dest_path: str, progress_cb=None) -> bool:
+def copy_verified(source_path: str, dest_path: str, progress_cb=None):
     """Copia un archivo calculando el hash del origen durante la copia y
-    comparándolo con el del destino. Devuelve True solo si coinciden.
+    comparándolo con el del destino. Devuelve el hash MD5 verificado
+    en éxito, o None si falla.
     Elimina el destino parcial ante cualquier error o discrepancia.
     ``progress_cb(copied, total)`` se invoca por bloque copiado."""
     import hashlib
@@ -63,15 +64,15 @@ def copy_verified(source_path: str, dest_path: str, progress_cb=None) -> bool:
                 os.remove(dest_path)
             except OSError:
                 pass
-            return False
-        return True
+            return None
+        return src_hash
     except Exception as e:
         print(f"Error copying {source_path}: {e}")
         try:
             os.remove(dest_path)
         except OSError:
             pass
-        return False
+        return None
 
 
 def _ensure_subfolder(parent: str, camera: str, shoot_date: str,
@@ -251,6 +252,25 @@ class Ingestor(QObject):
                 self._stats["skipped"] += 1
             return
 
+        # Cross-session dedup gate: check DB for previously ingested file
+        with self._db_lock:
+            try:
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT 1 FROM files WHERE source_path = ? AND status = 'completed' LIMIT 1",
+                    (source_path,)
+                )
+                if cursor.fetchone() is not None:
+                    self._copied_files.add(source_path)
+                    with self._stats_lock:
+                        self._stats["skipped"] += 1
+                    conn.close()
+                    return
+                conn.close()
+            except Exception:
+                pass
+
         self.processed_files.add(source_path)
         
         file_info = metadata_engine.get_file_type_info(source_path)
@@ -355,13 +375,13 @@ class Ingestor(QObject):
             dest_path = os.path.join(dest_dir, os.path.basename(source_path))
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
-            if not self._copy_verified(source_path, dest_path):
+            file_hash = self._copy_verified(source_path, dest_path)
+            if file_hash is None:
                 with self._stats_lock:
                     self._stats["errors"] += 1
                 self.file_finished.emit(source_path, "", False, metadata)
                 return
 
-            file_hash = calculate_md5(dest_path)
             file_size = os.path.getsize(dest_path)
 
             sid = self.session_id if self.session_id is not None else "reactive_session"

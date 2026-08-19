@@ -184,6 +184,7 @@ class MainWindow(QMainWindow):
         self._unknown_cameras = set()
         self._ingested_videos = []
         self._background_tasks = []
+        self._poll_in_progress = False
 
         self.notification_manager = NotificationManager()
 
@@ -222,9 +223,8 @@ class MainWindow(QMainWindow):
         self._sync_timer.start()
 
     def _auto_sync_check(self):
-        """Auto-sync MTP/FTP: si un dispositivo con sesiones guardadas aparece
-        disponible, lanza el staging incremental (una vez por minuto por
-        dispositivo)."""
+        """Auto-sync MTP/FTP: detecta dispositivos en hilo de fondo para
+        no bloquear la UI."""
         if getattr(self, "_stage_thread", None) and self._stage_thread.isRunning():
             return
         if self.current_project_id is None:
@@ -232,17 +232,48 @@ class MainWindow(QMainWindow):
         sessions = [s for s in db.get_sessions(self.current_project_id) if s.get("device_id")]
         if not sessions:
             return
-        try:
-            mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
-        except Exception:
+        if self._poll_in_progress:
+            return
+        self._poll_in_progress = True
+
+        def _probe_devices(progress_signal):
             mtp_connected = set()
-        ftp_backend = FtpBackend()
+            try:
+                mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
+            except Exception:
+                pass
+            ftp_backend = FtpBackend()
+            ftp_reachable = set()
+            for s in sessions:
+                did = s["device_id"]
+                if str(did).startswith("ftp:"):
+                    try:
+                        if ftp_backend.is_reachable(did):
+                            ftp_reachable.add(did)
+                    except Exception:
+                        pass
+            return {"mtp_connected": mtp_connected, "ftp_reachable": ftp_reachable,
+                    "ftp_backend": ftp_backend}
+
+        def _on_poll_done(ok, result):
+            self._poll_in_progress = False
+            if not ok:
+                return
+            self._process_device_poll(result, sessions)
+
+        self._run_background(_probe_devices, _on_poll_done)
+
+    def _process_device_poll(self, result, sessions):
+        """Procesa los resultados de la detección en el hilo UI."""
         now = time.time()
+        mtp_connected = result["mtp_connected"]
+        ftp_reachable = result["ftp_reachable"]
+        ftp_backend = result["ftp_backend"]
         for s in sessions:
             did = s["device_id"]
             is_ftp = str(did).startswith("ftp:")
             if is_ftp:
-                if not ftp_backend.is_reachable(did):
+                if did not in ftp_reachable:
                     continue
             elif did not in mtp_connected:
                 continue
@@ -368,20 +399,20 @@ class MainWindow(QMainWindow):
         icons.apply(self.btn_edit_description, "pencil", size=16)
         self.btn_edit_description.clicked.connect(self._edit_project_description)
         desc_box_layout.addWidget(self.btn_edit_description, 0, Qt.AlignRight | Qt.AlignTop)
-        dash_layout.addWidget(desc_box)
+        self._desc_box = desc_box
 
         # === MAIN CONTENT ===
         splitter = QSplitter(Qt.Horizontal)
         splitter.setHandleWidth(4)
         splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        splitter.setCollapsible(0, False)
-        splitter.setCollapsible(1, False)
 
         left_widget = QWidget()
         left_widget.setContentsMargins(10, 6, 6, 6)
         left_col = QVBoxLayout(left_widget)
         left_col.setContentsMargins(0, 0, 0, 0)
         left_col.setSpacing(6)
+
+        left_col.addWidget(self._desc_box)
 
         # --- Sources ---
         src_label_row = QHBoxLayout()
@@ -392,17 +423,21 @@ class MainWindow(QMainWindow):
         left_col.addLayout(src_label_row)
 
         src_top = QHBoxLayout()
+        src_top.setSpacing(4)
         self.source_input = QComboBox()
         self.source_input.setEditable(True)
         self.source_input.setPlaceholderText(self.tr("E:\\DCIM..."))
+        self.source_input.setMinimumWidth(100)
+        self.source_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.source_input.currentTextChanged.connect(self.update_start_button_state)
-        src_top.addWidget(self.source_input)
+        src_top.addWidget(self.source_input, 1)
 
-        self.btn_add_source = QPushButton(self.tr("Añadir origen…"))
+        self.btn_add_source = QPushButton(self.tr("+ Origen"))
         self.btn_add_source.setToolTip(self.tr("Añadir un origen guardado, un dispositivo USB, WiFi o FTP"))
-        self.btn_add_source.setFixedWidth(120)
+        self.btn_add_source.setMinimumWidth(70)
+        self.btn_add_source.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.btn_add_source.clicked.connect(self._add_source_entry)
-        src_top.addWidget(self.btn_add_source)
+        src_top.addWidget(self.btn_add_source, 0)
 
         left_col.addLayout(src_top)
 
@@ -651,9 +686,28 @@ class MainWindow(QMainWindow):
 
         splitter.addWidget(left_widget)
         splitter.addWidget(self.table)
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
         splitter.setSizes([400, 800])
+        self._main_splitter = splitter
+        self._splitter_default_sizes = [400, 800]
+
+        self._splitter_restore_btn = QPushButton()
+        self._splitter_restore_btn.setObjectName("IconButton")
+        self._splitter_restore_btn.setFixedSize(28, 28)
+        self._splitter_restore_btn.setToolTip(self.tr("Restaurar vista dividida"))
+        self._splitter_restore_btn.setStyleSheet(
+            "QPushButton { background-color: %s; border: 1px solid %s; border-radius: 14px; }"
+            "QPushButton:hover { background-color: %s; }"
+            % (theme.color("bg_elevated"), theme.color("border"), theme.color("border")))
+        icons.apply(self._splitter_restore_btn, "refresh", size=16)
+        self._splitter_restore_btn.clicked.connect(self._restore_splitter)
+        self._splitter_restore_btn.hide()
+        self._splitter_restore_btn.setParent(self.dashboard_view)
+        splitter.splitterMoved.connect(self._on_splitter_moved)
 
         dash_layout.addWidget(splitter, 1)
+        dash_layout.addWidget(self.ingest_status_label)
 
         self.main_layout.addWidget(self.dashboard_view)
 
@@ -663,6 +717,29 @@ class MainWindow(QMainWindow):
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         if settings.value("autoDetectDrives", False, type=bool):
             QTimer.singleShot(200, self._auto_detect_removable_drives)
+
+    def _on_splitter_moved(self, pos, index):
+        sizes = self._main_splitter.sizes()
+        total = sum(sizes) or 1
+        threshold = total * 0.03
+        hidden = sizes[0] < threshold or sizes[1] < threshold
+        if hidden:
+            self._splitter_restore_btn.show()
+            self._position_splitter_restore_btn()
+        else:
+            self._splitter_restore_btn.hide()
+
+    def _position_splitter_restore_btn(self):
+        handle = self._main_splitter.handle(1)
+        if handle:
+            pos = handle.mapTo(self.dashboard_view, handle.rect().center())
+            btn = self._splitter_restore_btn
+            btn.move(pos.x() - btn.width() // 2,
+                     pos.y() - btn.height() // 2)
+
+    def _restore_splitter(self):
+        self._main_splitter.setSizes(self._splitter_default_sizes)
+        self._splitter_restore_btn.hide()
 
     def _show_metadata_dialog(self):
         dialog = QDialog(self)
@@ -1949,13 +2026,19 @@ class MainWindow(QMainWindow):
                 text=""
             )
             if ok and new_name.strip():
+                new_cam = new_name.strip()
                 for ing in self._ingestors:
-                    ing.rename_camera(old_name, new_name.strip())
+                    ing.rename_camera(old_name, new_cam)
                 for r in range(self.table.rowCount()):
                     cam_item = self.table.item(r, 1)
                     if cam_item and cam_item.text() == old_name:
-                        cam_item.setText(new_name.strip())
-                self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_name.strip()))
+                        cam_item.setText(new_cam)
+                sessions = db.get_sessions(self.current_project_id) if self.current_project_id else []
+                for s in sessions:
+                    if s.get("camera_name") == old_name:
+                        sp = s.get("source_path", "")
+                        self._persist_camera_mapping(s["id"], sp, new_cam)
+                self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_cam))
 
     def _on_source_double_clicked(self, item):
         if item.column() == 0:
@@ -2172,6 +2255,21 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
         wrapper_lay.addWidget(btn, 1)
 
+        is_wifi = device_id == "wifi:pairdrop"
+        if is_wifi and session:
+            mode_btn = QPushButton()
+            mode_btn.setObjectName("IconButton")
+            mode_btn.setFixedSize(22, 22)
+            mode_btn.setCursor(Qt.PointingHandCursor)
+            is_folder = bool(session.get("folder_mode"))
+            icons.apply(mode_btn, "folder" if is_folder else "copy", size=14)
+            mode_btn.setToolTip(
+                self.tr("Modo: enviar archivos sueltos") if not is_folder
+                else self.tr("Modo: enviar carpeta entera"))
+            mode_btn.clicked.connect(
+                lambda _=False, s=session, b=mode_btn: self._toggle_wifi_folder_mode(s, b))
+            wrapper_lay.addWidget(mode_btn, 0, Qt.AlignRight)
+
         delicate_btn = QPushButton()
         delicate_btn.setObjectName("IconButton")
         delicate_btn.setFixedSize(22, 22)
@@ -2187,6 +2285,21 @@ class MainWindow(QMainWindow):
         wrapper_lay.addWidget(delicate_btn, 0, Qt.AlignRight)
 
         return wrapper
+
+    def _toggle_wifi_folder_mode(self, session, btn):
+        sid = session["id"]
+        current = bool(session.get("folder_mode"))
+        new_val = 0 if current else 1
+        db.update_session_config(sid, folder_mode=new_val)
+        session["folder_mode"] = new_val
+        icons.apply(btn, "folder" if new_val else "copy", size=14)
+        btn.setToolTip(
+            self.tr("Modo: enviar archivos sueltos") if not new_val
+            else self.tr("Modo: enviar carpeta entera"))
+        if self._wifi_server is not None and self._wifi_server.running:
+            self._wifi_server.folder_mode = bool(new_val)
+        if self._wifi_panel is not None:
+            self._wifi_panel.refresh()
 
     def _toggle_device_delicate(self, device_key, btn):
         current = bool(db.get_device_delicate(device_key))
@@ -2282,48 +2395,130 @@ class MainWindow(QMainWindow):
         return None
 
     def _detect_camera_for_session(self, session_id, source_path):
-        if self.project_camera_detection_mode == "manual":
-            db.update_session_config(session_id, camera_name=None)
+        """Detecta la cámara para una sesión. Flujo I-03+I-14:
+        1. Buscar nombre conocido (sd_cards por serial o device_settings por device_id)
+        2. Auto-rellenar si se conoce → guardar en sesión y volver
+        3. Si no se conoce → detección automática (ffprobe) o prompt manual
+        """
+        # 1. Buscar cámara conocida (I-03)
+        sess = db.get_session(session_id)
+        device_id = sess.get("device_id") if sess else None
+        known_cam = None
+        if device_id and str(device_id).startswith("ftp:"):
+            known_cam = db.get_camera_for_device(device_id)
+        elif device_id and not str(device_id).startswith("wifi:"):
+            known_cam = db.get_camera_for_device(device_id)
+        else:
+            serial = sd_reader.get_volume_serial(source_path)
+            if serial:
+                known_cam = db.get_camera_for_card(serial)
+
+        # 2. Auto-rellenar si se conoce (I-03)
+        if known_cam:
+            db.update_session_config(session_id, camera_name=known_cam)
+            self._set_camera_cell_text(source_path, known_cam)
             self._refresh_source_list()
             self._refresh_sessions_combo()
-            self.ingest_status_label.setText(self.tr("Cámara: Sin nombre (manual)"))
+            self.ingest_status_label.setText(self.tr("Cámara conocida: %1").arg(known_cam))
             return
+
+        # 3. Detección automática (I-14): manual no hace nada aquí; el prompt
+        # se lanza solo en cambio de origen o registro de dispositivo.
+        if self.project_camera_detection_mode == "manual":
+            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
+            return
+
         self._set_camera_cell_text(source_path, "🔄 Escaneando…")
         import threading
         self._cam_timer = QTimer(self)
         self._cam_timer.setSingleShot(True)
-        def on_timeout():
-            if getattr(self, '_cam_done', False):
+        self._cam_detected = None
+        self._cam_scan_scheduled = False
+
+        def _apply_detection():
+            """Aplica el resultado del scan y muestra prompt (main thread)."""
+            if self._cam_scan_scheduled:
                 return
-            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-            QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
+            self._cam_scan_scheduled = True
+            cam = getattr(self, '_cam_detected', None)
+            if cam:
+                self._set_camera_cell_text(source_path, cam)
+                db.update_session_config(session_id, camera_name=cam)
+                self._persist_camera_mapping(session_id, source_path, cam)
+                self._refresh_source_list()
+                self._refresh_sessions_combo()
+                self.ingest_status_label.setText(
+                    self.tr("Cámara detectada: %1").arg(cam))
+            else:
+                self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
+            QTimer.singleShot(0, lambda c=cam or "": self._prompt_camera_name(session_id, source_path, c))
+
+        def on_timeout():
+            _apply_detection()
+
         self._cam_timer.timeout.connect(on_timeout)
         self._cam_timer.start(self.project_camera_detection_timeout * 1000)
+
         def scan():
             smallest = self._find_smallest_media(source_path)
             if smallest is None:
-                self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-                QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
+                self._cam_detected = None
+                QTimer.singleShot(0, _apply_detection)
                 return
             try:
                 meta = metadata_engine.get_video_metadata(smallest)
                 cam = meta.get("camera_model", "") or ""
                 if cam and cam.strip() and cam != "Unknown":
-                    cam = cam.strip()
-                    self._cam_done = True
-                    self._set_camera_cell_text(source_path, cam)
-                    db.update_session_config(session_id, camera_name=cam)
-                    QTimer.singleShot(0, self._refresh_source_list)
-                    QTimer.singleShot(0, self._refresh_sessions_combo)
-                    QTimer.singleShot(0, lambda c=cam: self.ingest_status_label.setText(self.tr("Cámara detectada: %1").arg(c)))
+                    self._cam_detected = cam.strip()
+                    QTimer.singleShot(0, _apply_detection)
                     return
             except Exception:
                 pass
-            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-            QTimer.singleShot(0, lambda: self._prompt_unknown_camera(session_id, source_path))
+            self._cam_detected = None
+            QTimer.singleShot(0, _apply_detection)
+
         self._cam_done = False
         t = threading.Thread(target=scan, daemon=True)
         t.start()
+
+    def _prompt_camera_name(self, session_id, source_path, suggested_name=""):
+        """Prompt manual para nombre de cámara (I-14)."""
+        self.raise_()
+        self.activateWindow()
+        base = self._drive_label(source_path)
+        name, ok = QInputDialog.getText(
+            self, self.tr("Nombre de cámara"),
+            self.tr("Introduce el nombre de la cámara para %1:").arg(base),
+            text=suggested_name,
+        )
+        if ok and name.strip():
+            cam = name.strip()
+            db.update_session_config(session_id, camera_name=cam)
+            self._set_camera_cell_text(source_path, cam)
+            self._persist_camera_mapping(session_id, source_path, cam)
+        else:
+            db.update_session_config(session_id, camera_name=None)
+            self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.ingest_status_label.setText(
+            self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
+        )
+
+    def _persist_camera_mapping(self, session_id, source_path, camera_name):
+        """Persiste el mapeo cámara→dispositivo en sd_cards o device_settings (I-03)."""
+        if not camera_name:
+            return
+        sess = db.get_session(session_id)
+        if not sess:
+            return
+        device_id = sess.get("device_id")
+        if device_id and not str(device_id).startswith("wifi:"):
+            db.save_device_camera(device_id, camera_name)
+        else:
+            serial = sd_reader.get_volume_serial(source_path)
+            if serial:
+                db.save_card_camera(serial, camera_name)
 
     def _scan_all_cameras(self):
         if self.current_project_id is None:
@@ -2344,31 +2539,6 @@ class MainWindow(QMainWindow):
             self._refresh_source_list()
             self._refresh_sessions_combo()
             self.ingest_status_label.setText(self.tr("Escaneo de cámaras: %1 sesion(es) procesada(s).").arg(count))
-
-    def _prompt_unknown_camera(self, session_id, source_path):
-        base = self._drive_label(source_path)
-        msg = QMessageBox(self)
-        msg.setWindowTitle(self.tr("Cámara no detectada"))
-        msg.setText(self.tr("No se pudo detectar la cámara en %1.").arg(base))
-        msg.setInformativeText(self.tr("¿Qué nombre quieres darle a esta cámara?"))
-        btn_sin = msg.addButton(self.tr("Sin nombre"), QMessageBox.ActionRole)
-        btn_rename = msg.addButton(self.tr("Renombrar…"), QMessageBox.ActionRole)
-        msg.setDefaultButton(btn_sin)
-        msg.exec()
-        if msg.clickedButton() == btn_rename:
-            name, ok = QInputDialog.getText(
-                self, self.tr("Nombre de cámara"),
-                self.tr("Introduce el nombre de la cámara:")
-            )
-            if ok and name.strip():
-                db.update_session_config(session_id, camera_name=name.strip())
-                self.ingest_status_label.setText(self.tr("Cámara: %1").arg(name.strip()))
-        else:
-            db.update_session_config(session_id, camera_name=None)
-            self.ingest_status_label.setText(self.tr("Cámara: Sin nombre"))
-        self._refresh_source_list()
-        self._refresh_sessions_combo()
-        self.update_start_button_state()
 
     def _on_camera_cell_edited(self, item):
         row = item.row()
@@ -2407,14 +2577,14 @@ class MainWindow(QMainWindow):
         names = ", ".join(s["name"] for s in sessions)
         reply = QMessageBox.question(
             self, self.tr("Eliminar origen"),
-            self.tr("¿Eliminar el origen '%1' y sus sesiones (%2)?\n"
-                    "Esta acción no se puede deshacer.")
+            self.tr("¿Quitar el origen '%1' de la lista?\n"
+                    "Las sesiones se mantienen guardadas.")
             .arg(path).arg(names),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
-        self._remove_source_path(path)
+        self._hide_source_path(path)
 
     def _remove_source_path(self, path):
         """Borra las sesiones de un origen y, si es WiFi, también su remitente."""
@@ -2447,6 +2617,16 @@ class MainWindow(QMainWindow):
             self._wifi_panel.refresh()
         self.ingest_status_label.setText(
             self.tr("Origen eliminado: %1").arg(path))
+
+    def _hide_source_path(self, path):
+        """Quita un origen de la lista visual sin borrar sus sesiones en DB."""
+        if path in self._source_paths:
+            self._source_paths.remove(path)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        self.ingest_status_label.setText(
+            self.tr("Origen ocultado: %1").arg(path))
 
     def _on_source_check_changed(self, item):
         if self.current_project_id is None:
@@ -3138,8 +3318,10 @@ class MainWindow(QMainWindow):
     def _ensure_wifi_server(self) -> bool:
         if self._wifi_server is not None and self._wifi_server.running:
             return True
+        folder_mode = self._get_wifi_folder_mode()
         self._wifi_server = inboxmod.ShootInboxServer(
-            page_dark=(theme.get_theme() != "light"))
+            page_dark=(theme.get_theme() != "light"),
+            folder_mode=folder_mode)
         try:
             self._wifi_server.start()
         except OSError as e:
@@ -3149,6 +3331,16 @@ class MainWindow(QMainWindow):
             self._wifi_server = None
             return False
         return True
+
+    def _get_wifi_folder_mode(self) -> bool:
+        if self.current_project_id is None:
+            return False
+        sessions = [s for s in db.get_sessions(self.current_project_id)
+                    if s.get("device_id") == "wifi:pairdrop"]
+        for s in sessions:
+            if s.get("folder_mode"):
+                return True
+        return False
 
     def _show_wifi_panel(self):
         if self._wifi_panel is None:

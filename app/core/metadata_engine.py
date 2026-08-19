@@ -248,14 +248,30 @@ class MetadataEngine:
             return metadata
 
         except subprocess.TimeoutExpired:
-            return {"camera_model": "Unknown", "camera_make": "Unknown", "serial": None,
+            metadata = {"camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
                     "creation_date": None, "creation_dt": None, "date_source": None,
                     "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
                     "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
                     "is_video": False, "is_audio": False, "is_image": False}
+            try:
+                metadata["file_size"] = os.path.getsize(file_path)
+            except OSError:
+                pass
+            self._finalize_dates(metadata, file_path)
+            return metadata
         except Exception as e:
             print(f"Error extracting metadata from {file_path}: {e}")
-            return {}
+            metadata = {"camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
+                    "creation_date": None, "creation_dt": None, "date_source": None,
+                    "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
+                    "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
+                    "is_video": False, "is_audio": False, "is_image": False}
+            try:
+                metadata["file_size"] = os.path.getsize(file_path)
+            except OSError:
+                pass
+            self._finalize_dates(metadata, file_path)
+            return metadata
 
     def _camera_from_extension(self, ext: str) -> str:
         raw_ext_to_brand = {

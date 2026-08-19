@@ -174,6 +174,10 @@ QLineEdit:focus, QComboBox:focus, QDateEdit:focus {
     border-color: @accent;
 }
 
+QPushButton:focus {
+    border: 2px solid @accent;
+}
+
 QComboBox::drop-down {
     border: none;
     padding-right: 4px;
@@ -526,7 +530,6 @@ QCalendarWidget QToolButton {
     padding: 4px;
     border: none;
     font-weight: 600;
-    font-size: 11px;
 }
 
 QCalendarWidget QTableView {
@@ -535,7 +538,6 @@ QCalendarWidget QTableView {
     selection-color: @on_accent;
     gridline-color: @border;
     color: @text;
-    font-size: 11px;
 }
 
 QInputDialog {
@@ -597,6 +599,14 @@ QPushButton#IconButton {
 QPushButton#IconButton:hover {
     background-color: @border;
     border-radius: 4px;
+}
+
+QSplitter::handle {
+    background-color: @border;
+}
+
+QSplitter::handle:hover {
+    background-color: @accent;
 }
 """
 

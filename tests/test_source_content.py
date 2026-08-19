@@ -169,12 +169,12 @@ class TestSourceContent(unittest.TestCase):
         self.assertFalse(btn.icon().isNull())
         self.assertFalse(hasattr(self.window, "btn_remove_source"))
 
-    def test_source_delete_button_removes_source_with_confirmation(self):
+    def test_source_delete_button_hides_source_keeps_session(self):
         self.window._refresh_source_list()
         btn = self.window.source_list.cellWidget(0, 3)
         with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.Yes):
             btn.click()
-        self.assertEqual(self.db.get_sessions(self.pid), [])
+        self.assertEqual(len(self.db.get_sessions(self.pid)), 1)
         self.assertNotIn(self.src, self.window._source_paths)
 
     def test_source_delete_button_no_keeps_session(self):

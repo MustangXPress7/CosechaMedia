@@ -37,20 +37,24 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 
 | ID | Idea | Área | Prioridad | Estado |
 |----|------|------|-----------|--------|
-| I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | Abierta — ruta bandera |
-| I-02 | **Destinos de envío del volcado**: un único volcado puede enviarse a infinidad de destinos (ya funciona hoy). A futuro: destinos de **"fallback"/"servidor"** — copia local + copia en nube, por si el proyecto se reasigna a otra persona | Sesiones/Archivo | nuevo feature | Abierta — base ya resuelta |
-| I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | Abierta |
+| I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | **v2.0** — reserva bandera |
+| I-02 | **Destinos de envío del volcado**: un único volcado puede enviarse a infinidad de destinos (ya funciona hoy). A futuro: destinos de **"fallback"/servidor** — copia local + copia en nube, por si el proyecto se reasigna a otra persona | Sesiones/Archivo | nuevo feature | Abierta — base ya resuelta |
+| I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | **v1.5** |
 | I-04 | **Contenedores/carpetas por tipo de archivo extraído** — dar cabida a datos giroscópicos, RAW, etc. | Archivo | nuevo feature | Abierta |
 | I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta |
-| I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | Abierta |
-| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | Abierta — refuerza integridad |
+| I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | **v1.5** |
+| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | **v1.5** — refuerza integridad |
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
-| I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | Abierta — baja prioridad (tras base sólida) |
-| I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar — carrera `_cam_done`, rename con `/`, validar el fix MTP en vivo | Core | uso | Abierta — PRIMERO |
-| I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard). Por defecto lo más sencillo posible (sin fechas), mostrando las opciones extra relevantes antes de crear | Proyectos | nuevo feature | Abierta |
-| I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | Abierta |
-| I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear, para usuarios "muy vagos" — conclusión de la integración de las acciones rápidas | Ingesta/UI | nuevo feature | Abierta — verde, ligada a I-01/R-02 |
-| I-14 | **Forzar nombre de cámara al registrar origen**: al conectar un dispositivo (SD, MTP, FTP, WiFi), disparar automáticamente el flujo de命名. No dejar la celda vacía nunca. Flujo: (1) si el nombre es conocido (I-03) → auto-rellenar sin prompt; (2) si no, intentar detección automática (ffprobe en caché); (3) si falla, mostrar prompt manual. El nombre se persiste por `device_id`/`volume_serial` en `sd_cards`/`device_settings` — solo se pide una vez por dispositivo. En macOS/Linux (sin MTP ni volume serial estable), el prompt manual es el único camino pero se recuerda para siempre. Modo manual: mostrar prompt directamente en vez de limpiar silenciosamente | Detección/UX | uso | Abierta — requiere I-03 como base; cross-platform: Windows auto-detecta SD/MTP, macOS/Linux prompt manual la primera vez |
+| I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | **v1.5** (B-09/B-10/B-11) |
+| I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar | Core | uso | **v1.5** — PRIMERO |
+| I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | **v1.5** |
+| I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | ✅ Hecho |
+| I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear | Ingesta/UI | nuevo feature | **v2.0** — ligada a I-01 |
+| I-14 | **Forzar nombre de cámara al registrar origen** | Detección/UX | uso | Abierta — requiere I-03 como base; cross-platform: Windows auto-detecta SD/MTP, macOS/Linux prompt manual la primera vez |
+| I-15 | **Interruptor de contenido en volcado selectivo**: switch para controlar si volcar todo el contenido, un intervalo de días, o X días desde el último volcado (ventana nueva). Reemplaza el calendario de selección por modo de filtro predefinido | Ingesta | nuevo feature | Abierta |
+| I-16 | **Configuración por defecto de orígenes en el proyecto**: apartado en la configuración del proyecto para tocar modo rápido/delicado y tipo de volcado por defecto | Proyectos | nuevo feature | Abierta |
+| I-17 | **Configuración de orígenes en proyecto nuevo**: al crear un nuevo proyecto, aparecer también la configuración de orígenes entrantes predefinidos | Proyectos | nuevo feature | Abierta |
+| I-18 | **Filtrado de volcado por sesión**: decidir si el parámetro de volcado (modo todo/intervalo/ventana) lo controla la sesión o el origen, una vez que la sesión decide ese parámetro. Mover a sesiones y no ponerlo en orígenes. **Nota**: Para los modos WiFi y FTP, el modo de volcado queda bloqueado por la compatibilidad de su sistema y sería "todo" por defecto, ya que no admiten selección parcial de contenido. | Sesiones | nuevo feature | Por definir |
 
 ## Rutas futuras (candidatas a fase)
 
@@ -72,3 +76,5 @@ Prerrequisito de I-01 (acciones rápidas). Piezas a considerar al definir la fas
 5. **Recursos para definir la fase:** gráfico graphify (`graphify-out/` — 103 comunidades, hubs por zona) y docs `.planning/codebase/` (ARCHITECTURE.md, CONCERNS.md, TESTING.md, CONVENTIONS.md).
 
 Quick tasks `uso` previas e independientes (no bloquean R-01): **I-12** (predeterminado), **I-03** (cámara ↔ ID de tarjeta/dispositivo).
+
+(End of file - total 78 lines)

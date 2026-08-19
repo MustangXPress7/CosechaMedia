@@ -18,7 +18,7 @@ from PySide6.QtGui import QColor, QFont, QPen
 
 from app.core.db import db
 from app.core.metadata_engine import metadata_engine
-from app.core.utils import create_folder_structure, calculate_md5
+from app.core.utils import create_folder_structure
 from app.core.ingestor import copy_verified
 from app.core.translator import QtString
 from app.core import translator
@@ -767,11 +767,11 @@ class SelectiveDumpAssistant(QDialog):
                         self._dest_root, job["camera"], job["date"],
                         self._order_type, self._folder_name)
                     dest_path = self._unique_dest(dest_dir, job["path"])
-                    if not copy_verified(job["path"], dest_path):
+                    md5 = copy_verified(job["path"], dest_path)
+                    if md5 is None:
                         errors += 1
                         continue
                     size = os.path.getsize(dest_path)
-                    md5 = calculate_md5(dest_path)
                     if sid is not None:
                         cursor = conn.cursor()
                         cursor.execute(
@@ -832,18 +832,19 @@ class SelectiveDumpAssistant(QDialog):
         worker.message.connect(self._on_message)
         worker.finished.connect(thread.quit)
         worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(self._on_thread_finished)
+        ref = [thread, worker]
+        thread.finished.connect(lambda t=thread, w=worker: self._on_thread_finished(t, w))
         thread.finished.connect(thread.deleteLater)
         worker.finished.connect(on_done)
         self._thread = thread
         self._worker = worker
         thread.start()
 
-    def _on_thread_finished(self):
-        # El hilo terminó y está pendiente de deleteLater: suelta la referencia
-        # para que reject()/otros no toquen un QThread ya borrado.
-        self._thread = None
-        self._worker = None
+    def _on_thread_finished(self, thread, worker):
+        if self._thread is thread:
+            self._thread = None
+        if self._worker is worker:
+            self._worker = None
 
     def _on_progress(self, done, total):
         current = self._stack.currentWidget()

@@ -233,6 +233,12 @@
 - Limit: A leaked token (shared QR) grants permanent upload access to that sender's cache dir.
 - Scaling path: Add token expiry + regeneration button in WiFi panel; per-URL nonce.
 
+**Dispositivos "fantasma" tras borrar proyecto:**
+- Problem: Al borrar un proyecto, los dispositivos (MTP/FTP/WiFi) registrados en `sd_cards`, `device_settings` y la tabla de orígenes no se limpian completamente. Al volver a cargar el proyecto o añadir nuevos orígenes, estos dispositivos "fantasma" reaparecen en la lista, generando confusión y intentos de volcado a dispositivos desconectados.
+- Files: `app/core/db.py` (tablas `sd_cards`, `device_settings`, `projects`), `app/ui/main_window.py` (carga de lista de orígenes `_refresh_source_list`)
+- Impact: El operador ve dispositivos antiguos en el menú de añadir origen y puede seleccionarlos por error, intentando volcar a hardware inexistente. También rompe la coherencia de la UI donde se espera que solo aparezcan dispositivos conectados.
+- Scaling path: Añadir acción de "olvidar dispositivo" en el menú contextual de la lista de orígenes que limpie `sd_cards`, `device_settings` y la caché `device_cache/` asociada al `device_id` o `volume_serial`. Verificar también que la eliminación de proyecto (`db.delete_project`) rote associated device records.
+
 **Single-dump target rotation for full disks:**
 - Files: `app/core/ingestor.py` (`_pick_dump_target`, `_full_targets`)
 - Current capacity: Rotates among configured targets; when all report full → abort with "Disco lleno".

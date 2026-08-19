@@ -9,7 +9,7 @@ def _resolve_db_path() -> str:
     if getattr(sys, "frozen", False):
         base_dir = os.path.dirname(sys.executable)
     else:
-        base_dir = os.getcwd()
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     data_dir = os.path.join(base_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "sd_import.db")
@@ -146,6 +146,7 @@ class DatabaseManager:
             ("default_camera", "TEXT"),
             ("use_metadata_date", "INTEGER"),
             ("delicate_mode", "INTEGER"),
+            ("folder_mode", "INTEGER"),
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
             ("source_path", "TEXT"),
             ("camera_name", "TEXT"),
@@ -249,6 +250,10 @@ class DatabaseManager:
                 delicate_mode INTEGER DEFAULT 0
             )
         ''')
+        cursor.execute("PRAGMA table_info(device_settings)")
+        ds_cols = [row[1] for row in cursor.fetchall()]
+        if "camera_name" not in ds_cols:
+            cursor.execute("ALTER TABLE device_settings ADD COLUMN camera_name TEXT")
         default_containers = [
             ".mp4", ".mov", ".avi", ".mkv", ".mxf", ".mts", ".m2ts", ".ts", ".mpg", ".mpeg",
             ".wav", ".mp3", ".aac", ".flac", ".ogg", ".m4a",
@@ -471,7 +476,7 @@ class DatabaseManager:
             '''SELECT id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
                       use_metadata_date, delicate_mode, created_at, source_path, camera_name,
-                      content_filter, device_id, device_folder, enabled
+                      content_filter, device_id, device_folder, enabled, folder_mode
                FROM sessions WHERE project_id = ? ORDER BY id ASC''',
             (project_id,)
         )
@@ -496,6 +501,7 @@ class DatabaseManager:
                 "device_id": r[15],
                 "device_folder": r[16],
                 "enabled": r[17],
+                "folder_mode": r[18],
             })
         conn.close()
         return rows
@@ -507,7 +513,7 @@ class DatabaseManager:
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_camera,
                       use_metadata_date, delicate_mode, created_at, source_path, camera_name,
-                      content_filter, device_id, device_folder, enabled
+                      content_filter, device_id, device_folder, enabled, folder_mode
                FROM sessions WHERE id = ?''',
             (session_id,)
         )
@@ -535,6 +541,7 @@ class DatabaseManager:
             "device_id": r[16],
             "device_folder": r[17],
             "enabled": r[18],
+            "folder_mode": r[19],
         }
 
     def get_files_by_session(self, session_id: int):
@@ -556,7 +563,7 @@ class DatabaseManager:
             return
         allowed = {"destination_override", "folder_name", "organization_type",
                    "duration_type", "default_camera", "use_metadata_date",
-                   "delicate_mode", "name", "shoot_date", "status",
+                   "delicate_mode", "folder_mode", "name", "shoot_date", "status",
                    "source_path", "camera_name", "content_filter",
                    "device_id", "device_folder", "enabled"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
@@ -956,6 +963,46 @@ class DatabaseManager:
         if row and row['camera_name']:
             return row['camera_name']
         return None
+
+    def get_camera_for_device(self, device_id: str):
+        """Devuelve el nombre de cámara conocido para un dispositivo MTP/FTP, o None."""
+        if not device_id:
+            return None
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT camera_name FROM device_settings WHERE device_key = ?',
+            (device_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row and row['camera_name']:
+            return row['camera_name']
+        return None
+
+    def save_device_camera(self, device_id: str, camera_name: str):
+        """Guarda o actualiza el mapeo device_id→cámara para dispositivos MTP/FTP."""
+        if not device_id or not camera_name:
+            return
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT device_key FROM device_settings WHERE device_key = ?',
+            (device_id,)
+        )
+        row = cursor.fetchone()
+        if row:
+            cursor.execute(
+                'UPDATE device_settings SET camera_name = ? WHERE device_key = ?',
+                (camera_name, device_id)
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO device_settings (device_key, camera_name) VALUES (?, ?)',
+                (device_id, camera_name)
+            )
+        conn.commit()
+        conn.close()
 
     def get_device_delicate(self, device_key: str):
         """Devuelve el modo delicado para un dispositivo (0/1), o None si no hay config."""

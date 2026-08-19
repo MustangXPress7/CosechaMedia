@@ -375,9 +375,24 @@ class TestCalendarInteraction(unittest.TestCase):
         self.assertIsNone(self.dlg._thread)
 
     def test_thread_reference_cleared_on_finish(self):
-        self.dlg._on_thread_finished()
+        fake_thread = object()
+        fake_worker = object()
+        self.dlg._thread = fake_thread
+        self.dlg._worker = fake_worker
+        self.dlg._on_thread_finished(fake_thread, fake_worker)
         self.assertIsNone(self.dlg._thread)
         self.assertIsNone(self.dlg._worker)
+
+    def test_thread_reference_not_clobbered_by_old_thread(self):
+        old_thread = object()
+        old_worker = object()
+        new_thread = object()
+        new_worker = object()
+        self.dlg._thread = new_thread
+        self.dlg._worker = new_worker
+        self.dlg._on_thread_finished(old_thread, old_worker)
+        self.assertIs(self.dlg._thread, new_thread)
+        self.assertIs(self.dlg._worker, new_worker)
 
 
 class TestContentSummary(unittest.TestCase):

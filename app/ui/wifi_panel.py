@@ -26,7 +26,7 @@ import os
 from PySide6.QtCore import QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QDialog, QDialogButtonBox, QFormLayout,
+    QApplication, QDialog, QDialogButtonBox, QFormLayout,
     QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget,
 )
 
@@ -138,11 +138,6 @@ class ShootInboxPanel(QWidget):
             "color: {}; font-size: 12px;".format(theme.color("text_secondary")))
         layout.addWidget(hint)
 
-        self.folder_mode_cb = QCheckBox(
-            self.tr("Enviar una carpeta entera (modo carpeta)"))
-        self.folder_mode_cb.toggled.connect(self._on_folder_mode_toggled)
-        layout.addWidget(self.folder_mode_cb)
-
         layout.addStretch(1)
 
         bottom = QHBoxLayout()
@@ -161,7 +156,6 @@ class ShootInboxPanel(QWidget):
     def attach_server(self, server):
         self._server = server
         server.on_file_received = self._bridge.received.emit
-        server.folder_mode = self.folder_mode_cb.isChecked()
         self._refresh_server_status()
         self._render_current()
 
@@ -181,10 +175,6 @@ class ShootInboxPanel(QWidget):
                         "%1").arg(self._server.base_url()))
         self.stop_btn.style().unpolish(self.stop_btn)
         self.stop_btn.style().polish(self.stop_btn)
-
-    def _on_folder_mode_toggled(self, checked):
-        if self._server is not None:
-            self._server.folder_mode = checked
 
     def closeEvent(self, event):
         # Cerrar solo oculta; el servidor sigue (lo gestiona la ventana principal).

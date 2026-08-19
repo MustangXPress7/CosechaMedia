@@ -1,6 +1,7 @@
 import os
 import threading
 import time
+from collections import OrderedDict
 from typing import Callable, Optional
 from app.core.ingestor import Ingestor
 from app.core.metadata_engine import _is_system_entry
@@ -23,7 +24,7 @@ class FileSystemWatcher:
         self.running = False
 
     def _watch(self):
-        scanned_files = set()
+        scanned_files = OrderedDict()
         print(f"Watcher started on: {self.source_dir}")
         
         first_pass = True
@@ -41,11 +42,11 @@ class FileSystemWatcher:
                         # (path.startswith('.') nunca se cumple en Windows).
                         if path not in scanned_files and not _is_system_entry(file):
                             self.ingestor.handle_new_file(path)
-                            scanned_files.add(path)
+                        scanned_files[path] = None
                 
-                # Keep set size manageable by removing old files
-                if len(scanned_files) > 10000:
-                    scanned_files = current_files
+                # Evict oldest entries when over cap (preserves current-file history)
+                while len(scanned_files) > 10000:
+                    scanned_files.popitem(last=False)
                 
                 if self.status_callback:
                     self.status_callback(f"Escaneados {len(current_files)} archivos en {self.source_dir}")

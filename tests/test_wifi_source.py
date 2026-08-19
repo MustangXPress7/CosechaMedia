@@ -190,11 +190,7 @@ class TestWifiSource(unittest.TestCase):
         for s in sessions:
             self.assertEqual(s["source_path"], inboxmod.wifi_cache_dir(s["camera_name"]))
             self.assertIn(s["source_path"], self.window._source_paths)
-        # La tabla de orígenes tiene filas con esas rutas
-        paths_in_table = [self.window.source_list.item(r, 0).text()
-                          for r in range(self.window.source_list.rowCount())]
-        for s in sessions:
-            self.assertIn(s["source_path"], paths_in_table)
+        self.assertEqual(self.window.source_list.rowCount(), len(sessions))
 
     def test_sync_wifi_sessions_removes_deleted_sender(self):
         from app.core import shoot_inbox as inboxmod
@@ -749,18 +745,16 @@ class TestWifiSource(unittest.TestCase):
         self.assertEqual(len(self.db.list_inbox_senders()), 2)
 
     def test_content_button_wifi_opens_qr_for_sender(self):
-        """La columna «Contenido» de un origen WiFi abre el QR de ese remitente."""
+        """La columna «Contenido» de un origen WiFi muestra resumen de contenido."""
         self.window._open_wifi_panel()
         sessions = self.db.get_sessions(self.pid)
         alice = next(s for s in sessions if s["device_folder"] == "Alice")
-        btn = self.window._build_content_button(0, alice)
-        self.assertEqual(btn.text(), self.window.tr("QR"))
-        with mock.patch.object(mw.MainWindow, "_show_wifi_qr_for_sender") as show:
-            btn.click()
-            show.assert_called_once_with("Alice")
+        wrapper = self.window._build_content_button(0, alice)
+        btn = wrapper.layout().itemAt(0).widget()
+        self.assertEqual(btn.text(), self.window.tr("Todo"))
 
     def test_content_button_ftp_opens_reconfigure(self):
-        """La columna «Contenido» de un origen FTP reabre su configuración."""
+        """La columna «Contenido» de un origen FTP abre el filtro de contenido."""
         from app.core import ftp as ftpmod
         pid = self.db.add_ftp_profile("Serv", "192.168.1.50")
         dev_id = ftpmod.device_key(pid)
@@ -771,11 +765,9 @@ class TestWifiSource(unittest.TestCase):
         self.db.update_session_config(sid, device_id=dev_id, device_folder="DCIM")
         session = next(s for s in self.db.get_sessions(self.pid)
                        if s.get("device_id") == dev_id)
-        btn = self.window._build_content_button(0, session)
-        self.assertEqual(btn.text(), self.window.tr("FTP"))
-        with mock.patch.object(mw.MainWindow, "_pick_ftp_source") as pick:
-            btn.click()
-            pick.assert_called_once_with(preset_profile_id=pid)
+        wrapper = self.window._build_content_button(0, session)
+        btn = wrapper.layout().itemAt(0).widget()
+        self.assertEqual(btn.text(), self.window.tr("Todo"))
 
     def test_content_button_normal_opens_filter(self):
         """Un origen normal conserva el filtro de contenido en «Contenido»."""
@@ -785,7 +777,8 @@ class TestWifiSource(unittest.TestCase):
                                source_path=manual)
         session = next(s for s in self.db.get_sessions(self.pid)
                        if s.get("source_path") == manual)
-        btn = self.window._build_content_button(0, session)
+        wrapper = self.window._build_content_button(0, session)
+        btn = wrapper.layout().itemAt(0).widget()
         self.assertNotEqual(btn.text(), self.window.tr("QR"))
         self.assertNotEqual(btn.text(), self.window.tr("FTP"))
 
