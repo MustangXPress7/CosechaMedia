@@ -47,7 +47,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
 | I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | **v1.5** (B-09/B-10/B-11) |
 | I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar | Core | uso | **v1.5** — PRIMERO |
-| I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | **v1.5** |
+| I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | ✅ Implementado — wizard ampliado con detección cámara, proxies, modo delicado |
 | I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | ✅ Hecho |
 | I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear | Ingesta/UI | nuevo feature | **v2.0** — ligada a I-01 |
 | I-14 | **Forzar nombre de cámara al registrar origen** | Detección/UX | uso | ✅ Implementado — `force_prompt=True` en `_assign_folder_source`; skipped si cámara conocida (I-03) |
