@@ -590,6 +590,10 @@ class MainWindow(QMainWindow):
         self.chk_shutdown.setToolTip(self.tr("Apaga el ordenador al finalizar todas las tareas de ingesta"))
         post_terminar.addWidget(self.chk_shutdown)
 
+        self.chk_generate_report = QCheckBox(self.tr("Generar CSV de integridad al acabar"))
+        self.chk_generate_report.setToolTip(self.tr("Exporta un reporte CSV con hashes y estado de cada archivo"))
+        post_terminar.addWidget(self.chk_generate_report)
+
         post_box_layout.addLayout(post_terminar)
 
         post_operaciones = QVBoxLayout()
@@ -1820,6 +1824,8 @@ class MainWindow(QMainWindow):
                 self._pending_actions.append("format")
             if self.project_generate_proxies:
                 self._pending_actions.append("proxies")
+            if self.chk_generate_report.isChecked():
+                self._pending_actions.append("report")
             if self.chk_shutdown.isChecked() and can_destroy:
                 self._pending_actions.append("shutdown")
             self._run_next_post_ingest_action()
@@ -1838,6 +1844,10 @@ class MainWindow(QMainWindow):
                 started = self._format_sources_after_ingest()
             elif action == "proxies":
                 started = self._generate_proxies_after_ingest()
+            elif action == "report":
+                self._pending_actions.pop(0)
+                self._generate_report_after_ingest()
+                continue
             elif action == "shutdown":
                 self._pending_actions.pop(0)
                 self._shutdown_computer()
@@ -1966,6 +1976,25 @@ class MainWindow(QMainWindow):
             self.ingest_status_label.setText(self.tr("Apagado programado."))
         except Exception as e:
             QMessageBox.warning(self, self.tr("Apagar"), self.tr("No se pudo programar el apagado:\n%1").arg(str(e)))
+
+    def _generate_report_after_ingest(self):
+        """Genera CSV de integridad para todas las sesiones de la ingesta."""
+        from app.core.ingestor import generate_integrity_report
+        if self.current_project_id is None:
+            return
+        sessions = db.get_sessions(self.current_project_id)
+        active = [s for s in sessions if s.get("source_path")]
+        if not active:
+            return
+        import os
+        for session in active:
+            default_name = f"integridad_{session.get('name', 'sesion')}.csv"
+            dest = os.path.join(session.get("source_path", ""), default_name)
+            # Si no se puede escribir en el origen, usar el home
+            if not os.access(os.path.dirname(dest) or os.path.expanduser("~"), os.W_OK):
+                dest = os.path.join(os.path.expanduser("~"), default_name)
+            generate_integrity_report(session["id"], dest)
+        self.ingest_status_label.setText(self.tr("Reporte CSV generado."))
 
     def update_status_from_watcher(self, message):
         self.ingest_status_label.setText(message)
