@@ -638,3 +638,74 @@ def generate_integrity_report(session_id: int, output_path: str) -> bool:
         return True
     except Exception:
         return False
+
+
+MEDIA_EXTENSIONS = {
+    '.mp4', '.mov', '.avi', '.mxf', '.m4v', '.mts', '.m2ts',
+    '.mp3', '.wav', '.aac', '.flac', '.ogg',
+    '.jpg', '.jpeg', '.png', '.tif', '.tiff', '.dng', '.cr2', '.nef', '.arw',
+}
+
+
+def generate_card_content_report(source_path: str, output_path: str) -> bool:
+    """Genera un CSV con el contenido de una tarjeta/origen ANTES de copiar.
+
+    Escanea recursivamente source_path, extrae metadatos básicos (tamaño,
+    extensión, fecha de modificación) y opcionalmente modelo de cámara vía
+    metadata_engine para archivos de video/imagen.
+    """
+    import csv
+    from app.core.metadata_engine import metadata_engine
+
+    if not os.path.isdir(source_path):
+        return False
+
+    rows = []
+    total_size = 0
+    for root, dirs, files in os.walk(source_path):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fname in files:
+            if fname.startswith('.'):
+                continue
+            fpath = os.path.join(root, fname)
+            try:
+                stat = os.stat(fpath)
+            except OSError:
+                continue
+            ext = os.path.splitext(fname)[1].lower()
+            size = stat.st_size
+            total_size += size
+            mtime = datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
+            camera = ''
+            if ext in MEDIA_EXTENSIONS and size > 0:
+                try:
+                    meta = metadata_engine.get_video_metadata(fpath)
+                    camera = meta.get('camera_model', '') or ''
+                except Exception:
+                    pass
+            rows.append({
+                'name': fname,
+                'path': fpath,
+                'ext': ext,
+                'size': size,
+                'mtime': mtime,
+                'camera': camera,
+            })
+
+    try:
+        with open(output_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Origen', source_path])
+            writer.writerow(['Total archivos', len(rows),
+                             'Tamaño total (bytes)', total_size])
+            writer.writerow([])
+            writer.writerow(['Archivo', 'Ruta', 'Extensión', 'Tamaño (bytes)',
+                             'Modificado', 'Cámara'])
+            for row in rows:
+                writer.writerow([
+                    row['name'], row['path'], row['ext'],
+                    row['size'], row['mtime'], row['camera'],
+                ])
+        return True
+    except Exception:
+        return False

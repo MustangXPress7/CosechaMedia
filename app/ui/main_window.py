@@ -1996,6 +1996,13 @@ class MainWindow(QMainWindow):
         context_menu = QMenu(self)
         clear_action = context_menu.addAction(self.tr("Eliminar completados"))
         clear_action.triggered.connect(self._clear_completed_rows)
+        context_menu.addSeparator()
+        integrity_action = context_menu.addAction(self.tr("Exportar reporte de integridad (CSV)"))
+        integrity_action.triggered.connect(self._export_integrity_report)
+        source_path = self._current_source_path()
+        if source_path and os.path.isdir(source_path):
+            content_action = context_menu.addAction(self.tr("Exportar contenido de tarjeta (CSV)"))
+            content_action.triggered.connect(self._export_card_content_report)
         context_menu.exec(self.table.viewport().mapToGlobal(pos))
 
     def _clear_completed_rows(self):
@@ -2010,6 +2017,67 @@ class MainWindow(QMainWindow):
                     self.table.removeRow(r)
         finally:
             self.table.setSortingEnabled(was_sorted)
+
+    def _current_source_path(self):
+        """Devuelve la source_path de la sesión activa, o None."""
+        if self.current_project_id is None:
+            return None
+        sessions = db.get_sessions(self.current_project_id)
+        for s in sessions:
+            if s.get("source_path"):
+                return s["source_path"]
+        return None
+
+    def _export_integrity_report(self):
+        """Exporta CSV de integridad (post-dump) para la sesión activa."""
+        if self.current_project_id is None:
+            return
+        sessions = db.get_sessions(self.current_project_id)
+        active = [s for s in sessions if s.get("source_path")]
+        if not active:
+            QMessageBox.information(self, self.tr("Reporte"),
+                                    self.tr("No hay sesiones con origen para exportar."))
+            return
+        session = active[0]
+        default_name = f"integridad_{session.get('name', 'sesion')}.csv"
+        path, _ = QFileDialog.getSaveFileName(
+            self, self.tr("Guardar reporte de integridad"),
+            os.path.join(os.path.expanduser("~"), default_name),
+            "CSV (*.csv)")
+        if not path:
+            return
+        from app.core.ingestor import generate_integrity_report
+        ok = generate_integrity_report(session["id"], path)
+        if ok:
+            QMessageBox.information(self, self.tr("Reporte"),
+                                    self.tr("Reporte guardado en:\n%1").arg(path))
+        else:
+            QMessageBox.warning(self, self.tr("Reporte"),
+                                self.tr("No se pudo generar el reporte."))
+
+    def _export_card_content_report(self):
+        """Exporta CSV de contenido de tarjeta (pre-dump) para el origen activo."""
+        source_path = self._current_source_path()
+        if not source_path or not os.path.isdir(source_path):
+            QMessageBox.information(self, self.tr("Reporte"),
+                                    self.tr("No se detectó una ruta de origen válida."))
+            return
+        base = os.path.basename(os.path.normpath(source_path)) or "tarjeta"
+        default_name = f"contenido_{base}.csv"
+        path, _ = QFileDialog.getSaveFileName(
+            self, self.tr("Guardar contenido de tarjeta"),
+            os.path.join(os.path.expanduser("~"), default_name),
+            "CSV (*.csv)")
+        if not path:
+            return
+        from app.core.ingestor import generate_card_content_report
+        ok = generate_card_content_report(source_path, path)
+        if ok:
+            QMessageBox.information(self, self.tr("Reporte"),
+                                    self.tr("Contenido exportado en:\n%1").arg(path))
+        else:
+            QMessageBox.warning(self, self.tr("Reporte"),
+                                self.tr("No se pudo exportar el contenido."))
 
     def _post_ingest_rename_dialog(self):
         if self.project_camera_detection_mode == "manual":

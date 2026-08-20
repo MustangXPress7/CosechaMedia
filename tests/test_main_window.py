@@ -21,7 +21,7 @@ import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
-from app.core.ingestor import _free_space, generate_integrity_report
+from app.core.ingestor import _free_space, generate_integrity_report, generate_card_content_report
 from app.core.sd_reader import sd_reader
 
 
@@ -409,6 +409,68 @@ class TestIntegrityReport(unittest.TestCase):
         out = os.path.join(self.tmp, "report2.csv")
         result = generate_integrity_report(99999, out)
         self.assertFalse(result)
+
+
+class TestCardContentReport(unittest.TestCase):
+    """Verifica generate_card_content_report (pre-dump)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_card_")
+        self.source = os.path.join(self.tmp, "source")
+        os.makedirs(self.source)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_generates_csv_with_files(self):
+        # Create test files
+        for name in ("clip.mp4", "photo.jpg", "audio.wav"):
+            with open(os.path.join(self.source, name), "wb") as f:
+                f.write(b"\x00" * 1024)
+        out = os.path.join(self.tmp, "card.csv")
+        result = generate_card_content_report(self.source, out)
+        self.assertTrue(result)
+        self.assertTrue(os.path.exists(out))
+        with open(out, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.assertIn("clip.mp4", content)
+        self.assertIn("photo.jpg", content)
+        self.assertIn("audio.wav", content)
+        self.assertIn("Total archivos", content)
+        self.assertIn("1024", content)  # file size
+
+    def test_returns_false_for_invalid_path(self):
+        result = generate_card_content_report("/nonexistent/path", "/tmp/out.csv")
+        self.assertFalse(result)
+
+    def test_skips_hidden_files(self):
+        with open(os.path.join(self.source, ".hidden"), "wb") as f:
+            f.write(b"data")
+        with open(os.path.join(self.source, "visible.mp4"), "wb") as f:
+            f.write(b"data")
+        out = os.path.join(self.tmp, "card.csv")
+        result = generate_card_content_report(self.source, out)
+        self.assertTrue(result)
+        with open(out, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.assertNotIn(".hidden", content)
+        self.assertIn("visible.mp4", content)
+
+    def test_includes_subdirectories(self):
+        subdir = os.path.join(self.source, "sub")
+        os.makedirs(subdir)
+        with open(os.path.join(subdir, "nested.mov"), "wb") as f:
+            f.write(b"data")
+        out = os.path.join(self.tmp, "card.csv")
+        result = generate_card_content_report(self.source, out)
+        self.assertTrue(result)
+        with open(out, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.assertIn("nested.mov", content)
 
 
 class TestSessionCRUD(unittest.TestCase):
