@@ -42,7 +42,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | **v1.5** |
 | I-04 | **Contenedores/carpetas por tipo de archivo extraído** — dar cabida a datos giroscópicos, RAW, etc. | Archivo | nuevo feature | Abierta |
 | I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta |
-| I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | **v1.5** |
+| I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | ✅ Implementado — `generate_card_content_report()` pre-dump + `generate_integrity_report()` post-dump cableado al UI |
 | I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | **v1.5** — refuerza integridad |
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
 | I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | **v1.5** (B-09/B-10/B-11) |

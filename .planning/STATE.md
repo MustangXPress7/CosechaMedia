@@ -38,7 +38,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ### Features pendientes (IDEAS.md → v1.5)
 - I-03: Cámara ↔ ID de tarjeta persistida
-- I-06: Reporte CSV de contenido de tarjeta
+- I-06: Reporte CSV de contenido de tarjeta ✅
 - I-07: WiFi reanudar subidas + MD5 en móvil
 - I-11: Crear proyecto en un solo paso
 - I-12: Fix "establecer como predeterminado" ✅
