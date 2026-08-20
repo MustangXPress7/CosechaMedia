@@ -2,7 +2,7 @@ import os
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                               QPushButton, QLineEdit, QMessageBox,
                               QGroupBox, QRadioButton, QButtonGroup, QComboBox, QCheckBox,
-                              QFileDialog)
+                              QFileDialog, QSpinBox)
 from PySide6.QtCore import Qt, QSettings
 from app.core.db import db
 from app.ui import theme
@@ -17,8 +17,8 @@ class ProjectWizard(QDialog):
         self.on_finished_callback = on_finished_callback
         self.on_cancel_callback = on_cancel_callback
         self.setWindowTitle(self.tr("Nuevo Proyecto"))
-        self.setMinimumWidth(600)
-        self.setMinimumHeight(520)
+        self.setMinimumWidth(660)
+        self.setMinimumHeight(620)
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(32, 24, 32, 24)
@@ -108,6 +108,47 @@ class ProjectWizard(QDialog):
         config_row.addWidget(org_group, 1)
         
         self.layout.addLayout(config_row)
+
+        config_row2 = QHBoxLayout()
+
+        detect_group = QGroupBox(self.tr("Detección de cámara"))
+        detect_layout = QVBoxLayout(detect_group)
+        self.detect_combo = QComboBox()
+        self.detect_combo.addItems([
+            self.tr("Automática (ffprobe)"),
+            self.tr("Manual (preguntar)")
+        ])
+        self.detect_combo.setMinimumHeight(36)
+        detect_layout.addWidget(self.detect_combo)
+        self.spin_detect_timeout = QSpinBox()
+        self.spin_detect_timeout.setRange(1, 30)
+        self.spin_detect_timeout.setValue(5)
+        self.spin_detect_timeout.setSuffix(" s")
+        self.spin_detect_timeout.setToolTip(self.tr("Tiempo máximo de espera para auto-detección"))
+        timeout_row = QHBoxLayout()
+        timeout_row.addWidget(QLabel(self.tr("Timeout:")))
+        timeout_row.addWidget(self.spin_detect_timeout)
+        timeout_row.addStretch()
+        detect_layout.addLayout(timeout_row)
+        config_row2.addWidget(detect_group, 1)
+
+        proxy_group = QGroupBox(self.tr("Proxies y rendimiento"))
+        proxy_layout = QVBoxLayout(proxy_group)
+        self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies"))
+        self.chk_generate_proxies.setToolTip(self.tr("Crear copias de baja resolución para edición ligera"))
+        proxy_layout.addWidget(self.chk_generate_proxies)
+        self.proxy_combo = QComboBox()
+        self.proxy_combo.addItems(["720p", "1080p"])
+        self.proxy_combo.setMinimumHeight(36)
+        self.proxy_combo.setEnabled(False)
+        self.chk_generate_proxies.toggled.connect(self.proxy_combo.setEnabled)
+        proxy_layout.addWidget(self.proxy_combo)
+        self.chk_delicate_mode = QCheckBox(self.tr("Modo delicado (1 hilo)"))
+        self.chk_delicate_mode.setToolTip(self.tr("Reduce carga del sistema — recomendado en máquinas lentas"))
+        proxy_layout.addWidget(self.chk_delicate_mode)
+        config_row2.addWidget(proxy_group, 1)
+
+        self.layout.addLayout(config_row2)
         
         btn_row = QHBoxLayout()
         btn_row.addStretch()
@@ -137,6 +178,18 @@ class ProjectWizard(QDialog):
         self.chk_use_metadata_date.setChecked(
             settings.value("default_use_metadata_date", True, type=bool)
         )
+        saved_detect = settings.value("camera_detection_mode", "auto")
+        self.detect_combo.setCurrentIndex(0 if saved_detect == "auto" else 1)
+        self.spin_detect_timeout.setValue(
+            settings.value("camera_detection_timeout", 5, type=int))
+        self.chk_generate_proxies.setChecked(
+            settings.value("default_generate_proxies", False, type=bool))
+        saved_proxy_res = settings.value("default_proxy_resolution", "720p")
+        idx = self.proxy_combo.findText(saved_proxy_res)
+        if idx >= 0:
+            self.proxy_combo.setCurrentIndex(idx)
+        self.chk_delicate_mode.setChecked(
+            settings.value("default_delicate_mode", False, type=bool))
         
     def _browse_dest(self):
         folder = QFileDialog.getExistingDirectory(
@@ -175,13 +228,23 @@ class ProjectWizard(QDialog):
                     description = ?,
                     duration_type = ?,
                     organization_type = ?,
-                    use_metadata_date = ?
+                    use_metadata_date = ?,
+                    camera_detection_mode = ?,
+                    camera_detection_timeout = ?,
+                    generate_proxies = ?,
+                    proxy_resolution = ?,
+                    delicate_mode = ?
                 WHERE id = ?
             ''', (
                 self.desc_input.text().strip(),
                 duration_type,
                 org_type,
                 self.chk_use_metadata_date.isChecked(),
+                "auto" if self.detect_combo.currentIndex() == 0 else "manual",
+                self.spin_detect_timeout.value(),
+                self.chk_generate_proxies.isChecked(),
+                self.proxy_combo.currentText(),
+                self.chk_delicate_mode.isChecked(),
                 project_id
             ))
             

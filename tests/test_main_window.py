@@ -556,5 +556,62 @@ class TestSessionCRUD(unittest.TestCase):
         ing.executor.shutdown(wait=True)
 
 
+class TestProjectWizard(unittest.TestCase):
+    """Verifica que el wizard de proyecto (I-11) guarda todos los campos."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_wizard_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "wiz.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+
+    def tearDown(self):
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_wizard_saves_new_fields(self):
+        from app.ui.project_wizard import ProjectWizard
+        import app.ui.project_wizard as pw_mod
+        orig_pw_db = pw_mod.db
+        pw_mod.db = self.db
+        result = {}
+        def on_finished(pid):
+            result['pid'] = pid
+        try:
+            wizard = ProjectWizard(on_finished)
+            wizard.name_input.setText("Test Project")
+            wizard.desc_input.setText("A test")
+            wizard.dest_input.setText(self.tmp)
+            wizard.detect_combo.setCurrentIndex(1)  # Manual
+            wizard.spin_detect_timeout.setValue(10)
+            wizard.chk_generate_proxies.setChecked(True)
+            wizard.proxy_combo.setCurrentText("1080p")
+            wizard.chk_delicate_mode.setChecked(True)
+            wizard.finish_wizard()
+            self.assertIn('pid', result)
+            conn = self.db.get_connection()
+            row = conn.execute(
+                "SELECT camera_detection_mode, camera_detection_timeout, "
+                "generate_proxies, proxy_resolution, delicate_mode "
+                "FROM projects WHERE id = ?", (result['pid'],)
+            ).fetchone()
+            conn.close()
+            self.assertIsNotNone(row)
+            self.assertEqual(row[0], "manual")
+            self.assertEqual(row[1], 10)
+            self.assertEqual(row[2], 1)
+            self.assertEqual(row[3], "1080p")
+            self.assertEqual(row[4], 1)
+        finally:
+            pw_mod.db = orig_pw_db
+
+
 if __name__ == "__main__":
     unittest.main()
