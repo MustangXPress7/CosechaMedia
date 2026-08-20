@@ -3,7 +3,7 @@ import sqlite3
 import os
 import sys
 from datetime import datetime
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 def _resolve_db_path() -> str:
     if getattr(sys, "frozen", False):
@@ -257,6 +257,13 @@ class DatabaseManager:
         ds_cols = [row[1] for row in cursor.fetchall()]
         if "nombre_dispositivo" not in ds_cols:
             cursor.execute("ALTER TABLE device_settings ADD COLUMN nombre_dispositivo TEXT")
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        ''')
         default_containers = [
             ".mp4", ".mov", ".avi", ".mkv", ".mxf", ".mts", ".m2ts", ".ts", ".mpg", ".mpeg",
             ".wav", ".mp3", ".aac", ".flac", ".ogg", ".m4a",
@@ -479,8 +486,8 @@ class DatabaseManager:
             '''SELECT id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_dispositivo,
                       use_metadata_date, delicate_mode, created_at, source_path, nombre_dispositivo,
-                      content_filter, device_id, device_folder, enabled, folder_mode
-               FROM sessions WHERE project_id = ? ORDER BY id ASC''',
+                      content_filter, device_id, device_folder, enabled, folder_mode, content_mode
+                FROM sessions WHERE project_id = ? ORDER BY id ASC''',
             (project_id,)
         )
         rows = []
@@ -505,6 +512,7 @@ class DatabaseManager:
                 "device_folder": r[16],
                 "enabled": r[17],
                 "folder_mode": r[18],
+                "content_mode": r[19],
             })
         conn.close()
         return rows
@@ -516,8 +524,8 @@ class DatabaseManager:
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
                       folder_name, organization_type, duration_type, default_dispositivo,
                       use_metadata_date, delicate_mode, created_at, source_path, nombre_dispositivo,
-                      content_filter, device_id, device_folder, enabled, folder_mode
-               FROM sessions WHERE id = ?''',
+                      content_filter, device_id, device_folder, enabled, folder_mode, content_mode
+                FROM sessions WHERE id = ?''',
             (session_id,)
         )
         r = cursor.fetchone()
@@ -545,6 +553,7 @@ class DatabaseManager:
             "device_folder": r[17],
             "enabled": r[18],
             "folder_mode": r[19],
+            "content_mode": r[20],
         }
 
     def get_files_by_session(self, session_id: int):
@@ -560,6 +569,26 @@ class DatabaseManager:
                 for r in cursor.fetchall()]
         conn.close()
         return rows
+
+    def get_last_dump_date_for_session(self, session_id: int) -> Optional[str]:
+        """Devuelve la fecha del último archivo archivado (YYYY-MM-DD) o None si no hay archivos."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            '''SELECT verified_at FROM files 
+               WHERE session_id = ? AND verified_at IS NOT NULL
+               ORDER BY verified_at DESC LIMIT 1''',
+            (session_id,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row and row[0]:
+            try:
+                dt = datetime.strptime(row[0], "%Y-%m-%d %H:%M:%S")
+                return dt.strftime("%Y-%m-%d")
+            except (ValueError, TypeError):
+                return None
+        return None
 
     def update_session_config(self, session_id: int, **kwargs):
         if not kwargs:
@@ -1030,6 +1059,30 @@ class DatabaseManager:
         cursor.execute(
             'INSERT OR REPLACE INTO device_settings (device_key, delicate_mode) VALUES (?, ?)',
             (device_key, int(delicate))
+        )
+        conn.commit()
+        conn.close()
+
+    def get_setting(self, key: str, default=None):
+        """Obtiene un valor de configuración general."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'SELECT value FROM settings WHERE key = ?', (key,)
+        )
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return row[0]
+        return default
+
+    def set_setting(self, key: str, value):
+        """Guarda un valor de configuración general."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+            (key, value)
         )
         conn.commit()
         conn.close()

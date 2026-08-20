@@ -343,7 +343,7 @@ class SelectiveDumpAssistant(QDialog):
     CONTENT_MODE_INTERVAL = "interval"
     CONTENT_MODE_WINDOW = "window"
 
-    def __init__(self, parent=None, source_path=None, project_config=None, mode="dump", auto_scan=True):
+    def __init__(self, parent=None, source_path=None, project_config=None, mode="dump", auto_scan=True, session_id=None):
         super().__init__(parent)
         self._mode = mode
         if mode == "filter":
@@ -360,10 +360,46 @@ class SelectiveDumpAssistant(QDialog):
         self._order_type = ORG_TYPE_MAP.get(cfg.get("organization_type", 0), "camera_first")
         self._default_dispositivo = cfg.get("default_dispositivo") or ""
         self._project_id = cfg.get("project_id")
+        self._session_id = session_id
 
+        # Load session data for content mode persistence and WiFi/FTP restriction
+        self._session_restricted = False
         self.content_filter = None
-        # En modo "filter" el comportamiento por defecto debe ser intervalo para mantener compatibilidad con tests
-        self.content_mode = self.CONTENT_MODE_INTERVAL if mode == "filter" else self.CONTENT_MODE_ALL
+        self.content_mode = self.CONTENT_MODE_ALL
+        if session_id is not None:
+            try:
+                sess = db.get_session(session_id)
+                if sess:
+                    # Restrict mode for WiFi/FTP
+                    device_id = sess.get("device_id") or ""
+                    if str(device_id).startswith("ftp:") or str(device_id).startswith("wifi:"):
+                        self._session_restricted = True
+                        self.content_mode = self.CONTENT_MODE_ALL
+                    else:
+                        saved_mode = sess.get("content_mode") or "all"
+                        if saved_mode in (self.CONTENT_MODE_ALL, self.CONTENT_MODE_INTERVAL, self.CONTENT_MODE_WINDOW):
+                            self.content_mode = saved_mode
+                        else:
+                            if mode == "filter":
+                                self.content_mode = self.CONTENT_MODE_INTERVAL
+                    # Load saved filter if present
+                    raw_filter = sess.get("content_filter")
+                    if raw_filter:
+                        import json
+                        try:
+                            self.content_filter = json.loads(raw_filter)
+                        except Exception:
+                            self.content_filter = None
+                else:
+                    if mode == "filter":
+                        self.content_mode = self.CONTENT_MODE_INTERVAL
+            except Exception:
+                if mode == "filter":
+                    self.content_mode = self.CONTENT_MODE_INTERVAL
+        else:
+            if mode == "filter":
+                self.content_mode = self.CONTENT_MODE_INTERVAL
+
         self.content_text = None
         self._cancel_flag = False
         self._close_when_done = False
@@ -415,7 +451,6 @@ class SelectiveDumpAssistant(QDialog):
         mode_layout = QVBoxLayout(mode_group)
 
         self.radio_all = QRadioButton(self.tr("Todo el contenido"))
-        self.radio_all.setChecked(True)
         self.radio_all.toggled.connect(self._on_content_mode_changed)
         mode_layout.addWidget(self.radio_all)
 
@@ -426,6 +461,27 @@ class SelectiveDumpAssistant(QDialog):
         self.radio_window = QRadioButton(self.tr("X días desde último volcado"))
         self.radio_window.toggled.connect(self._on_content_mode_changed)
         mode_layout.addWidget(self.radio_window)
+
+        # Apply mode and restriction
+        # Block signals while initializing checked state to avoid early _on_content_mode_changed
+        self.radio_all.blockSignals(True)
+        self.radio_interval.blockSignals(True)
+        self.radio_window.blockSignals(True)
+        if self._session_restricted:
+            self.radio_all.setChecked(True)
+            self.radio_interval.setEnabled(False)
+            self.radio_window.setEnabled(False)
+            mode_group.setTitle(self.tr("Modo de contenido (bloqueado para WiFi/FTP)"))
+        else:
+            if self.content_mode == self.CONTENT_MODE_ALL:
+                self.radio_all.setChecked(True)
+            elif self.content_mode == self.CONTENT_MODE_INTERVAL:
+                self.radio_interval.setChecked(True)
+            elif self.content_mode == self.CONTENT_MODE_WINDOW:
+                self.radio_window.setChecked(True)
+        self.radio_all.blockSignals(False)
+        self.radio_interval.blockSignals(False)
+        self.radio_window.blockSignals(False)
 
         layout.addWidget(mode_group)
 
@@ -768,10 +824,36 @@ class SelectiveDumpAssistant(QDialog):
         if self.content_mode == self.CONTENT_MODE_ALL:
             self.content_filter = None
         elif self.content_mode == self.CONTENT_MODE_INTERVAL:
-            self.content_filter = {"dates": dates, "include_nodate": include_nodate}
+            # Normalize: full selection with no extra flags => no filter
+            all_dates = set(by_date.keys())
+            selected_dates = set(dates)
+            if selected_dates == all_dates and not include_nodate and not no_date:
+                self.content_filter = None
+            else:
+                self.content_filter = {"dates": dates, "include_nodate": include_nodate}
         elif self.content_mode == self.CONTENT_MODE_WINDOW:
-            # Modo ventana: usar los días seleccionados como filtro de ventana
-            self.content_filter = {"dates": dates, "include_nodate": include_nodate}
+            last_dump_date = None
+            if self._session_id is not None:
+                try:
+                    last_dump_date = db.get_last_dump_date_for_session(self._session_id)
+                except Exception:
+                    last_dump_date = None
+            
+            if last_dump_date:
+                from datetime import datetime, timedelta
+                try:
+                    last_date = datetime.strptime(last_dump_date, "%Y-%m-%d").date()
+                    window_days = db.get_setting("window_days_default", 7)
+                    cutoff = last_date - timedelta(days=window_days)
+                    self.content_filter = {
+                        "cutoff_date": cutoff.strftime("%Y-%m-%d"),
+                        "window_days": window_days,
+                        "include_nodate": include_nodate,
+                    }
+                except (ValueError, TypeError):
+                    self.content_filter = {"window_days": 7, "include_nodate": include_nodate}
+            else:
+                self.content_filter = {"window_days": 7, "include_nodate": include_nodate}
         else:
             self.content_filter = None
 
