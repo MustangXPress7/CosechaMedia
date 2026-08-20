@@ -257,6 +257,15 @@ class MetadataEngine:
                 metadata["file_size"] = os.path.getsize(file_path)
             except OSError:
                 pass
+            ext = os.path.splitext(file_path)[1].lower()
+            image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
+            raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
+            if ext in image_extensions or ext in raw_extensions:
+                metadata["is_image"] = True
+                camera_from_ext = self._camera_from_extension(ext)
+                if camera_from_ext and camera_from_ext != "Unknown":
+                    metadata["camera_model"] = camera_from_ext
+                    metadata["camera_make"] = camera_from_ext
             self._finalize_dates(metadata, file_path)
             return metadata
         except Exception as e:
@@ -270,6 +279,15 @@ class MetadataEngine:
                 metadata["file_size"] = os.path.getsize(file_path)
             except OSError:
                 pass
+            ext = os.path.splitext(file_path)[1].lower()
+            image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
+            raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
+            if ext in image_extensions or ext in raw_extensions:
+                metadata["is_image"] = True
+                camera_from_ext = self._camera_from_extension(ext)
+                if camera_from_ext and camera_from_ext != "Unknown":
+                    metadata["camera_model"] = camera_from_ext
+                    metadata["camera_make"] = camera_from_ext
             self._finalize_dates(metadata, file_path)
             return metadata
 

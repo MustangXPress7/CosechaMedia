@@ -9,7 +9,8 @@ def _resolve_db_path() -> str:
     if getattr(sys, "frozen", False):
         base_dir = os.path.dirname(sys.executable)
     else:
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from pathlib import Path
+        base_dir = str(Path(__file__).resolve().parents[2])
     data_dir = os.path.join(base_dir, "data")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "sd_import.db")

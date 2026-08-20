@@ -2430,13 +2430,17 @@ class MainWindow(QMainWindow):
 
         self._set_camera_cell_text(source_path, "🔄 Escaneando…")
         import threading
+        import uuid
+        detection_id = uuid.uuid4().hex
+        self._cam_detection_id = detection_id
         self._cam_timer = QTimer(self)
         self._cam_timer.setSingleShot(True)
-        self._cam_detected = None
         self._cam_scan_scheduled = False
 
         def _apply_detection():
             """Aplica el resultado del scan y muestra prompt (main thread)."""
+            if self._cam_detection_id != detection_id:
+                return
             if self._cam_scan_scheduled:
                 return
             self._cam_scan_scheduled = True
@@ -2460,6 +2464,8 @@ class MainWindow(QMainWindow):
         self._cam_timer.start(self.project_camera_detection_timeout * 1000)
 
         def scan():
+            if self._cam_detection_id != detection_id:
+                return
             smallest = self._find_smallest_media(source_path)
             if smallest is None:
                 self._cam_detected = None
@@ -2477,7 +2483,6 @@ class MainWindow(QMainWindow):
             self._cam_detected = None
             QTimer.singleShot(0, _apply_detection)
 
-        self._cam_done = False
         t = threading.Thread(target=scan, daemon=True)
         t.start()
 
@@ -3908,11 +3913,45 @@ class MainWindow(QMainWindow):
         try:
             conn = db.get_connection()
             cursor = conn.cursor()
+            # Recoger device_ids y serials de las sesiones que se van a borrar
+            cursor.execute(
+                'SELECT device_id, source_path FROM sessions WHERE project_id = ?',
+                (self.current_project_id,))
+            sessions_data = cursor.fetchall()
+            device_ids = set()
+            volume_serials = set()
+            for row in sessions_data:
+                did = row[0]
+                if did:
+                    device_ids.add(did)
+            # Obtener seriales de sd_cards para las rutas de origen
+            for row in sessions_data:
+                sp = row[1]
+                if sp:
+                    serial = sd_reader.get_volume_serial(sp)
+                    if serial:
+                        volume_serials.add(serial)
+
             cursor.execute('DELETE FROM dump_locations WHERE project_id = ?', (self.current_project_id,))
             cursor.execute('DELETE FROM files WHERE session_id IN (SELECT id FROM sessions WHERE project_id = ?)', (self.current_project_id,))
             cursor.execute('DELETE FROM sessions WHERE project_id = ?', (self.current_project_id,))
             cursor.execute('DELETE FROM cameras WHERE project_id = ?', (self.current_project_id,))
             cursor.execute('DELETE FROM projects WHERE id = ?', (self.current_project_id,))
+
+            # Limpiar dispositivos fantasma (solo si no los usa otro proyecto)
+            for did in device_ids:
+                cursor.execute(
+                    'SELECT COUNT(*) FROM sessions WHERE device_id = ? AND project_id != ?',
+                    (did, self.current_project_id))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('DELETE FROM device_settings WHERE device_key = ?', (did,))
+            for serial in volume_serials:
+                cursor.execute(
+                    'SELECT COUNT(*) FROM sessions WHERE source_path IS NOT NULL AND project_id != ?',
+                    (self.current_project_id,))
+                if cursor.fetchone()[0] == 0:
+                    cursor.execute('DELETE FROM sd_cards WHERE serial = ?', (serial,))
+
             conn.commit()
             conn.close()
 

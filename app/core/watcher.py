@@ -44,7 +44,12 @@ class FileSystemWatcher:
                             self.ingestor.handle_new_file(path)
                         scanned_files[path] = None
                 
-                # Evict oldest entries when over cap (preserves current-file history)
+                # Evict entries for files that no longer exist on disk
+                stale = [k for k in scanned_files if not os.path.exists(k)]
+                for k in stale:
+                    del scanned_files[k]
+                
+                # Hard cap fallback: evict oldest entries if still over limit
                 while len(scanned_files) > 10000:
                     scanned_files.popitem(last=False)
                 

@@ -65,16 +65,17 @@ class TestCameraDetectionToken(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_token_increments_on_each_detection(self):
-        """Cada llamada a _detect_camera_for_session resetea _cam_done."""
+        """Cada llamada a _detect_camera_for_session genera un nuevo detection_id."""
         src = os.path.join(self.tmp, "src1")
         os.makedirs(src)
         sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
-        self.window._cam_done = True
+        old_id = getattr(self.window, '_cam_detection_id', None)
         self.window._detect_camera_for_session(sid, src)
-        self.assertFalse(self.window._cam_done)
+        new_id = getattr(self.window, '_cam_detection_id', None)
+        self.assertNotEqual(old_id, new_id)
 
     def test_old_timer_is_stopped(self):
-        """El flag _cam_done se resetea al iniciar una nueva detección."""
+        """El detection_id se cambia al iniciar una nueva detección."""
         src1 = os.path.join(self.tmp, "src1")
         src2 = os.path.join(self.tmp, "src2")
         os.makedirs(src1)
@@ -83,18 +84,19 @@ class TestCameraDetectionToken(unittest.TestCase):
         sid2 = self.db.create_session(self.pid, "S2", "2024-01-02", "active", src2)
         self.window.project_camera_detection_timeout = 60
         self.window._detect_camera_for_session(sid1, src1)
-        self.assertFalse(self.window._cam_done)
+        id1 = self.window._cam_detection_id
         self.window._detect_camera_for_session(sid2, src2)
-        self.assertFalse(self.window._cam_done)
+        id2 = self.window._cam_detection_id
+        self.assertNotEqual(id1, id2)
 
     def test_stale_token_does_not_overwrite(self):
-        """Un _cam_done=True previo se resetea por la nueva detección."""
-        self.window._cam_done = True
+        """Un detection_id previo se reemplaza por la nueva detección."""
+        self.window._cam_detection_id = "stale_token"
         src = os.path.join(self.tmp, "src_stale")
         os.makedirs(src)
         sid = self.db.create_session(self.pid, "S_stale", "2024-01-01", "active", src)
         self.window._detect_camera_for_session(sid, src)
-        self.assertFalse(self.window._cam_done)
+        self.assertNotEqual(self.window._cam_detection_id, "stale_token")
 
 
 class TestCameraPersistence(unittest.TestCase):
