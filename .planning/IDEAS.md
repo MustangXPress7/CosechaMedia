@@ -55,6 +55,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | I-16 | **Configuración por defecto de orígenes en el proyecto**: apartado en la configuración del proyecto para tocar modo rápido/delicado y tipo de volcado por defecto | Proyectos | nuevo feature | Abierta |
 | I-17 | **Configuración de orígenes en proyecto nuevo**: al crear un nuevo proyecto, aparecer también la configuración de orígenes entrantes predefinidos | Proyectos | nuevo feature | Abierta |
 | I-18 | **Filtrado de volcado por sesión**: decidir si el parámetro de volcado (modo todo/intervalo/ventana) lo controla la sesión o el origen, una vez que la sesión decide ese parámetro. Mover a sesiones y no ponerlo en orígenes. **Nota**: Para los modos WiFi y FTP, el modo de volcado queda bloqueado por la compatibilidad de su sistema y sería "todo" por defecto, ya que no admiten selección parcial de contenido. | Sesiones | nuevo feature | Por definir |
+| I-19 | **Revisar aplicación de temas claro/oscuro en ventanas**: verificar que la transición y aplicación de temas oscuros y claros funcione correctamente en todas las ventanas y diálogos, especialmente después de cambios de configuración y en modo congelado (PyInstaller). Detectar posibles desajustes visuales, QSS no aplicados o fallback a valores por defecto. | UI | uso | Por definir |
 
 ## Rutas futuras (candidatas a fase)
 
