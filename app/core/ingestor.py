@@ -146,6 +146,7 @@ class Ingestor(QObject):
         self.max_workers = 1 if delicate_mode else max_workers
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
         self.processed_files = set()
+        self._processed_lock = threading.Lock()
         self._stop_event = threading.Event()
 
         self.dump_targets: List[DumpTarget] = dump_targets or []
@@ -195,9 +196,11 @@ class Ingestor(QObject):
 
     def _save_copied_files(self):
         try:
+            with self._processed_lock:
+                copied = list(self._copied_files)
             with open(self._session_file, 'w') as f:
                 json.dump({
-                    "copied_files": list(self._copied_files),
+                    "copied_files": copied,
                     "last_update": datetime.now().isoformat()
                 }, f, indent=2)
         except Exception:
@@ -236,16 +239,15 @@ class Ingestor(QObject):
             return self._inflight == 0
 
     def handle_new_file(self, source_path: str):
-        if source_path in self.processed_files:
-            return
-        
-        if source_path in self._copied_files:
-            with self._stats_lock:
-                self._stats["skipped"] += 1
-            return
-        
-        if self._stop_event.is_set():
-            return
+        with self._processed_lock:
+            if source_path in self.processed_files:
+                return
+            if source_path in self._copied_files:
+                with self._stats_lock:
+                    self._stats["skipped"] += 1
+                return
+            if self._stop_event.is_set():
+                return
 
         if self._content_filter and not self._matches_filter(source_path):
             with self._stats_lock:
@@ -262,7 +264,8 @@ class Ingestor(QObject):
                     (source_path,)
                 )
                 if cursor.fetchone() is not None:
-                    self._copied_files.add(source_path)
+                    with self._processed_lock:
+                        self._copied_files.add(source_path)
                     with self._stats_lock:
                         self._stats["skipped"] += 1
                     conn.close()
@@ -271,7 +274,8 @@ class Ingestor(QObject):
             except Exception:
                 pass
 
-        self.processed_files.add(source_path)
+        with self._processed_lock:
+            self.processed_files.add(source_path)
         
         file_info = metadata_engine.get_file_type_info(source_path)
         
@@ -317,7 +321,8 @@ class Ingestor(QObject):
                 conn.commit()
                 conn.close()
 
-            self._copied_files.add(source_path)
+            with self._processed_lock:
+                self._copied_files.add(source_path)
             self._save_copied_files()
         except Exception as e:
             print(f"Error copying reference file {source_path}: {e}")
@@ -399,7 +404,8 @@ class Ingestor(QObject):
                 conn.commit()
                 conn.close()
 
-            self._copied_files.add(source_path)
+            with self._processed_lock:
+                self._copied_files.add(source_path)
             self._save_copied_files()
 
             with self._stats_lock:
@@ -606,10 +612,22 @@ def generate_integrity_report(session_id: int, output_path: str) -> bool:
     try:
         with open(output_path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
+            # Cabecera de sesión
             writer.writerow(['Sesión', session.get('name', ''),
                              'Fecha', session.get('date', ''),
                              'Cámara', session.get('nombre_dispositivo', '')])
             writer.writerow([])
+            # Resumen
+            total_size = sum(fi.get('file_size', 0) or 0 for fi in files)
+            verified = sum(1 for fi in files if fi.get('status') == 'completed')
+            errors = sum(1 for fi in files if fi.get('status') == 'error')
+            writer.writerow(['Resumen'])
+            writer.writerow(['Total archivos', len(files),
+                             'Verificados', verified,
+                             'Errores', errors,
+                             'Tamaño total', total_size])
+            writer.writerow([])
+            # Detalle por archivo
             writer.writerow(['Origen', 'Destino', 'Tamaño (bytes)',
                              'MD5', 'Estado', 'Verificado el'])
             for fi in files:

@@ -238,11 +238,97 @@ class TestIntegrityReport(unittest.TestCase):
         self.assertIn("clip.mp4", content)
         self.assertIn("abc123", content)
         self.assertIn("Report Session", content)
+        self.assertIn("Resumen", content)
+        self.assertIn("Total archivos", content)
+        self.assertIn("Verificados", content)
 
     def test_returns_false_for_invalid_session(self):
         out = os.path.join(self.tmp, "report2.csv")
         result = generate_integrity_report(99999, out)
         self.assertFalse(result)
+
+
+class TestSessionCRUD(unittest.TestCase):
+    """Verifica operaciones CRUD de sesiones en MainWindow."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_session_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_session_create_and_list(self):
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", "/src1")
+        sessions = self.db.get_sessions(self.pid)
+        self.assertEqual(len(sessions), 1)
+        self.assertEqual(sessions[0]["name"], "S1")
+
+    def test_session_update_config(self):
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", "/src1")
+        self.db.update_session_config(sid, nombre_dispositivo="Canon R5")
+        session = self.db.get_session(sid)
+        self.assertEqual(session["nombre_dispositivo"], "Canon R5")
+
+    def test_session_delete(self):
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", "/src1")
+        self.db.delete_session(sid)
+        sessions = self.db.get_sessions(self.pid)
+        self.assertEqual(len(sessions), 0)
+
+    def test_ingestor_creation_with_params(self):
+        from app.core.ingestor import Ingestor
+        ing = Ingestor(
+            self.pid, self.tmp,
+            folder_name="Footage",
+            use_metadata_date=True,
+            order_type="camera_first",
+            duration_type=1,
+            default_dispositivo="TestCam",
+            delicate_mode=False,
+            session_id=1,
+            camera_map={"/src": "TestCam"},
+        )
+        self.assertEqual(ing.default_dispositivo, "TestCam")
+        self.assertEqual(ing._source_dispositivo_map, {"/src": "TestCam"})
+        self.assertFalse(ing.delicate_mode)
+        self.assertEqual(ing.max_workers, 4)
+        ing.stop()
+        ing.executor.shutdown(wait=True)
+
+    def test_ingestor_delicate_mode_limits_workers(self):
+        from app.core.ingestor import Ingestor
+        ing = Ingestor(self.pid, self.tmp, delicate_mode=True)
+        self.assertEqual(ing.max_workers, 1)
+        ing.stop()
+        ing.executor.shutdown(wait=True)
 
 
 if __name__ == "__main__":
