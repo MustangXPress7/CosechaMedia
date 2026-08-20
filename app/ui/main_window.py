@@ -348,7 +348,7 @@ class MainWindow(QMainWindow):
         self.project_path_label.setStyleSheet(f"color: {theme.color('accent')}; font-size: 11px; font-weight: bold;")
         self.project_path_label.setMaximumWidth(420)
         self.project_path_label.setSizePolicy(
-            QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred))
+            QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
         hb.addWidget(self.project_path_label)
 
         hb.addStretch()
@@ -2295,9 +2295,37 @@ class MainWindow(QMainWindow):
                 self.ingest_status_label.setText(self.tr("Origen habilitado: %1").arg(path))
         else:
             if with_path:
+                deleted = []
+                disabled = []
                 for s in with_path:
-                    db.update_session_config(s["id"], enabled=0)
-                self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
+                    sid = s["id"]
+                    name = s.get("name", "")
+                    # Eliminar sesiones automáticas creadas al seleccionar origen
+                    if name.startswith("Auto ("):
+                        # detener ingestores asociados si existen
+                        ing = self._wifi_ingestors.pop(sid, None)
+                        if ing is not None:
+                            try:
+                                ing.stop()
+                            except Exception:
+                                pass
+                        db.delete_session(sid)
+                        if self.current_session_id == sid:
+                            self.current_session_id = None
+                        deleted.append(sid)
+                    else:
+                        db.update_session_config(sid, enabled=0)
+                        disabled.append(sid)
+                if deleted:
+                    self.ingest_status_label.setText(self.tr("Sesión auto eliminada para %1").arg(path))
+                    # repoblar lista de orígenes tras borrado
+                    self._populate_source_paths_from_sessions()
+                    self._refresh_source_list()
+                elif disabled:
+                    self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
+                else:
+                    self.ingest_status_label.setText(self.tr("Origen deshabilitado: %1").arg(path))
+            # actualizar vistas
         self._refresh_sessions_combo()
         self.update_start_button_state()
 
@@ -4201,11 +4229,15 @@ class MainWindow(QMainWindow):
                 self, self.tr("Aviso"),
                 self.tr("Activa el origen para configurar su contenido."))
             return
-        dialog = SelectiveDumpAssistant(self, source_path=path, mode="filter")
+        session_id = session.get("id")
+        dialog = SelectiveDumpAssistant(self, source_path=path, mode="filter", session_id=session_id)
         if dialog.exec() == QDialog.Accepted:
             filt = dialog.content_filter
+            mode = dialog.content_mode
             db.update_session_config(
-                session["id"], content_filter=json.dumps(filt) if filt else None)
+                session_id, 
+                content_filter=json.dumps(filt) if filt else None,
+                content_mode=mode)
             self._refresh_source_list()
             self.ingest_status_label.setText(
                 self.tr("Contenido del origen %1: %2").arg(path).arg(dialog.content_text))
