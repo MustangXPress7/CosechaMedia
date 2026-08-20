@@ -50,7 +50,7 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | **v1.5** |
 | I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | ✅ Hecho |
 | I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear | Ingesta/UI | nuevo feature | **v2.0** — ligada a I-01 |
-| I-14 | **Forzar nombre de cámara al registrar origen** | Detección/UX | uso | Abierta — requiere I-03 como base; cross-platform: Windows auto-detecta SD/MTP, macOS/Linux prompt manual la primera vez |
+| I-14 | **Forzar nombre de cámara al registrar origen** | Detección/UX | uso | ✅ Implementado — `force_prompt=True` en `_assign_folder_source`; skipped si cámara conocida (I-03) |
 | I-15 | **Interruptor de contenido en volcado selectivo**: switch para controlar si volcar todo el contenido, un intervalo de días, o X días desde el último volcado (ventana nueva). Reemplaza el calendario de selección por modo de filtro predefinido | Ingesta | nuevo feature | Abierta |
 | I-16 | **Configuración por defecto de orígenes en el proyecto**: apartado en la configuración del proyecto para tocar modo rápido/delicado y tipo de volcado por defecto | Proyectos | nuevo feature | Abierta |
 | I-17 | **Configuración de orígenes en proyecto nuevo**: al crear un nuevo proyecto, aparecer también la configuración de orígenes entrantes predefinidos | Proyectos | nuevo feature | Abierta |
