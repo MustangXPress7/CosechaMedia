@@ -21,6 +21,7 @@ import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
 from app.core.ingestor import _free_space, generate_integrity_report
+from app.core.sd_reader import sd_reader
 
 
 class TestCameraDetectionToken(unittest.TestCase):
@@ -94,6 +95,94 @@ class TestCameraDetectionToken(unittest.TestCase):
         sid = self.db.create_session(self.pid, "S_stale", "2024-01-01", "active", src)
         self.window._detect_camera_for_session(sid, src)
         self.assertFalse(self.window._cam_done)
+
+
+class TestCameraPersistence(unittest.TestCase):
+    """Verifica persistencia de cámara en DB (I-03): sd_cards y device_settings."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_persist_")
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "persist.db"))
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "manual"
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_known_sd_card_auto_fills(self):
+        from unittest.mock import patch
+        src = os.path.join(self.tmp, "card")
+        os.makedirs(src)
+        self.db.save_dispositivo("AAAA1111", "Canon C300")
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        with patch.object(sd_reader, 'get_volume_serial', return_value="AAAA1111"):
+            self.window._detect_camera_for_session(sid, src)
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Canon C300")
+
+    def test_known_device_auto_fills(self):
+        src = os.path.join(self.tmp, "mtp")
+        os.makedirs(src)
+        self.db.save_dispositivo_config("mtp:ABC", "Sony FX6")
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        conn = self.db.get_connection()
+        conn.execute("UPDATE sessions SET device_id = ? WHERE id = ?",
+                     ("mtp:ABC", sid))
+        conn.commit()
+        conn.close()
+        self.window._detect_camera_for_session(sid, src)
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Sony FX6")
+
+    def test_persist_after_rename(self):
+        src = os.path.join(self.tmp, "card2")
+        os.makedirs(src)
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        self.window._persist_camera_mapping(sid, src, "RED V-Raptor")
+        serial = self.db.get_connection().execute(
+            "SELECT serial FROM sd_cards LIMIT 1"
+        ).fetchone()
+        if serial:
+            cam = self.db.get_dispositivo_for_card(serial[0])
+            self.assertEqual(cam, "RED V-Raptor")
+
+    def test_persist_after_prompt(self):
+        src = os.path.join(self.tmp, "card3")
+        os.makedirs(src)
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        self.window._persist_camera_mapping(sid, src, "ARRI Alexa")
+        serial = self.db.get_connection().execute(
+            "SELECT serial FROM sd_cards LIMIT 1"
+        ).fetchone()
+        if serial:
+            cam = self.db.get_dispositivo_for_card(serial[0])
+            self.assertEqual(cam, "ARRI Alexa")
 
 
 class TestRenameCamera(unittest.TestCase):
