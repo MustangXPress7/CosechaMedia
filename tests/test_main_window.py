@@ -10,6 +10,7 @@ import time
 import tempfile
 import shutil
 import unittest
+from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -185,6 +186,77 @@ class TestCameraPersistence(unittest.TestCase):
         if serial:
             cam = self.db.get_dispositivo_for_card(serial[0])
             self.assertEqual(cam, "ARRI Alexa")
+
+
+class TestForcePromptI14(unittest.TestCase):
+    """I-14: force_prompt muestra el prompt en modo manual cuando no hay cámara conocida."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "test.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "manual"
+
+    def tearDown(self):
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_manual_no_prompt_without_force(self):
+        src = os.path.join(self.tmp, "card")
+        os.makedirs(src)
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
+            m.return_value = ("", False)
+            self.window._detect_camera_for_session(sid, src, force_prompt=False)
+        m.assert_not_called()
+
+    def test_manual_prompt_with_force(self):
+        src = os.path.join(self.tmp, "card")
+        os.makedirs(src)
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
+            m.return_value = ("Panasonic S5", True)
+            self.window._detect_camera_for_session(sid, src, force_prompt=True)
+        m.assert_called_once()
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Panasonic S5")
+
+    def test_force_prompt_skipped_when_camera_known(self):
+        src = os.path.join(self.tmp, "card")
+        os.makedirs(src)
+        self.db.save_dispositivo_config("mtp:X", "Known Cam")
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        conn = self.db.get_connection()
+        conn.execute("UPDATE sessions SET device_id = ? WHERE id = ?",
+                     ("mtp:X", sid))
+        conn.commit()
+        conn.close()
+        with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
+            self.window._detect_camera_for_session(sid, src, force_prompt=True)
+        m.assert_not_called()
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Known Cam")
 
 
 class TestRenameCamera(unittest.TestCase):

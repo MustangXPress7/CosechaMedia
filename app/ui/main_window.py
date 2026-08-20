@@ -2394,11 +2394,13 @@ class MainWindow(QMainWindow):
                 return cam
         return None
 
-    def _detect_camera_for_session(self, session_id, source_path):
+    def _detect_camera_for_session(self, session_id, source_path, force_prompt=False):
         """Detecta la cámara para una sesión. Flujo I-03+I-14:
         1. Buscar nombre conocido (sd_cards por serial o device_settings por device_id)
         2. Auto-rellenar si se conoce → guardar en sesión y volver
         3. Si no se conoce → detección automática (ffprobe) o prompt manual
+        Si force_prompt=True (registro explícito de origen), se muestra el prompt
+        incluso en modo manual si no se detectó cámara.
         """
         # 1. Buscar cámara conocida (I-03)
         sess = db.get_session(session_id)
@@ -2422,10 +2424,11 @@ class MainWindow(QMainWindow):
             self.ingest_status_label.setText(self.tr("Cámara conocida: %1").arg(known_cam))
             return
 
-        # 3. Detección automática (I-14): manual no hace nada aquí; el prompt
-        # se lanza solo en cambio de origen o registro de dispositivo.
+        # 3. Detección automática (I-14)
         if self.project_camera_detection_mode == "manual":
             self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
+            if force_prompt:
+                self._prompt_nombre_dispositivo(session_id, source_path, "")
             return
 
         self._set_camera_cell_text(source_path, "🔄 Escaneando…")
@@ -3146,7 +3149,7 @@ class MainWindow(QMainWindow):
                             self.current_project_id, f"Auto ({base})",
                             QDate.currentDate().toString("yyyy-MM-dd"), "active",
                             source_path=path)
-                    self._detect_camera_for_session(sid, path)
+                    self._detect_camera_for_session(sid, path, force_prompt=True)
         self._refresh_source_list()
         self._refresh_sessions_combo()
         self.update_start_button_state()

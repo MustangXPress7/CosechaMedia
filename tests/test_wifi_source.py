@@ -542,7 +542,8 @@ class TestWifiSource(unittest.TestCase):
         folder = os.path.join(self.tmp, "carpeta-propia")
         os.makedirs(folder, exist_ok=True)
         self.window.project_camera_detection_mode = "manual"
-        with mock.patch.object(mw, "is_removable_drive", return_value=False):
+        with mock.patch.object(mw, "is_removable_drive", return_value=False), \
+             mock.patch.object(mw.QInputDialog, "getText", return_value=("TestCam", True)):
             self.window._assign_session_folder(alice["id"], folder)
         session = self.db.get_session(alice["id"])
         self.assertFalse(session["device_id"])
@@ -696,7 +697,8 @@ class TestWifiSource(unittest.TestCase):
     def test_assign_folder_source_creates_session(self):
         folder = os.path.join(self.tmp, "sd")
         os.makedirs(folder, exist_ok=True)
-        self.window._assign_folder_source(folder)
+        with mock.patch.object(mw.QInputDialog, "getText", return_value=("TestCam", True)):
+            self.window._assign_folder_source(folder)
         sessions = self.db.get_sessions(self.pid)
         self.assertEqual(len(sessions), 1)
         self.assertEqual(sessions[0]["source_path"], folder)
