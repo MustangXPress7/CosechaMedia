@@ -1,6 +1,6 @@
 # BOARD — Estado consolidado CosechaMedia
 
-Última actualización: 2026-08-20
+Última actualización: 2026-08-20 — Bugs 1-5 añadiados por usuario
 Fuente: .planning/STATE.md, IDEAS.md, ROADMAP.md, BACKLOG_UI_V2.md, codebase/CONCERNS.md, PROJECT.md
 
 ## Core Value
@@ -55,6 +55,13 @@ Fase: 00 Bugs conocidos + features v1.5 — STARTING
 - DB path depende de CWD cuando no frozen — db.py _resolve_db_path
 - Doble hash MD5 por copia — ingestor.py
 - Device polling en UI thread — main_window.py _auto_sync_check
+
+### Bugs reportados por usuario 2026-08-20
+- Bug 1: Proyecto en blanco + añadir QR → se añaden todos los QR ya creados. Posible sync_wifi_sessions crea sesiones para todos los senders.
+- Bug 2: Wizard proyecto nuevo muestra opción modo delicado, irrelevante por proyecto, solo por dispositivo.
+- Bug 3: Abrir intervalo de contenido de QR muestra opciones de volcar por días. Integración pobre I15/I18.
+- Bug 4: Ruta maestra no visible en barra superior de la app — B-17. project_path_label con QSizePolicy.Ignored.
+- Bug 5: Al deseleccionar un origen, la sesión automática creada no desaparece.
 
 ### Técnicas resueltas recientemente
 - rename_camera LIKE pattern
