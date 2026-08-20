@@ -593,13 +593,12 @@ class TestProjectWizard(unittest.TestCase):
             wizard.spin_detect_timeout.setValue(10)
             wizard.chk_generate_proxies.setChecked(True)
             wizard.proxy_combo.setCurrentText("1080p")
-            wizard.chk_delicate_mode.setChecked(True)
             wizard.finish_wizard()
             self.assertIn('pid', result)
             conn = self.db.get_connection()
             row = conn.execute(
                 "SELECT camera_detection_mode, camera_detection_timeout, "
-                "generate_proxies, proxy_resolution, delicate_mode "
+                "generate_proxies, proxy_resolution "
                 "FROM projects WHERE id = ?", (result['pid'],)
             ).fetchone()
             conn.close()
@@ -608,7 +607,6 @@ class TestProjectWizard(unittest.TestCase):
             self.assertEqual(row[1], 10)
             self.assertEqual(row[2], 1)
             self.assertEqual(row[3], "1080p")
-            self.assertEqual(row[4], 1)
         finally:
             pw_mod.db = orig_pw_db
 

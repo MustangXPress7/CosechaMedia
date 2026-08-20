@@ -143,9 +143,6 @@ class ProjectWizard(QDialog):
         self.proxy_combo.setEnabled(False)
         self.chk_generate_proxies.toggled.connect(self.proxy_combo.setEnabled)
         proxy_layout.addWidget(self.proxy_combo)
-        self.chk_delicate_mode = QCheckBox(self.tr("Modo delicado (1 hilo)"))
-        self.chk_delicate_mode.setToolTip(self.tr("Reduce carga del sistema — recomendado en máquinas lentas"))
-        proxy_layout.addWidget(self.chk_delicate_mode)
         config_row2.addWidget(proxy_group, 1)
 
         self.layout.addLayout(config_row2)
@@ -188,8 +185,6 @@ class ProjectWizard(QDialog):
         idx = self.proxy_combo.findText(saved_proxy_res)
         if idx >= 0:
             self.proxy_combo.setCurrentIndex(idx)
-        self.chk_delicate_mode.setChecked(
-            settings.value("default_delicate_mode", False, type=bool))
         
     def _browse_dest(self):
         folder = QFileDialog.getExistingDirectory(
@@ -232,8 +227,7 @@ class ProjectWizard(QDialog):
                     camera_detection_mode = ?,
                     camera_detection_timeout = ?,
                     generate_proxies = ?,
-                    proxy_resolution = ?,
-                    delicate_mode = ?
+                    proxy_resolution = ?
                 WHERE id = ?
             ''', (
                 self.desc_input.text().strip(),
@@ -244,7 +238,6 @@ class ProjectWizard(QDialog):
                 self.spin_detect_timeout.value(),
                 self.chk_generate_proxies.isChecked(),
                 self.proxy_combo.currentText(),
-                self.chk_delicate_mode.isChecked(),
                 project_id
             ))
             

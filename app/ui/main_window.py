@@ -1559,7 +1559,7 @@ class MainWindow(QMainWindow):
             if dev_delicate is not None:
                 s_delicate = bool(dev_delicate)
             else:
-                s_delicate = self.project_delicate_mode
+                s_delicate = False
 
             # I-18: Modo de contenido desde la sesión, con WiFi/FTP default a "all"
             s_content_mode = sess.get("content_mode", "all")
@@ -3530,7 +3530,7 @@ class MainWindow(QMainWindow):
         if dev_delicate is not None:
             s_delicate = bool(dev_delicate)
         else:
-            s_delicate = self.project_delicate_mode
+            s_delicate = False
         s_content_filter = None
         try:
             raw_filter = session.get("content_filter")
