@@ -1,6 +1,6 @@
 """Tests de regresión para MainWindow y funciones core relacionadas.
 
-Cubre: detección de cámara (token-based), rename_camera (separadores),
+Cubre: detección de cámara (token-based), rename_dispositivo (separadores),
 _free_space, generate_integrity_report, y flujo básico de sesión.
 """
 
@@ -97,7 +97,7 @@ class TestCameraDetectionToken(unittest.TestCase):
 
 
 class TestRenameCamera(unittest.TestCase):
-    """Verifica rename_camera con separadores / y \\."""
+    """Verifica rename_dispositivo con separadores / y \\."""
 
     @classmethod
     def setUpClass(cls):
@@ -125,8 +125,8 @@ class TestRenameCamera(unittest.TestCase):
         self.ing = Ingestor.__new__(Ingestor)
         self.ing.destination_root = self.tmp
         self.ing.folder_name = "Footage"
-        self.ing._camera_mapping = {}
-        self.ing._camera_lock = __import__("threading").Lock()
+        self.ing._dispositivo_mapping = {}
+        self.ing._dispositivo_lock = __import__("threading").Lock()
         self.ing._db_lock = __import__("threading").Lock()
 
     def tearDown(self):
@@ -155,14 +155,14 @@ class TestRenameCamera(unittest.TestCase):
     def test_rename_updates_forward_slash_paths(self):
         sid = "1"
         self._insert_file(sid, "/data/Footage/OLD_CAM/2024-01-01/clip.mp4")
-        self.ing.rename_camera("OLD_CAM", "NEW_CAM")
+        self.ing.rename_dispositivo("OLD_CAM", "NEW_CAM")
         paths = self._get_dest_paths(sid)
         self.assertEqual(paths[0], "/data/Footage/NEW_CAM/2024-01-01/clip.mp4")
 
     def test_rename_updates_backslash_paths(self):
         sid = "2"
         self._insert_file(sid, "D:\\Footage\\OLD_CAM\\2024-01-01\\clip.mp4")
-        self.ing.rename_camera("OLD_CAM", "NEW_CAM")
+        self.ing.rename_dispositivo("OLD_CAM", "NEW_CAM")
         paths = self._get_dest_paths(sid)
         self.assertEqual(paths[0], "D:\\Footage\\NEW_CAM\\2024-01-01\\clip.mp4")
 
@@ -170,7 +170,7 @@ class TestRenameCamera(unittest.TestCase):
         sid = "3"
         self._insert_file(sid, "/data/Footage/OLD_CAM/2024-01-01/clip.mp4")
         self._insert_file(sid, "D:\\Footage\\OLD_CAM\\2024-01-01\\clip2.mp4")
-        self.ing.rename_camera("OLD_CAM", "NEW_CAM")
+        self.ing.rename_dispositivo("OLD_CAM", "NEW_CAM")
         paths = self._get_dest_paths(sid)
         self.assertIn("/data/Footage/NEW_CAM/2024-01-01/clip.mp4", paths)
         self.assertIn("D:\\Footage\\NEW_CAM\\2024-01-01\\clip2.mp4", paths)

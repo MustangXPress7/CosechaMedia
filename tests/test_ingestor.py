@@ -84,12 +84,12 @@ class TestIngestor(unittest.TestCase):
         ing = Ingestor(1, self.dst_dir, session_id=2,
                        camera_map={root: "Alice"})
         self.assertEqual(
-            ing._get_camera_for_file(os.path.join(root, "DCIM", "x.mp4")),
+            ing._get_dispositivo_for_file(os.path.join(root, "DCIM", "x.mp4")),
             "Alice")
-        self.assertEqual(ing._get_camera_for_file(root), "Alice")
+        self.assertEqual(ing._get_dispositivo_for_file(root), "Alice")
         # Un directorio hermano con nombre similar no debe emparejarse.
         self.assertEqual(
-            ing._get_camera_for_file(os.path.join(self.tmp, "inbox", "Alice2", "x.mp4")),
+            ing._get_dispositivo_for_file(os.path.join(self.tmp, "inbox", "Alice2", "x.mp4")),
             "Unknown_Camera")
 
     def test_copy_progress_emitted_by_percent(self):

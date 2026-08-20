@@ -188,7 +188,7 @@ class TestWifiSource(unittest.TestCase):
             sorted(s["device_folder"] for s in sessions),
             ["Alice", "Bob"])
         for s in sessions:
-            self.assertEqual(s["source_path"], inboxmod.wifi_cache_dir(s["camera_name"]))
+            self.assertEqual(s["source_path"], inboxmod.wifi_cache_dir(s["nombre_dispositivo"]))
             self.assertIn(s["source_path"], self.window._source_paths)
         self.assertEqual(self.window.source_list.rowCount(), len(sessions))
 
@@ -441,7 +441,7 @@ class TestWifiSource(unittest.TestCase):
                                      "2026-01-01", "active", source_path=cache)
         self.db.update_session_config(sid, device_id="mtp:pnp123",
                                       device_folder="DCIM",
-                                      camera_name="Canon R5")
+                                       nombre_dispositivo="Canon R5")
         self.window._refresh_sessions_combo()
         idx = self.window.sessions_combo.findData(sid)
         self.assertGreaterEqual(idx, 0)
@@ -477,7 +477,7 @@ class TestWifiSource(unittest.TestCase):
         session = self.db.get_session(sid)
         self.assertEqual(session["device_id"], WIFI_DEVICE_ID)
         self.assertEqual(session["device_folder"], "Alice")
-        self.assertEqual(session["camera_name"], "Alice")
+        self.assertEqual(session["nombre_dispositivo"], "Alice")
         self.assertEqual(session["source_path"], inboxmod.wifi_cache_dir("Alice"))
         self.assertEqual(session["name"], "Rodaje A")
         self.assertEqual(session["destination_override"], custom)
@@ -812,12 +812,12 @@ class TestWifiSource(unittest.TestCase):
         alice = next(s for s in sessions if s["device_folder"] == "Alice")
         ing = self.window._ingestor_for_wifi_session(alice)
         cache = inboxmod.wifi_cache_dir("Alice", db=self.db)
-        cam = ing._get_camera_for_file(
+        cam = ing._get_dispositivo_for_file(
             os.path.join(cache, "DCIM", "100MEDIA", "clip.mp4"))
         self.assertEqual(cam, "Alice")
         # Un remitente distinto no cae en la raíz de Alice.
         bob_cache = inboxmod.wifi_cache_dir("Bob", db=self.db)
-        cam2 = ing._get_camera_for_file(
+        cam2 = ing._get_dispositivo_for_file(
             os.path.join(bob_cache, "clip.mp4"))
         self.assertEqual(cam2, "Unknown_Camera")
 

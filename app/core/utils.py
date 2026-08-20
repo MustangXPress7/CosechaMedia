@@ -12,29 +12,29 @@ def resource_path(relative_path: str) -> str:
     return os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), relative_path)
 
 
-def create_folder_structure(project_root: str, camera_name: str, shoot_date: str, 
+def create_folder_structure(project_root: str, dispositivo_name: str, shoot_date: str, 
                           order_type: str = "camera_first", folder_name: str = "Footage"):
     base_path = os.path.join(project_root, folder_name)
     
     if order_type == "camera_first":
         if shoot_date:
-            path = os.path.join(base_path, camera_name, shoot_date)
+            path = os.path.join(base_path, dispositivo_name, shoot_date)
         else:
-            path = os.path.join(base_path, camera_name)
+            path = os.path.join(base_path, dispositivo_name)
     elif order_type == "date_first":
         if shoot_date:
-            path = os.path.join(base_path, shoot_date, camera_name)
+            path = os.path.join(base_path, shoot_date, dispositivo_name)
         else:
-            path = os.path.join(base_path, camera_name)
+            path = os.path.join(base_path, dispositivo_name)
     elif order_type == "camera_only":
-        path = os.path.join(base_path, camera_name)
+        path = os.path.join(base_path, dispositivo_name)
     elif order_type == "flat":
         path = base_path
     else:
         if shoot_date:
-            path = os.path.join(base_path, camera_name, shoot_date)
+            path = os.path.join(base_path, dispositivo_name, shoot_date)
         else:
-            path = os.path.join(base_path, camera_name)
+            path = os.path.join(base_path, dispositivo_name)
         
     os.makedirs(path, exist_ok=True)
     return path

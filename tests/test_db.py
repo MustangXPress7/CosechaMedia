@@ -32,10 +32,10 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(sess["name"], "Sesión 1")
         self.assertEqual(sess["source_path"], "/src")
 
-        self.db.update_session_config(sid, status="completed", camera_name="Cámara A")
+        self.db.update_session_config(sid, status="completed", nombre_dispositivo="Cámara A")
         sess = self.db.get_session(sid)
         self.assertEqual(sess["status"], "completed")
-        self.assertEqual(sess["camera_name"], "Cámara A")
+        self.assertEqual(sess["nombre_dispositivo"], "Cámara A")
 
         self.db.delete_session(sid)
         self.assertIsNone(self.db.get_session(sid))
@@ -180,7 +180,7 @@ class TestDatabaseManager(unittest.TestCase):
         sess = self.db.get_session(sid)
         self.assertEqual(sess["device_id"], WIFI_DEVICE_ID)
         self.assertEqual(sess["device_folder"], "Alice")
-        self.assertEqual(sess["camera_name"], "Alice")
+        self.assertEqual(sess["nombre_dispositivo"], "Alice")
         self.assertEqual(sess["source_path"], "/inbox/Alice")
         self.assertEqual(sess["destination_override"], "/loc")
         self.assertIn("Alice", sess["name"])
@@ -232,7 +232,7 @@ class TestDatabaseManager(unittest.TestCase):
         self.db.get_or_create_wifi_session(pid, "Bob", source_path="/b")
         rows = self.db.list_wifi_sessions(pid)
         self.assertEqual([r["device_folder"] for r in rows], ["Alice", "Bob"])
-        self.assertEqual([r["camera_name"] for r in rows], ["Alice", "Bob"])
+        self.assertEqual([r["nombre_dispositivo"] for r in rows], ["Alice", "Bob"])
 
     def test_wifi_sessions_are_devices(self):
         from app.core.db import WIFI_DEVICE_ID

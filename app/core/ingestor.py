@@ -75,13 +75,13 @@ def copy_verified(source_path: str, dest_path: str, progress_cb=None):
         return None
 
 
-def _ensure_subfolder(parent: str, camera: str, shoot_date: str,
+def _ensure_subfolder(parent: str, dispositivo: str, shoot_date: str,
                       include_date: bool, include_camera: bool,
                       folder_name: str) -> str:
-    """Builds subpath inside parent: {folder_name}/{camera?}/{date?}."""
+    """Builds subpath inside parent: {folder_name}/{dispositivo?}/{date?}."""
     parts = [parent, folder_name]
-    if include_camera and camera:
-        parts.append(camera)
+    if include_camera and dispositivo:
+        parts.append(dispositivo)
     if include_date and shoot_date:
         parts.append(shoot_date)
     full = os.path.join(*parts)
@@ -124,7 +124,7 @@ class Ingestor(QObject):
     def __init__(self, project_id: int, destination_root: str,
                  folder_name: str = "Footage", use_metadata_date: bool = True,
                  order_type: str = "camera_first", duration_type: int = 1,
-                 default_camera: str = "", delicate_mode: bool = False,
+                 default_dispositivo: str = "", delicate_mode: bool = False,
                  max_workers: int = 4, session_id: Optional[int] = None,
                  dump_targets: Optional[List[DumpTarget]] = None,
                  project_master_root: Optional[str] = None,
@@ -141,7 +141,7 @@ class Ingestor(QObject):
         self.manual_date = manual_date
         self.order_type = order_type
         self.duration_type = duration_type
-        self.default_camera = default_camera
+        self.default_dispositivo = default_dispositivo
         self.delicate_mode = delicate_mode
         self.max_workers = 1 if delicate_mode else max_workers
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
@@ -171,9 +171,9 @@ class Ingestor(QObject):
             "skipped": 0,
             "start_time": time.time()
         }
-        self._camera_mapping = {}
-        self._source_camera_map = dict(camera_map) if camera_map else {}
-        self._camera_lock = threading.Lock()
+        self._dispositivo_mapping = {}
+        self._source_dispositivo_map = dict(camera_map) if camera_map else {}
+        self._dispositivo_lock = threading.Lock()
         self._db_lock = threading.Lock()
         self._stats_lock = threading.Lock()
 
@@ -338,7 +338,7 @@ class Ingestor(QObject):
 
     def _run_single_file(self, source_path: str, file_info: Dict):
         try:
-            known_cam = self._get_camera_for_file(source_path)
+            known_cam = self._get_dispositivo_for_file(source_path)
             metadata = metadata_engine.get_video_metadata(source_path)
             if known_cam != "Unknown_Camera":
                 camera_name = known_cam
@@ -346,17 +346,17 @@ class Ingestor(QObject):
                 camera_name = metadata.get("camera_model", "Unknown_Camera")
                 camera_name = self._sanitize_camera_name(camera_name)
 
-                if camera_name == "Unknown_Camera" and self.default_camera:
-                    camera_name = self.default_camera
+                if camera_name == "Unknown_Camera" and self.default_dispositivo:
+                    camera_name = self.default_dispositivo
 
                 if camera_name == "Unknown_Camera":
                     self.camera_rename_needed.emit(source_path, camera_name)
 
-                self._update_camera_mapping(source_path, camera_name)
+                self._update_dispositivo_mapping(source_path, camera_name)
 
             shoot_date = self._determine_date(metadata)
 
-            actual_camera = self._get_camera_for_file(source_path)
+            actual_camera = self._get_dispositivo_for_file(source_path)
 
             try:
                 file_size = os.path.getsize(source_path)
@@ -484,18 +484,18 @@ class Ingestor(QObject):
         
         return datetime.now().strftime("%Y-%m-%d")
 
-    def _update_camera_mapping(self, file_path: str, camera_name: str):
-        with self._camera_lock:
-            if file_path not in self._camera_mapping:
-                self._camera_mapping[file_path] = camera_name
+    def _update_dispositivo_mapping(self, file_path: str, camera_name: str):
+        with self._dispositivo_lock:
+            if file_path not in self._dispositivo_mapping:
+                self._dispositivo_mapping[file_path] = camera_name
 
-    def _get_camera_for_file(self, file_path: str) -> str:
-        with self._camera_lock:
-            cam = self._camera_mapping.get(file_path)
+    def _get_dispositivo_for_file(self, file_path: str) -> str:
+        with self._dispositivo_lock:
+            cam = self._dispositivo_mapping.get(file_path)
             if cam:
                 return cam
             npath = file_path.replace("\\", "/")
-            for src_root, cam_name in self._source_camera_map.items():
+            for src_root, cam_name in self._source_dispositivo_map.items():
                 nroot = src_root.replace("\\", "/")
                 # Empareja solo la raíz y sus subdirectorios (no "Joan2"
                 # cuando la raíz es "Joan").
@@ -554,7 +554,7 @@ class Ingestor(QObject):
 
 
 
-    def rename_camera(self, old_name: str, new_name: str):
+    def rename_dispositivo(self, old_name: str, new_name: str):
         new_name = self._sanitize_camera_name(new_name)
         if old_name == new_name:
             return
@@ -576,10 +576,10 @@ class Ingestor(QObject):
             except OSError:
                 pass
         
-        with self._camera_lock:
-            for fp, cam in self._camera_mapping.items():
+        with self._dispositivo_lock:
+            for fp, cam in self._dispositivo_mapping.items():
                 if cam == old_name:
-                    self._camera_mapping[fp] = new_name
+                    self._dispositivo_mapping[fp] = new_name
         
         with self._db_lock:
             conn = db.get_connection()
@@ -608,7 +608,7 @@ def generate_integrity_report(session_id: int, output_path: str) -> bool:
             writer = csv.writer(f)
             writer.writerow(['Sesión', session.get('name', ''),
                              'Fecha', session.get('date', ''),
-                             'Cámara', session.get('camera_name', '')])
+                             'Cámara', session.get('nombre_dispositivo', '')])
             writer.writerow([])
             writer.writerow(['Origen', 'Destino', 'Tamaño (bytes)',
                              'MD5', 'Estado', 'Verificado el'])

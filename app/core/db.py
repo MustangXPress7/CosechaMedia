@@ -41,7 +41,7 @@ class DatabaseManager:
                 duration_type INTEGER DEFAULT 1,
                 organization_type INTEGER DEFAULT 0,
                 use_metadata_date BOOLEAN DEFAULT 1,
-                default_camera TEXT DEFAULT '',
+                default_dispositivo TEXT DEFAULT '',
                 folder_name TEXT DEFAULT 'Footage',
                 delicate_mode INTEGER DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -54,7 +54,7 @@ class DatabaseManager:
             ("duration_type", "INTEGER DEFAULT 1"),
             ("organization_type", "INTEGER DEFAULT 0"),
             ("use_metadata_date", "BOOLEAN DEFAULT 1"),
-            ("default_camera", "TEXT DEFAULT ''"),
+            ("default_dispositivo", "TEXT DEFAULT ''"),
             ("folder_name", "TEXT DEFAULT 'Footage'"),
             ("delicate_mode", "INTEGER DEFAULT 0"),
             ("dump_path", "TEXT"),
@@ -103,7 +103,7 @@ class DatabaseManager:
             cursor.execute('DELETE FROM dump_locations')
 
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS cameras (
+            CREATE TABLE IF NOT EXISTS dispositivos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER,
                 name TEXT NOT NULL,
@@ -117,7 +117,7 @@ class DatabaseManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_id INTEGER,
                 name TEXT,
-                camera_id INTEGER,
+                dispositivo_id INTEGER,
                 shoot_date DATE,
                 status TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -125,11 +125,11 @@ class DatabaseManager:
                 folder_name TEXT,
                 organization_type INTEGER,
                 duration_type INTEGER,
-                default_camera TEXT,
+                default_dispositivo TEXT,
                 use_metadata_date INTEGER,
                 delicate_mode INTEGER,
                 FOREIGN KEY (project_id) REFERENCES projects (id),
-                FOREIGN KEY (camera_id) REFERENCES cameras (id)
+                FOREIGN KEY (dispositivo_id) REFERENCES dispositivos (id)
             )
         ''')
 
@@ -143,13 +143,13 @@ class DatabaseManager:
             ("folder_name", "TEXT"),
             ("organization_type", "INTEGER"),
             ("duration_type", "INTEGER"),
-            ("default_camera", "TEXT"),
+            ("default_dispositivo", "TEXT"),
             ("use_metadata_date", "INTEGER"),
             ("delicate_mode", "INTEGER"),
             ("folder_mode", "INTEGER"),
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
             ("source_path", "TEXT"),
-            ("camera_name", "TEXT"),
+            ("nombre_dispositivo", "TEXT"),
             ("content_filter", "TEXT"),
             ("device_id", "TEXT"),
             ("device_folder", "TEXT"),
@@ -186,7 +186,7 @@ class DatabaseManager:
                 brand TEXT,
                 model TEXT,
                 capacity_gb REAL,
-                camera_name TEXT,
+                nombre_dispositivo TEXT,
                 first_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -194,8 +194,8 @@ class DatabaseManager:
 
         cursor.execute("PRAGMA table_info(sd_cards)")
         sd_cols = [row[1] for row in cursor.fetchall()]
-        if "camera_name" not in sd_cols:
-            cursor.execute("ALTER TABLE sd_cards ADD COLUMN camera_name TEXT")
+        if "nombre_dispositivo" not in sd_cols:
+            cursor.execute("ALTER TABLE sd_cards ADD COLUMN nombre_dispositivo TEXT")
 
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS recent_paths (
@@ -252,8 +252,8 @@ class DatabaseManager:
         ''')
         cursor.execute("PRAGMA table_info(device_settings)")
         ds_cols = [row[1] for row in cursor.fetchall()]
-        if "camera_name" not in ds_cols:
-            cursor.execute("ALTER TABLE device_settings ADD COLUMN camera_name TEXT")
+        if "nombre_dispositivo" not in ds_cols:
+            cursor.execute("ALTER TABLE device_settings ADD COLUMN nombre_dispositivo TEXT")
         default_containers = [
             ".mp4", ".mov", ".avi", ".mkv", ".mxf", ".mts", ".m2ts", ".ts", ".mpg", ".mpeg",
             ".wav", ".mp3", ".aac", ".flac", ".ogg", ".m4a",
@@ -474,8 +474,8 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute(
             '''SELECT id, name, shoot_date, status, destination_override,
-                      folder_name, organization_type, duration_type, default_camera,
-                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      folder_name, organization_type, duration_type, default_dispositivo,
+                      use_metadata_date, delicate_mode, created_at, source_path, nombre_dispositivo,
                       content_filter, device_id, device_folder, enabled, folder_mode
                FROM sessions WHERE project_id = ? ORDER BY id ASC''',
             (project_id,)
@@ -491,12 +491,12 @@ class DatabaseManager:
                 "folder_name": r[5],
                 "organization_type": r[6],
                 "duration_type": r[7],
-                "default_camera": r[8],
+                "default_dispositivo": r[8],
                 "use_metadata_date": r[9],
                 "delicate_mode": r[10],
                 "created_at": r[11],
                 "source_path": r[12],
-                "camera_name": r[13],
+                "nombre_dispositivo": r[13],
                 "content_filter": r[14],
                 "device_id": r[15],
                 "device_folder": r[16],
@@ -511,8 +511,8 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute(
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
-                      folder_name, organization_type, duration_type, default_camera,
-                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      folder_name, organization_type, duration_type, default_dispositivo,
+                      use_metadata_date, delicate_mode, created_at, source_path, nombre_dispositivo,
                       content_filter, device_id, device_folder, enabled, folder_mode
                FROM sessions WHERE id = ?''',
             (session_id,)
@@ -531,12 +531,12 @@ class DatabaseManager:
             "folder_name": r[6],
             "organization_type": r[7],
             "duration_type": r[8],
-            "default_camera": r[9],
+            "default_dispositivo": r[9],
             "use_metadata_date": r[10],
             "delicate_mode": r[11],
             "created_at": r[12],
             "source_path": r[13],
-            "camera_name": r[14],
+            "nombre_dispositivo": r[14],
             "content_filter": r[15],
             "device_id": r[16],
             "device_folder": r[17],
@@ -562,9 +562,9 @@ class DatabaseManager:
         if not kwargs:
             return
         allowed = {"destination_override", "folder_name", "organization_type",
-                   "duration_type", "default_camera", "use_metadata_date",
+                   "duration_type", "default_dispositivo", "use_metadata_date",
                    "delicate_mode", "folder_mode", "name", "shoot_date", "status",
-                   "source_path", "camera_name", "content_filter",
+                   "source_path", "nombre_dispositivo", "content_filter",
                    "device_id", "device_folder", "enabled"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
@@ -610,8 +610,8 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute(
             '''SELECT id, project_id, name, shoot_date, status, destination_override,
-                      folder_name, organization_type, duration_type, default_camera,
-                      use_metadata_date, delicate_mode, created_at, source_path, camera_name,
+                      folder_name, organization_type, duration_type, default_dispositivo,
+                      use_metadata_date, delicate_mode, created_at, source_path, nombre_dispositivo,
                       content_filter, device_id, device_folder
                FROM sessions WHERE device_id = ? AND device_id != '' ORDER BY id ASC''',
             (device_id,)
@@ -628,12 +628,12 @@ class DatabaseManager:
                 "folder_name": r[6],
                 "organization_type": r[7],
                 "duration_type": r[8],
-                "default_camera": r[9],
+"default_dispositivo": r[9],
                 "use_metadata_date": r[10],
                 "delicate_mode": r[11],
                 "created_at": r[12],
                 "source_path": r[13],
-                "camera_name": r[14],
+                "nombre_dispositivo": r[14],
                 "content_filter": r[15],
                 "device_id": r[16],
                 "device_folder": r[17],
@@ -796,13 +796,13 @@ class DatabaseManager:
                 # Si el remitente tiene ubicación se aplica; si no, se respeta
                 # el destination_override que el usuario haya configurado.
                 cursor.execute(
-                    "UPDATE sessions SET source_path = ?, camera_name = ?, "
+                    "UPDATE sessions SET source_path = ?, nombre_dispositivo = ?, "
                     "destination_override = ? WHERE id = ?",
                     (source_path, sender_name, location, sid),
                 )
             else:
                 cursor.execute(
-                    "UPDATE sessions SET source_path = ?, camera_name = ? "
+                    "UPDATE sessions SET source_path = ?, nombre_dispositivo = ? "
                     "WHERE id = ?",
                     (source_path, sender_name, sid),
                 )
@@ -811,7 +811,7 @@ class DatabaseManager:
             return sid
         cursor.execute(
             "INSERT INTO sessions (project_id, name, shoot_date, status, "
-            "source_path, camera_name, device_id, device_folder, destination_override) "
+            "source_path, nombre_dispositivo, device_id, device_folder, destination_override) "
             "VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
             (
                 project_id,
@@ -834,7 +834,7 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, name, device_folder, source_path, camera_name, "
+            "SELECT id, name, device_folder, source_path, nombre_dispositivo, "
             "destination_override FROM sessions "
             "WHERE project_id = ? AND device_id = ? ORDER BY id ASC",
             (project_id, WIFI_DEVICE_ID),
@@ -844,7 +844,7 @@ class DatabaseManager:
             "name": r[1],
             "device_folder": r[2],
             "source_path": r[3],
-            "camera_name": r[4],
+            "nombre_dispositivo": r[4],
             "destination_override": r[5],
         } for r in cursor.fetchall()]
         conn.close()
@@ -918,9 +918,9 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def save_card_camera(self, volume_serial: str, camera_name: str, brand: str = None, model: str = None):
+    def save_dispositivo(self, volume_serial: str, nombre_dispositivo: str, brand: str = None, model: str = None):
         """Guarda o actualiza el mapeo serial→cámara para una tarjeta SD."""
-        if not volume_serial or not camera_name:
+        if not volume_serial or not nombre_dispositivo:
             return
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -929,8 +929,8 @@ class DatabaseManager:
         )
         row = cursor.fetchone()
         if row:
-            updates = ['camera_name = ?', 'last_used = CURRENT_TIMESTAMP']
-            params = [camera_name]
+            updates = ['nombre_dispositivo = ?', 'last_used = CURRENT_TIMESTAMP']
+            params = [nombre_dispositivo]
             if brand:
                 updates.append('brand = ?')
                 params.append(brand)
@@ -943,46 +943,46 @@ class DatabaseManager:
             )
         else:
             cursor.execute(
-                'INSERT INTO sd_cards (serial, brand, model, camera_name) VALUES (?, ?, ?, ?)',
-                (volume_serial, brand, model, camera_name)
+                'INSERT INTO sd_cards (serial, brand, model, nombre_dispositivo) VALUES (?, ?, ?, ?)',
+                (volume_serial, brand, model, nombre_dispositivo)
             )
         conn.commit()
         conn.close()
 
-    def get_camera_for_card(self, volume_serial: str):
+    def get_dispositivo_for_card(self, volume_serial: str):
         """Devuelve el nombre de cámara conocido para un serial de tarjeta, o None."""
         if not volume_serial:
             return None
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT camera_name FROM sd_cards WHERE serial = ?', (volume_serial,)
+            'SELECT nombre_dispositivo FROM sd_cards WHERE serial = ?', (volume_serial,)
         )
         row = cursor.fetchone()
         conn.close()
-        if row and row['camera_name']:
-            return row['camera_name']
+        if row and row['nombre_dispositivo']:
+            return row['nombre_dispositivo']
         return None
 
-    def get_camera_for_device(self, device_id: str):
-        """Devuelve el nombre de cámara conocido para un dispositivo MTP/FTP, o None."""
+    def get_dispositivo_for_device(self, device_id: str):
+        """Devuelve el nombre de dispositivo conocido para un dispositivo MTP/FTP, o None."""
         if not device_id:
             return None
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT camera_name FROM device_settings WHERE device_key = ?',
+            'SELECT nombre_dispositivo FROM device_settings WHERE device_key = ?',
             (device_id,)
         )
         row = cursor.fetchone()
         conn.close()
-        if row and row['camera_name']:
-            return row['camera_name']
+        if row and row['nombre_dispositivo']:
+            return row['nombre_dispositivo']
         return None
 
-    def save_device_camera(self, device_id: str, camera_name: str):
+    def save_dispositivo_config(self, device_id: str, nombre_dispositivo: str):
         """Guarda o actualiza el mapeo device_id→cámara para dispositivos MTP/FTP."""
-        if not device_id or not camera_name:
+        if not device_id or not nombre_dispositivo:
             return
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -993,13 +993,13 @@ class DatabaseManager:
         row = cursor.fetchone()
         if row:
             cursor.execute(
-                'UPDATE device_settings SET camera_name = ? WHERE device_key = ?',
-                (camera_name, device_id)
+                'UPDATE device_settings SET nombre_dispositivo = ? WHERE device_key = ?',
+                (nombre_dispositivo, device_id)
             )
         else:
             cursor.execute(
-                'INSERT INTO device_settings (device_key, camera_name) VALUES (?, ?)',
-                (device_id, camera_name)
+                'INSERT INTO device_settings (device_key, nombre_dispositivo) VALUES (?, ?)',
+                (device_id, nombre_dispositivo)
             )
         conn.commit()
         conn.close()

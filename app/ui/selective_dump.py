@@ -353,7 +353,7 @@ class SelectiveDumpAssistant(QDialog):
         self._dest_root = cfg.get("dest_root") or ""
         self._folder_name = cfg.get("folder_name") or "Footage"
         self._order_type = ORG_TYPE_MAP.get(cfg.get("organization_type", 0), "camera_first")
-        self._default_camera = cfg.get("default_camera") or ""
+        self._default_dispositivo = cfg.get("default_dispositivo") or ""
         self._project_id = cfg.get("project_id")
 
         self.content_filter = None
@@ -700,7 +700,7 @@ class SelectiveDumpAssistant(QDialog):
         meta = metadata_engine.get_video_metadata(path)
         cam = meta.get("camera_model") if meta else None
         if not cam or cam in ("Unknown", "Unknown_Camera", ""):
-            cam = self._default_camera or "Unknown_Camera"
+            cam = self._default_dispositivo or "Unknown_Camera"
         return _sanitize_name(cam)
 
     def _build_jobs(self):

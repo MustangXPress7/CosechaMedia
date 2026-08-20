@@ -163,7 +163,7 @@ class MainWindow(QMainWindow):
         self.dest_root = ""
         self.project_organization_type = 0
         self.project_duration_type = 1
-        self.project_default_camera = ""
+        self.project_default_dispositivo = ""
         self.project_folder_name = "Footage"
         self.project_delicate_mode = False
         self.project_use_metadata_date = True
@@ -1208,7 +1208,7 @@ class MainWindow(QMainWindow):
         conn = db.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'SELECT name, root_path, description, organization_type, duration_type, default_camera, '
+            'SELECT name, root_path, description, organization_type, duration_type, default_dispositivo, '
             'folder_name, delicate_mode, use_metadata_date, generate_proxies, proxy_resolution '
             'FROM projects WHERE id = ?',
             (project_id,)
@@ -1225,7 +1225,7 @@ class MainWindow(QMainWindow):
         self.dest_root = res["root_path"] or ""
         self.project_organization_type = res["organization_type"] if res["organization_type"] is not None else 0
         self.project_duration_type = res["duration_type"] if res["duration_type"] is not None else 1
-        self.project_default_camera = res["default_camera"] or ""
+        self.project_default_dispositivo = res["default_dispositivo"] or ""
         self.project_folder_name = res["folder_name"] or "Footage"
         self.project_delicate_mode = bool(res["delicate_mode"]) if res["delicate_mode"] is not None else False
         self.project_use_metadata_date = bool(res["use_metadata_date"]) if res["use_metadata_date"] is not None else True
@@ -1418,7 +1418,7 @@ class MainWindow(QMainWindow):
         cursor = conn.cursor()
         cursor.execute(
             'SELECT name, root_path, description, organization_type, duration_type, '
-            'default_camera, folder_name, delicate_mode, use_metadata_date '
+            'default_dispositivo, folder_name, delicate_mode, use_metadata_date '
             'FROM projects WHERE id = ?',
             (self.current_project_id,)
         )
@@ -1440,20 +1440,20 @@ class MainWindow(QMainWindow):
             cursor.execute(
                 'INSERT INTO projects '
                 '(name, root_path, description, organization_type, duration_type, '
-                'default_camera, folder_name, delicate_mode, use_metadata_date) '
+                'default_dispositivo, folder_name, delicate_mode, use_metadata_date) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 (
                     new_name, src["root_path"], src["description"],
                     src["organization_type"], src["duration_type"],
-                    src["default_camera"], src["folder_name"],
+                    src["default_dispositivo"], src["folder_name"],
                     src["delicate_mode"], src["use_metadata_date"],
                 )
             )
             new_id = cursor.lastrowid
             cursor.execute(
-                'INSERT INTO sessions (project_id, name, shoot_date, status, source_path, camera_name, '
+                'INSERT INTO sessions (project_id, name, shoot_date, status, source_path, nombre_dispositivo, '
                 'destination_override, delicate_mode) '
-                'SELECT ?, name, shoot_date, status, source_path, camera_name, '
+                'SELECT ?, name, shoot_date, status, source_path, nombre_dispositivo, '
                 'destination_override, delicate_mode FROM sessions WHERE project_id = ?',
                 (new_id, self.current_project_id)
             )
@@ -1484,7 +1484,7 @@ class MainWindow(QMainWindow):
                 "folder_name": None,
                 "organization_type": None,
                 "duration_type": None,
-                "default_camera": None,
+                "default_dispositivo": None,
                 "use_metadata_date": None,
                 "delicate_mode": None,
             }]
@@ -1526,7 +1526,7 @@ class MainWindow(QMainWindow):
         camera_map = {}
         for s in sessions:
             sp = s.get("source_path")
-            cn = s.get("camera_name")
+            cn = s.get("nombre_dispositivo")
             if sp and cn:
                 camera_map[os.path.normpath(sp)] = cn
         self._current_camera_map = camera_map
@@ -1546,8 +1546,8 @@ class MainWindow(QMainWindow):
             s_org = self.project_organization_type if s_org_raw is None else s_org_raw
             s_dur = sess.get("duration_type")
             s_dur = self.project_duration_type if s_dur is None else s_dur
-            s_cam = sess.get("default_camera")
-            s_cam = self.project_default_camera if s_cam is None else s_cam
+            s_cam = sess.get("default_dispositivo")
+            s_cam = self.project_default_dispositivo if s_cam is None else s_cam
             s_use_meta = sess.get("use_metadata_date")
             s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
             device_key = sess.get("device_id") or sess.get("source_path") or ""
@@ -1581,7 +1581,7 @@ class MainWindow(QMainWindow):
                 use_metadata_date=bool(s_use_meta),
                 order_type=order_val,
                 duration_type=s_dur,
-                default_camera=s_cam,
+                default_dispositivo=s_cam,
                 delicate_mode=bool(s_delicate),
                 session_id=sid,
                 camera_map=camera_map,
@@ -1987,10 +1987,10 @@ class MainWindow(QMainWindow):
     def _cleanup_background(self, thread, worker):
         self._background_tasks = [(t, w) for (t, w) in self._background_tasks if t is not thread]
 
-    def _on_camera_rename_needed(self, source_path, camera_name):
+    def _on_camera_rename_needed(self, source_path, nombre_dispositivo):
         if self.project_camera_detection_mode == "manual":
             return
-        self._unknown_cameras.add(camera_name)
+        self._unknown_cameras.add(nombre_dispositivo)
 
     def _show_table_context_menu(self, pos):
         context_menu = QMenu(self)
@@ -2028,14 +2028,14 @@ class MainWindow(QMainWindow):
             if ok and new_name.strip():
                 new_cam = new_name.strip()
                 for ing in self._ingestors:
-                    ing.rename_camera(old_name, new_cam)
+                    ing.rename_dispositivo(old_name, new_cam)
                 for r in range(self.table.rowCount()):
                     cam_item = self.table.item(r, 1)
                     if cam_item and cam_item.text() == old_name:
                         cam_item.setText(new_cam)
                 sessions = db.get_sessions(self.current_project_id) if self.current_project_id else []
                 for s in sessions:
-                    if s.get("camera_name") == old_name:
+                    if s.get("nombre_dispositivo") == old_name:
                         sp = s.get("source_path", "")
                         self._persist_camera_mapping(s["id"], sp, new_cam)
                 self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_cam))
@@ -2081,14 +2081,14 @@ class MainWindow(QMainWindow):
         session = next((s for s in sessions if s.get("source_path") == path), None)
         if not session:
             return
-        current = session.get("camera_name") or ""
+        current = session.get("nombre_dispositivo") or ""
         name, ok = QInputDialog.getText(
             self, self.tr("Renombrar cámara"),
             self.tr("Nombre de la cámara para este origen:"),
             text=current
         )
         if ok:
-            db.update_session_config(session["id"], camera_name=name.strip() or None)
+            db.update_session_config(session["id"], nombre_dispositivo=name.strip() or None)
             self._refresh_source_list()
             self._refresh_sessions_combo()
 
@@ -2114,7 +2114,7 @@ class MainWindow(QMainWindow):
             self.source_list.setCellWidget(row, 0, self._build_path_widget(row, path, sess, checked))
 
             # Column 1: camera name
-            cam = sess.get("camera_name") if sess else None
+            cam = sess.get("nombre_dispositivo") if sess else None
             cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
             cam_item = QTableWidgetItem(cam_text)
             if self.project_camera_detection_mode != "manual":
@@ -2211,7 +2211,7 @@ class MainWindow(QMainWindow):
             % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
         )
         if is_wifi:
-            sender_name = (session.get("camera_name")
+            sender_name = (session.get("nombre_dispositivo")
                            or session.get("device_folder") or "")
             btn.clicked.connect(
                 lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
@@ -2405,17 +2405,17 @@ class MainWindow(QMainWindow):
         device_id = sess.get("device_id") if sess else None
         known_cam = None
         if device_id and str(device_id).startswith("ftp:"):
-            known_cam = db.get_camera_for_device(device_id)
+            known_cam = db.get_dispositivo_for_device(device_id)
         elif device_id and not str(device_id).startswith("wifi:"):
-            known_cam = db.get_camera_for_device(device_id)
+            known_cam = db.get_dispositivo_for_device(device_id)
         else:
             serial = sd_reader.get_volume_serial(source_path)
             if serial:
-                known_cam = db.get_camera_for_card(serial)
+                known_cam = db.get_dispositivo_for_card(serial)
 
         # 2. Auto-rellenar si se conoce (I-03)
         if known_cam:
-            db.update_session_config(session_id, camera_name=known_cam)
+            db.update_session_config(session_id, nombre_dispositivo=known_cam)
             self._set_camera_cell_text(source_path, known_cam)
             self._refresh_source_list()
             self._refresh_sessions_combo()
@@ -2443,7 +2443,7 @@ class MainWindow(QMainWindow):
             cam = getattr(self, '_cam_detected', None)
             if cam:
                 self._set_camera_cell_text(source_path, cam)
-                db.update_session_config(session_id, camera_name=cam)
+                db.update_session_config(session_id, nombre_dispositivo=cam)
                 self._persist_camera_mapping(session_id, source_path, cam)
                 self._refresh_source_list()
                 self._refresh_sessions_combo()
@@ -2451,7 +2451,7 @@ class MainWindow(QMainWindow):
                     self.tr("Cámara detectada: %1").arg(cam))
             else:
                 self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-            QTimer.singleShot(0, lambda c=cam or "": self._prompt_camera_name(session_id, source_path, c))
+            QTimer.singleShot(0, lambda c=cam or "": self._prompt_nombre_dispositivo(session_id, source_path, c))
 
         def on_timeout():
             _apply_detection()
@@ -2481,7 +2481,7 @@ class MainWindow(QMainWindow):
         t = threading.Thread(target=scan, daemon=True)
         t.start()
 
-    def _prompt_camera_name(self, session_id, source_path, suggested_name=""):
+    def _prompt_nombre_dispositivo(self, session_id, source_path, suggested_name=""):
         """Prompt manual para nombre de cámara (I-14)."""
         self.raise_()
         self.activateWindow()
@@ -2493,11 +2493,11 @@ class MainWindow(QMainWindow):
         )
         if ok and name.strip():
             cam = name.strip()
-            db.update_session_config(session_id, camera_name=cam)
+            db.update_session_config(session_id, nombre_dispositivo=cam)
             self._set_camera_cell_text(source_path, cam)
             self._persist_camera_mapping(session_id, source_path, cam)
         else:
-            db.update_session_config(session_id, camera_name=None)
+            db.update_session_config(session_id, nombre_dispositivo=None)
             self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
         self._refresh_source_list()
         self._refresh_sessions_combo()
@@ -2505,20 +2505,20 @@ class MainWindow(QMainWindow):
             self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
 
-    def _persist_camera_mapping(self, session_id, source_path, camera_name):
+    def _persist_camera_mapping(self, session_id, source_path, nombre_dispositivo):
         """Persiste el mapeo cámara→dispositivo en sd_cards o device_settings (I-03)."""
-        if not camera_name:
+        if not nombre_dispositivo:
             return
         sess = db.get_session(session_id)
         if not sess:
             return
         device_id = sess.get("device_id")
         if device_id and not str(device_id).startswith("wifi:"):
-            db.save_device_camera(device_id, camera_name)
+            db.save_dispositivo_config(device_id, nombre_dispositivo)
         else:
             serial = sd_reader.get_volume_serial(source_path)
             if serial:
-                db.save_card_camera(serial, camera_name)
+                db.save_dispositivo(serial, nombre_dispositivo)
 
     def _scan_all_cameras(self):
         if self.current_project_id is None:
@@ -2530,9 +2530,9 @@ class MainWindow(QMainWindow):
             if not sp or not os.path.isdir(sp):
                 continue
             if self.project_camera_detection_mode == "manual":
-                db.update_session_config(s["id"], camera_name=None)
+                db.update_session_config(s["id"], nombre_dispositivo=None)
                 count += 1
-            elif not s.get("camera_name"):
+            elif not s.get("nombre_dispositivo"):
                 self._detect_camera_for_session(s["id"], sp)
                 count += 1
         if count:
@@ -2550,7 +2550,7 @@ class MainWindow(QMainWindow):
         if not session:
             return
         new_name = item.text().strip()
-        db.update_session_config(session["id"], camera_name=new_name or None)
+        db.update_session_config(session["id"], nombre_dispositivo=new_name or None)
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
 
@@ -2694,7 +2694,7 @@ class MainWindow(QMainWindow):
         if managed and src:
             # Muestra el nombre del dispositivo (cámara/móvil) en lugar de la
             # ruta técnica de la caché local (B-02).
-            name = session.get("camera_name") or session.get("device_folder") or ""
+            name = session.get("nombre_dispositivo") or session.get("device_folder") or ""
             if name:
                 text = self.tr("Origen automático: %1").arg(name)
             else:
@@ -3095,9 +3095,9 @@ class MainWindow(QMainWindow):
                 # Los FTP no se pueden "desconectar" por USB; se listan
                 # siempre que tengan sesiones para poder borrarlos (sustituye
                 # a la vía «Configuración → Dispositivos guardados»).
-                known.setdefault(did, s.get("camera_name") or "")
+                known.setdefault(did, s.get("nombre_dispositivo") or "")
             elif did and not did.startswith("wifi:"):
-                known.setdefault(did, s.get("camera_name") or "")
+                known.setdefault(did, s.get("nombre_dispositivo") or "")
         return [{"id": did, "name": known[did] or did}
                 for did in sorted(known) if did.startswith("ftp:") or did not in current]
 
@@ -3228,7 +3228,7 @@ class MainWindow(QMainWindow):
         cur_folder = target.get("device_folder") or ""
         if cur_did.startswith("wifi:") and cur_folder and cur_folder != alias:
             db.update_session_config(session_id, device_id="", device_folder="",
-                                     camera_name=None)
+                                     nombre_dispositivo=None)
         other = next((s for s in _wifi_sessions() if s["id"] != session_id), None)
         if other is not None:
             QMessageBox.information(
@@ -3238,7 +3238,7 @@ class MainWindow(QMainWindow):
                 .arg(sender_name).arg(other["id"]).arg(session_id))
         db.update_session_config(
             session_id, device_id=WIFI_DEVICE_ID, device_folder=alias,
-            camera_name=sender_name, source_path=cache, enabled=1)
+            nombre_dispositivo=sender_name, source_path=cache, enabled=1)
         self._after_bind(session_id)
 
     def _after_bind(self, session_id):
@@ -3395,8 +3395,8 @@ class MainWindow(QMainWindow):
         s_org = self.project_organization_type if s_org_raw is None else s_org_raw
         s_dur = session.get("duration_type")
         s_dur = self.project_duration_type if s_dur is None else s_dur
-        s_cam = session.get("default_camera")
-        s_cam = self.project_default_camera if s_cam is None else s_cam
+        s_cam = session.get("default_dispositivo")
+        s_cam = self.project_default_dispositivo if s_cam is None else s_cam
         s_use_meta = session.get("use_metadata_date")
         s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
         device_key = session.get("device_id") or session.get("source_path") or ""
@@ -3425,14 +3425,14 @@ class MainWindow(QMainWindow):
         # construye el mapa global). Así los subdirectorios de la caché del
         # remitente no caen en "Unknown".
         sp = session.get("source_path")
-        cn = session.get("camera_name")
+        cn = session.get("nombre_dispositivo")
         if sp and cn:
             camera_map[os.path.normpath(sp)] = cn
         ing = Ingestor(
             self.current_project_id, dest_root,
             folder_name=s_folder, use_metadata_date=bool(s_use_meta),
             order_type=ORG_TYPE_MAP.get(s_org, "camera_first"),
-            duration_type=s_dur, default_camera=s_cam,
+            duration_type=s_dur, default_dispositivo=s_cam,
             delicate_mode=bool(s_delicate), session_id=sid,
             camera_map=camera_map,
             manual_date=self.project_date.toString("yyyy-MM-dd"),
@@ -4021,7 +4021,7 @@ class MainWindow(QMainWindow):
             "dest_root": self.dest_root or "",
             "folder_name": self.project_folder_name or "Footage",
             "organization_type": self.project_organization_type,
-            "default_camera": self.project_default_camera or "",
+            "default_dispositivo": self.project_default_dispositivo or "",
             "project_id": self.current_project_id,
             "use_metadata_date": self.project_use_metadata_date,
         }
