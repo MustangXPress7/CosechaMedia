@@ -1561,6 +1561,13 @@ class MainWindow(QMainWindow):
             else:
                 s_delicate = self.project_delicate_mode
 
+            # I-18: Modo de contenido desde la sesión, con WiFi/FTP default a "all"
+            s_content_mode = sess.get("content_mode", "all")
+            # WiFi y FTP siempre usan "all" (todo el contenido) por compatibilidad
+            is_ftp = str(device_key).startswith("ftp:")
+            if is_ftp or device_key.startswith("wifi:"):
+                s_content_mode = "all"
+
             s_content_filter = None
             try:
                 raw_filter = sess.get("content_filter")
@@ -1593,6 +1600,7 @@ class MainWindow(QMainWindow):
                 dump_targets=sess_targets,
                 project_master_root=self.dest_root,
                 content_filter=s_content_filter,
+                content_mode=s_content_mode,  # I-18
             )
             ing.file_started.connect(
                 lambda sp, i=ing: self.on_file_started(sp, ingestor=i)

@@ -121,6 +121,7 @@ class DatabaseManager:
                 dispositivo_id INTEGER,
                 shoot_date DATE,
                 status TEXT,
+                content_mode TEXT DEFAULT 'all',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 destination_override TEXT,
                 folder_name TEXT,
@@ -148,6 +149,7 @@ class DatabaseManager:
             ("use_metadata_date", "INTEGER"),
             ("delicate_mode", "INTEGER"),
             ("folder_mode", "INTEGER"),
+            ("content_mode", "TEXT DEFAULT 'all'"),
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
             ("source_path", "TEXT"),
             ("nombre_dispositivo", "TEXT"),
@@ -458,12 +460,12 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def create_session(self, project_id: int, name: str, shoot_date: str = None, status: str = "pending", source_path: str = None):
+    def create_session(self, project_id: int, name: str, shoot_date: str = None, status: str = "pending", source_path: str = None, content_mode: str = "all"):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO sessions (project_id, name, shoot_date, status, source_path) VALUES (?, ?, ?, ?, ?)',
-            (project_id, name, shoot_date, status, source_path)
+            'INSERT INTO sessions (project_id, name, shoot_date, status, content_mode, source_path) VALUES (?, ?, ?, ?, ?, ?)',
+            (project_id, name, shoot_date, status, content_mode, source_path)
         )
         session_id = cursor.lastrowid
         conn.commit()
@@ -566,7 +568,7 @@ class DatabaseManager:
                    "duration_type", "default_dispositivo", "use_metadata_date",
                    "delicate_mode", "folder_mode", "name", "shoot_date", "status",
                    "source_path", "nombre_dispositivo", "content_filter",
-                   "device_id", "device_folder", "enabled"}
+                   "device_id", "device_folder", "enabled", "content_mode"}
         fields = {k: v for k, v in kwargs.items() if k in allowed}
         if not fields:
             return

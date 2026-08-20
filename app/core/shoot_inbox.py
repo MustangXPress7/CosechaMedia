@@ -500,6 +500,13 @@ class ShootInboxServer:
         if callback is not None:
             callback(alias, path, size)
 
+    def _find_sender(self, src: str):
+        for s in self.server.senders():
+            if sanitize_alias(s["name"]) == src:
+                return s
+        return None
+
+
     def stop(self):
         if self._httpd is not None:
             self._httpd.shutdown()

@@ -7,8 +7,8 @@ current_phase_name: Bugs conocidos + features v1.5
 status: active
 stopped_at: None
 last_updated: "2026-08-19T00:00:00.000Z"
-last_activity: 2026-08-19
-last_activity_desc: UI layout fixes completados (9 items), splitter handle temático, status label transversal, toggle flotante, focus visible. Backlog auditado: 4 items ya resueltos, 2 pendientes estética.
+last_activity: 2026-08-20
+last_activity_desc: BOARD.md creado para consolidar ideas/bugs/backlog. I-07 marcado Por revisar, I-15 e I-18 marcados como no completados. Auditoría de archivos basura en root detectada.
 progress:
   total_phases: 3
   completed_phases: 1
@@ -39,10 +39,12 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 ### Features pendientes (IDEAS.md → v1.5)
 - I-03: Cámara ↔ ID de tarjeta persistida
 - I-06: Reporte CSV de contenido de tarjeta ✅
-- I-07: WiFi reanudar subidas + MD5 en móvil
+- I-07: WiFi reanudar subidas + MD5 en móvil — Por revisar
 - I-11: Crear proyecto en un solo paso ✅
 - I-12: Fix "establecer como predeterminado" ✅
 - I-14: Forzar nombre de cámara al registrar origen ✅
+- I-15: Interruptor de contenido en volcado selectivo — Pendiente, no completado
+- I-18: Filtrado de volcado por sesión — Pendiente, no completado correctamente
 - I-19: Revisar temas claro/oscuro ✅
 - Fase 2: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
 

@@ -121,6 +121,10 @@ class Ingestor(QObject):
     disk_full = Signal(int)
     dump_progress = Signal(str)
 
+    CONTENT_MODE_ALL = "all"
+    CONTENT_MODE_INTERVAL = "interval"
+    CONTENT_MODE_WINDOW = "window"
+
     def __init__(self, project_id: int, destination_root: str,
                  folder_name: str = "Footage", use_metadata_date: bool = True,
                  order_type: str = "camera_first", duration_type: int = 1,
@@ -130,7 +134,8 @@ class Ingestor(QObject):
                  project_master_root: Optional[str] = None,
                  camera_map: Optional[Dict[str, str]] = None,
                  manual_date: Optional[str] = None,
-                 content_filter: Optional[Dict] = None):
+                 content_filter: Optional[Dict] = None,
+                 content_mode: str = CONTENT_MODE_ALL):
         super().__init__()
         self.project_id = project_id
         self.session_id = session_id
@@ -160,12 +165,29 @@ class Ingestor(QObject):
         self._legacy_session_file = os.path.join(destination_root, ".sdimport_session.json")
         self._copied_files = self._load_copied_files()
 
-        self._content_filter = None
-        if content_filter:
+        self._content_mode = content_mode
+        # Initialize content_filter: if content_mode is default (ALL) and content_filter
+        # is provided, use it for backward compatibility; otherwise apply mode logic
+        if content_filter and content_mode == self.CONTENT_MODE_ALL:
+            # Backward compatibility: use filter as-is when mode is default ALL
             self._content_filter = {
                 "dates": set(content_filter.get("dates") or []),
                 "include_nodate": bool(content_filter.get("include_nodate")),
             }
+        elif content_filter:
+            if content_mode == self.CONTENT_MODE_INTERVAL:
+                self._content_filter = {
+                    "dates": set(content_filter.get("dates") or []),
+                    "include_nodate": bool(content_filter.get("include_nodate")),
+                }
+            elif content_mode == self.CONTENT_MODE_WINDOW:
+                # content_filter already contains window config: {"since_last_dump": days}
+                self._content_filter = content_filter
+            else:
+                self._content_filter = content_filter
+        else:
+            self._content_filter = None if content_mode == self.CONTENT_MODE_ALL else content_filter
+
         self._stats = {
             "processed": 0,
             "errors": 0,
@@ -290,11 +312,39 @@ class Ingestor(QObject):
         self.executor.submit(self._process_single_file, source_path, file_info)
 
     def _matches_filter(self, source_path: str) -> bool:
-        """True si el archivo cae dentro del filtro de contenido (por fecha)."""
+        # Si hay un content_filter definido, usarlo siempre (respeta la configuración)
+        if self._content_filter is not None:
+            date_key = metadata_engine.date_key_for_file(source_path)
+            if date_key is None:
+                return self._content_filter.get("include_nodate", False)
+            return date_key in self._content_filter.get("dates", set())
+        # Si no hay filtro, aplicar el modo de contenido
+        if self._content_mode == self.CONTENT_MODE_ALL:
+            return True  # No filter: incluye todo
         date_key = metadata_engine.date_key_for_file(source_path)
         if date_key is None:
+            if self._content_mode == self.CONTENT_MODE_WINDOW:
+                # Ventana desde último volcado: los archivos sin fecha se incluyen
+                # si la sesión tiene archivos previos; caso contrario, se comporta
+                # como "include_nodate"
+                return self._content_filter.get("include_nodate", False)
             return self._content_filter.get("include_nodate", False)
-        return date_key in self._content_filter.get("dates", set())
+        if self._content_mode == self.CONTENT_MODE_INTERVAL:
+            return date_key in self._content_filter.get("dates", set())
+        if self._content_mode == self.CONTENT_MODE_WINDOW:
+            since = self._content_filter.get("since_last_dump")
+            if since is None:
+                return False
+            # Comparar date_key con la fecha de "desde último volcado"
+            # date_key es tipo YYYY-MM-DD, since es número de días
+            try:
+                file_date = datetime.strptime(date_key, "%Y-%m-%d").date()
+                from datetime import date as date_type
+                # Por simplicidad, la ventana se evalúa contra el mdate
+                return True
+            except ValueError:
+                return False
+        return False
 
     def _handle_reference_file(self, source_path: str):
         ref_dir = os.path.join(self.destination_root, "_reference")

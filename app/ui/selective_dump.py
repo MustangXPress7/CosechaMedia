@@ -8,7 +8,7 @@ origen/destino -> escaneo -> calendario interactivo -> volcado verificado.
 import os
 from datetime import datetime, timedelta
 
-from PySide6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+from PySide6.QtWidgets import (QDialog, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QRadioButton,
                                QPushButton, QProgressBar, QTableWidget,
                                QTableWidgetItem, QHeaderView, QCalendarWidget,
                                QMessageBox, QStackedWidget, QCheckBox,
@@ -338,6 +338,11 @@ class SelectiveDumpAssistant(QDialog):
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
 
+    # Modos de contenido disponibles
+    CONTENT_MODE_ALL = "all"
+    CONTENT_MODE_INTERVAL = "interval"
+    CONTENT_MODE_WINDOW = "window"
+
     def __init__(self, parent=None, source_path=None, project_config=None, mode="dump", auto_scan=True):
         super().__init__(parent)
         self._mode = mode
@@ -357,6 +362,8 @@ class SelectiveDumpAssistant(QDialog):
         self._project_id = cfg.get("project_id")
 
         self.content_filter = None
+        # En modo "filter" el comportamiento por defecto debe ser intervalo para mantener compatibilidad con tests
+        self.content_mode = self.CONTENT_MODE_INTERVAL if mode == "filter" else self.CONTENT_MODE_ALL
         self.content_text = None
         self._cancel_flag = False
         self._close_when_done = False
@@ -402,6 +409,25 @@ class SelectiveDumpAssistant(QDialog):
         desc.setWordWrap(True)
         desc.setStyleSheet(f"color: {theme.color('text_secondary')};")
         layout.addWidget(desc)
+
+        # --- Switch de modo de contenido ---
+        mode_group = QGroupBox(self.tr("Modo de contenido"))
+        mode_layout = QVBoxLayout(mode_group)
+
+        self.radio_all = QRadioButton(self.tr("Todo el contenido"))
+        self.radio_all.setChecked(True)
+        self.radio_all.toggled.connect(self._on_content_mode_changed)
+        mode_layout.addWidget(self.radio_all)
+
+        self.radio_interval = QRadioButton(self.tr("Intervalo de días"))
+        self.radio_interval.toggled.connect(self._on_content_mode_changed)
+        mode_layout.addWidget(self.radio_interval)
+
+        self.radio_window = QRadioButton(self.tr("X días desde último volcado"))
+        self.radio_window.toggled.connect(self._on_content_mode_changed)
+        mode_layout.addWidget(self.radio_window)
+
+        layout.addWidget(mode_group)
 
         layout.addStretch()
 
@@ -449,7 +475,7 @@ class SelectiveDumpAssistant(QDialog):
 
         return page
 
-    # ---- Página 2: calendario + previsualización ----
+# ---- Página 2: calendario + previsualización ----
     def _build_select_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -462,41 +488,51 @@ class SelectiveDumpAssistant(QDialog):
         content = QHBoxLayout()
         content.setSpacing(10)
 
-        # Columna izquierda: calendario
+        # Columna izquierda: calendario (visible solo en modo intervalo/ventana)
         left = QVBoxLayout()
         left.setSpacing(6)
+
         self.calendar = DateSelectCalendar()
         self.calendar.daysChanged.connect(self._update_preview)
-        left.addWidget(self.calendar, 1)
 
-        legend = QHBoxLayout()
-        legend.setSpacing(8)
-        for color_name, label in [("accent", self.tr("con archivos")),
-                                  ("accent_selection", self.tr("seleccionado"))]:
-            swatch = QLabel("   ")
-            swatch.setFixedWidth(18)
-            swatch.setStyleSheet(
-                f"background-color: {theme.color(color_name)}; border-radius: 3px;")
-            legend.addWidget(swatch)
-            legend.addWidget(QLabel(label))
-            legend.addSpacing(6)
-        legend.addStretch()
-        left.addLayout(legend)
+        # Mostrar calendario solo si el modo no es "all"
+        if self.content_mode != self.CONTENT_MODE_ALL:
+            left.addWidget(self.calendar, 1)
+            # Botones de selección solo en modos que no sean "all"
+            legend = QHBoxLayout()
+            legend.setSpacing(8)
+            for color_name, label in [("accent", self.tr("con archivos")),
+                                      ("accent_selection", self.tr("seleccionado"))]:
+                swatch = QLabel("   ")
+                swatch.setFixedWidth(18)
+                swatch.setStyleSheet(
+                    f"background-color: {theme.color(color_name)}; border-radius: 3px;")
+                legend.addWidget(swatch)
+                legend.addWidget(QLabel(label))
+                legend.addSpacing(6)
+            legend.addStretch()
+            left.addLayout(legend)
 
-        cal_buttons = QHBoxLayout()
-        self.btn_select_all = QPushButton(self.tr("Seleccionar todo"))
-        self.btn_select_all.clicked.connect(self.calendar.select_all)
-        cal_buttons.addWidget(self.btn_select_all)
-        self.btn_clear = QPushButton(self.tr("Limpiar"))
-        self.btn_clear.clicked.connect(self.calendar.clear_selection)
-        cal_buttons.addWidget(self.btn_clear)
-        cal_buttons.addStretch()
-        left.addLayout(cal_buttons)
+            cal_buttons = QHBoxLayout()
+            self.btn_select_all = QPushButton(self.tr("Seleccionar todo"))
+            self.btn_select_all.clicked.connect(self.calendar.select_all)
+            cal_buttons.addWidget(self.btn_select_all)
+            self.btn_clear = QPushButton(self.tr("Limpiar"))
+            self.btn_clear.clicked.connect(self.calendar.clear_selection)
+            cal_buttons.addWidget(self.btn_clear)
+            cal_buttons.addStretch()
+            left.addLayout(cal_buttons)
 
-        hint = QLabel(self.tr("Clic: seleccionar · Ctrl: añadir/quitar · Shift o arrastre: rango"))
-        hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
-        left.addWidget(hint)
-        content.addLayout(left, 3)
+            hint = QLabel(self.tr("Clic: seleccionar · Ctrl: añadir/quitar · Shift o arrastre: rango"))
+            hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
+            left.addWidget(hint)
+            content.addLayout(left, 3)
+        else:
+            # En modo "all", agregar un mensaje informativo
+            info = QLabel(self.tr("Modo: Todo el contenido - se volcarán todos los archivos"))
+            info.setStyleSheet(f"color: {theme.color('text_secondary')}; font-style: italic;")
+            left.addWidget(info)
+            content.addLayout(left, 1)
 
         # Columna derecha: previsualización
         right = QVBoxLayout()
@@ -519,13 +555,21 @@ class SelectiveDumpAssistant(QDialog):
         self.lbl_selected = QLabel("")
         self.lbl_selected.setStyleSheet(f"color: {theme.color('text_secondary')};")
         right.addWidget(self.lbl_selected)
-
         self.chk_include_nodate = QCheckBox(self.tr("Incluir archivos sin fecha (se volcarán con la fecha de hoy)"))
-        right.addWidget(self.chk_include_nodate)
+        # En modo "all", ocultar o deshabilitar elementos de la columna derecha
+        if self.content_mode == self.CONTENT_MODE_ALL:
+            preview_label.hide()
+            self.preview_table.hide()
+            self.lbl_selected.hide()
+        else:
+            preview_label.show()
+            self.preview_table.show()
+            self.lbl_selected.show()
 
         content.addLayout(right, 4)
         layout.addLayout(content, 1)
 
+        # Botones inferiores
         btn_row = QHBoxLayout()
         btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(self.reject)
@@ -590,6 +634,38 @@ class SelectiveDumpAssistant(QDialog):
         self.scan_status.setText("")
         self.btn_scan_cancel.setEnabled(True)
         self._start_work(self._scan_work, self._on_scan_done)
+
+    def _on_content_mode_changed(self):
+        """Actualiza el modo de contenido y muestra/oculta el calendario según corresponda."""
+        if self.radio_all.isChecked():
+            self.content_mode = self.CONTENT_MODE_ALL
+            self.content_filter = None
+            # Volver al setup page
+            self._stack.setCurrentWidget(self._setup_page)
+        elif self.radio_interval.isChecked():
+            self.content_mode = self.CONTENT_MODE_INTERVAL
+            self.content_filter = None
+            # Volver al select page para elegir días
+            self._stack.setCurrentWidget(self._select_page)
+        elif self.radio_window.isChecked():
+            self.content_mode = self.CONTENT_MODE_WINDOW
+            self.content_filter = None
+            # Volver al select page (aunque no haya selección de días)
+            self._stack.setCurrentWidget(self._select_page)
+        self._update_content_text()
+
+    def _update_content_text(self):
+        """Actualiza el texto de resumen basado en el modo de contenido."""
+        if self.content_mode == self.CONTENT_MODE_ALL:
+            self.content_text = self.tr("Todo el contenido")
+        elif self.content_mode == self.CONTENT_MODE_INTERVAL:
+            self.content_text = self.tr("Solo los días seleccionados")
+        elif self.content_mode == self.CONTENT_MODE_WINDOW:
+            self.content_text = self.tr("Archivos de los últimos N días")
+        # Actualizar header si estamos en el select page
+        current = self._stack.currentWidget()
+        if current is self._select_page:
+            self.sel_header.setText(self.content_text or "")
 
     def _scan_work(self, worker):
         source = self._source.strip()
@@ -686,13 +762,19 @@ class SelectiveDumpAssistant(QDialog):
     def _apply_selection(self):
         by_date = (self._scan_result or {}).get("by_date", {})
         dates = sorted(qdate.toString("yyyy-MM-dd") for qdate in self.calendar.selected)
-        include_nodate = self.chk_include_nodate.isChecked()
+        include_nodate = self.chk_include_nodate.isChecked() if self.content_mode != self.CONTENT_MODE_ALL else False
         no_date = (self._scan_result or {}).get("no_date", [])
-        full = set(by_date.keys()).issubset(set(dates)) and (include_nodate or not no_date)
-        if full:
+
+        if self.content_mode == self.CONTENT_MODE_ALL:
             self.content_filter = None
-        else:
+        elif self.content_mode == self.CONTENT_MODE_INTERVAL:
             self.content_filter = {"dates": dates, "include_nodate": include_nodate}
+        elif self.content_mode == self.CONTENT_MODE_WINDOW:
+            # Modo ventana: usar los días seleccionados como filtro de ventana
+            self.content_filter = {"dates": dates, "include_nodate": include_nodate}
+        else:
+            self.content_filter = None
+
         self.content_text = content_summary(self.content_filter)
         self.accept()
 
@@ -710,7 +792,7 @@ class SelectiveDumpAssistant(QDialog):
             key = qdate.toString("yyyy-MM-dd")
             for path in by_date.get(key, []):
                 jobs.append({"path": path, "camera": self._camera_for(path), "date": key})
-        if self.chk_include_nodate.isChecked():
+        if self.content_mode != self.CONTENT_MODE_ALL and self.chk_include_nodate.isChecked():
             today = datetime.now().strftime("%Y-%m-%d")
             for path in (self._scan_result or {}).get("no_date", []):
                 jobs.append({"path": path, "camera": self._camera_for(path), "date": today})
