@@ -736,10 +736,10 @@ class DatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            '''SELECT id, name, location, token FROM inbox_senders ORDER BY id ASC'''
+            '''SELECT id, name, location, token, created_at FROM inbox_senders ORDER BY id ASC'''
         )
         rows = [{
-            "id": r[0], "name": r[1], "location": r[2], "token": r[3],
+            "id": r[0], "name": r[1], "location": r[2], "token": r[3], "created_at": r[4],
         } for r in cursor.fetchall()]
         conn.close()
         return rows

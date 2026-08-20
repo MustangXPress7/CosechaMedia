@@ -3473,7 +3473,20 @@ class MainWindow(QMainWindow):
         y refresca la tabla de orígenes."""
         if self.current_project_id is None:
             return
-        senders = db.list_inbox_senders()
+        # Filtrar remitentes creados después de la creación del proyecto para
+        # evitar heredar QRs de proyectos anteriores.
+        conn = db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT created_at FROM projects WHERE id = ?', (self.current_project_id,))
+        proj_row = cursor.fetchone()
+        conn.close()
+        project_created_at = proj_row[0] if proj_row else None
+        all_senders = db.list_inbox_senders()
+        senders = []
+        for s in all_senders:
+            s_created = s.get("created_at")
+            if project_created_at is None or (s_created and s_created >= project_created_at):
+                senders.append(s)
         existing = [(s["device_folder"], s["id"])
                     for s in db.list_wifi_sessions(self.current_project_id)]
         keep = set()
