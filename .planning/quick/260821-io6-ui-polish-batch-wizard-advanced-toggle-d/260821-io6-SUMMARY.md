@@ -47,6 +47,36 @@ Commit `3b699d7` — `theme.py`:
 Verificación: QSS sin placeholders ni azules base en dark/light × 5 acentos; suite completa
 296 tests OK (skipped=5).
 
+## Tercera pasada (feedback visual del operador)
+
+Commits `d8faf92`, `2d931d1`, `411c63d`, `c6815e1`:
+
+- **C8 (flechas) — rehecho**: sonda píxel-a-píxel demostró que el truco CSS de bordes
+  NO produce triángulos en Qt (rectángulo en todas las variantes, spinbox incluido).
+  Solución: SVGs reales `arrow-{up,down}-{dark,light}.svg` + `image: url(...)` en el QSS
+  (`_arrow_url`). Verificado triángulo en dark y light para combo y spinbox.
+- **Barra de proyecto en caliente**: `_refresh_accent_labels()` re-tinta `app_label` y
+  `project_path_label` en `_switch_theme`/`_switch_accent` (los setStyleSheet inline se
+  hornean al construir; por eso no seguían al acento hasta reiniciar).
+- **C5**: eliminado `addStretch()` tras los botones +/− de Sesiones (quedaban flotando
+  lejos del borde derecho); `sess_top.setSpacing(4)`. Ahora el combo absorbe el hueco y
+  los botones quedan pegados al lateral de la caja.
+- **C1**: `_toggle_advanced` reajusta la ventana sola (`setMinimumHeight` 380↔620 +
+  `adjustSize`) — ya no hay que estirar el diálogo a mano al desplegar.
+- **Fix colateral**: `import json` local dentro de `start_ingest` convertía `json` en
+  variable local → `UnboundLocalError` al iniciar ingesta con filtro de contenido
+  (bloque I-18). Eliminado el import redundante; test `test_start_ingest_passes_content_filter`
+  verde.
+
+**Nota de higiene de commits**: `411c63d` incluye, además de los 3 arreglos anteriores,
+cambios WIP del operador que estaban sin commitear en `main_window.py` (modo de fecha,
+overrides de cámara por sesión, consolidación del diálogo de configuración). La suite
+completa (296 tests OK) valida el conjunto. El WIP restante del operador (`app/core/db.py`,
+`app/core/ingestor.py`, `.planning/date_model_plan.md`) sigue SIN commitear a propósito.
+`c6815e1` completa el borrado de `wifi_picker.py` que un `git stash` intermedio desmontó.
+
+Verificación: suite completa 296 tests OK (skipped=5).
+
 ## Pendiente del operador
 
 - Revisión visual: tema oscuro/claro × cada acento (botón INICIAR INGESTA, barra de progreso, checkboxes marcados).
