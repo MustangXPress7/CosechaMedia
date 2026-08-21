@@ -166,27 +166,25 @@ class Ingestor(QObject):
         self._copied_files = self._load_copied_files()
 
         self._content_mode = content_mode
-        # Initialize content_filter: if content_mode is default (ALL) and content_filter
-        # is provided, use it for backward compatibility; otherwise apply mode logic
-        if content_filter and content_mode == self.CONTENT_MODE_ALL:
-            # Backward compatibility: use filter as-is when mode is default ALL
+        self._window_days_default = 7
+
+        if content_mode == self.CONTENT_MODE_INTERVAL:
+            self._init_interval_filter(content_filter)
+        elif content_mode == self.CONTENT_MODE_WINDOW:
+            self._init_window_filter(content_filter)
+        elif content_filter and content_mode == self.CONTENT_MODE_ALL:
             self._content_filter = {
                 "dates": set(content_filter.get("dates") or []),
                 "include_nodate": bool(content_filter.get("include_nodate")),
             }
-        elif content_filter:
-            if content_mode == self.CONTENT_MODE_INTERVAL:
-                self._content_filter = {
-                    "dates": set(content_filter.get("dates") or []),
-                    "include_nodate": bool(content_filter.get("include_nodate")),
-                }
-            elif content_mode == self.CONTENT_MODE_WINDOW:
-                # content_filter already contains window config: {"since_last_dump": days}
-                self._content_filter = content_filter
-            else:
-                self._content_filter = content_filter
         else:
-            self._content_filter = None if content_mode == self.CONTENT_MODE_ALL else content_filter
+            self._content_filter = None
+
+        if self._content_mode == self.CONTENT_MODE_WINDOW and self._content_filter is not None:
+            try:
+                self._calculate_window_cutoff()
+            except Exception:
+                self._content_filter = {"window_days": self._window_days_default, "include_nodate": False}
 
         self._stats = {
             "processed": 0,
@@ -204,6 +202,63 @@ class Ingestor(QObject):
         self._inflight_lock = threading.Lock()
         self._remaining_watchers = 0
         self._complete_emitted = False
+
+    def _init_interval_filter(self, content_filter: Optional[Dict]):
+        if content_filter is None:
+            # «Intervalo - todo»: la selección completa se normalizó a None
+            # ⇒ sin filtro efectivo, se vuelca todo.
+            self._content_filter = None
+            return
+        self._content_filter = {
+            "dates": set(content_filter.get("dates") or []),
+            "include_nodate": bool(content_filter.get("include_nodate")),
+        }
+
+    def _init_window_filter(self, content_filter: Optional[Dict]):
+        if content_filter and "cutoff_date" in content_filter:
+            self._content_filter = {
+                "cutoff_date": content_filter["cutoff_date"],
+                "window_days": content_filter.get("window_days", self._window_days_default),
+                "include_nodate": bool(content_filter.get("include_nodate")),
+            }
+        else:
+            # Formato nuevo del switch por sesión: {"window_days": N} sin cutoff
+            # congelado; se conservan los valores recibidos en vez de resetear.
+            filt = content_filter or {}
+            try:
+                window_days = int(filt.get("window_days", self._window_days_default))
+            except (TypeError, ValueError):
+                window_days = self._window_days_default
+            self._content_filter = {
+                "window_days": window_days,
+                "include_nodate": bool(filt.get("include_nodate")),
+            }
+
+    def _calculate_window_cutoff(self):
+        if self.session_id is None:
+            self._content_filter = {"window_days": self._window_days_default, "include_nodate": False}
+            return
+
+        from datetime import datetime, timedelta
+        last_dump_date = db.get_last_dump_date_for_session(self.session_id)
+        if last_dump_date:
+            try:
+                last_date = datetime.strptime(last_dump_date, "%Y-%m-%d").date()
+                window_days = self._content_filter.get("window_days", self._window_days_default)
+                cutoff_date = last_date - timedelta(days=window_days)
+                self._content_filter["cutoff_date"] = cutoff_date.strftime("%Y-%m-%d")
+            except (ValueError, TypeError):
+                pass
+        else:
+            # Sin volcados previos: ventana relativa a hoy (fallback hoy−N)
+            # para que _check_window_filter nunca reciba cutoff None.
+            try:
+                window_days = int(self._content_filter.get(
+                    "window_days", self._window_days_default))
+            except (TypeError, ValueError):
+                window_days = self._window_days_default
+            cutoff_date = datetime.now().date() - timedelta(days=window_days)
+            self._content_filter["cutoff_date"] = cutoff_date.strftime("%Y-%m-%d")
 
     def _load_copied_files(self) -> Set[str]:
         for path in (self._session_file, self._legacy_session_file):
@@ -312,39 +367,44 @@ class Ingestor(QObject):
         self.executor.submit(self._process_single_file, source_path, file_info)
 
     def _matches_filter(self, source_path: str) -> bool:
-        # Si hay un content_filter definido, usarlo siempre (respeta la configuración)
+        # Filtro None = volcar todo (p. ej. «intervalo - todo» normalizado).
+        if self._content_filter is None:
+            return True
         if self._content_filter is not None:
             date_key = metadata_engine.date_key_for_file(source_path)
             if date_key is None:
                 return self._content_filter.get("include_nodate", False)
+            
+            if self._content_mode == self.CONTENT_MODE_INTERVAL:
+                return date_key in self._content_filter.get("dates", set())
+            
+            elif self._content_mode == self.CONTENT_MODE_WINDOW:
+                return self._check_window_filter(date_key)
+            
             return date_key in self._content_filter.get("dates", set())
-        # Si no hay filtro, aplicar el modo de contenido
+        
         if self._content_mode == self.CONTENT_MODE_ALL:
-            return True  # No filter: incluye todo
+            return True
+        
         date_key = metadata_engine.date_key_for_file(source_path)
         if date_key is None:
-            if self._content_mode == self.CONTENT_MODE_WINDOW:
-                # Ventana desde último volcado: los archivos sin fecha se incluyen
-                # si la sesión tiene archivos previos; caso contrario, se comporta
-                # como "include_nodate"
-                return self._content_filter.get("include_nodate", False)
-            return self._content_filter.get("include_nodate", False)
+            return self._content_filter.get("include_nodate", False) if self._content_filter else False
+        
         if self._content_mode == self.CONTENT_MODE_INTERVAL:
-            return date_key in self._content_filter.get("dates", set())
-        if self._content_mode == self.CONTENT_MODE_WINDOW:
-            since = self._content_filter.get("since_last_dump")
-            if since is None:
-                return False
-            # Comparar date_key con la fecha de "desde último volcado"
-            # date_key es tipo YYYY-MM-DD, since es número de días
-            try:
-                file_date = datetime.strptime(date_key, "%Y-%m-%d").date()
-                from datetime import date as date_type
-                # Por simplicidad, la ventana se evalúa contra el mdate
-                return True
-            except ValueError:
-                return False
-        return False
+            return date_key in self._content_filter.get("dates", set()) if self._content_filter else False
+        
+        return self._check_window_filter(date_key) if self._content_filter else False
+
+    def _check_window_filter(self, date_key: str) -> bool:
+        cutoff_date = self._content_filter.get("cutoff_date")
+        if cutoff_date is None:
+            return False
+        try:
+            file_date = datetime.strptime(date_key, "%Y-%m-%d").date()
+            cutoff = datetime.strptime(cutoff_date, "%Y-%m-%d").date()
+            return file_date >= cutoff
+        except (ValueError, TypeError):
+            return False
 
     def _handle_reference_file(self, source_path: str):
         ref_dir = os.path.join(self.destination_root, "_reference")
