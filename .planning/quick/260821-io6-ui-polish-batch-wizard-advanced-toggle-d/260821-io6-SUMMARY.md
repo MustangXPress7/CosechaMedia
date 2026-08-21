@@ -28,6 +28,25 @@ Quick task: `260821-io6` · Fecha: 2026-08-21 · Estado: **Needs Review** (verif
 
 `tests/test_wifi_source` (y a veces la suite completa) termina con crash nativo al **salir** del proceso (exit `-1073740791`, 0xC0000409) **después** de imprimir "OK". Reproducido en `HEAD~2` (antes de este lote): es un problema de teardown Qt/hilos preexistente, no de los cambios. Los tests pasan; solo el código de salida miente. Candidato a quick task futuro.
 
+## Segunda pasada (feedback del operador): todo el azul por defecto sigue al acento
+
+Commit `3b699d7` — `theme.py`:
+
+- Nuevo `_effective_accent_colors(name, accent)`: con acento elegido, sobrescribe
+  `accent`/`accent_selection`/`accent_pressed` de la paleta (oscuro: acento puro y mezclas
+  30 %/55 % con negro; claro: acento oscurecido 25 % para contraste sobre blanco, pressed 45 %).
+  Con Neutro devuelve `{}` → paleta base (azul) intacta.
+- `build_qss()` aplica esas claves: bordes hover/focus de botones, selecciones de listas/tablas/menús,
+  radio marcado, handle del splitter, título de groupbox en hover… todo sigue al acento.
+- `color('accent'|'accent_selection'|'accent_pressed')` ahora es consciente del acento → la barra de
+  proyecto (`project_path_label`), la etiqueta de app, títulos del wizard/about/volcado selectivo y el
+  pintor de cabeceras del volcado siguen al acento sin tocar sus call sites.
+- `_primary_action_colors` refactorizado para derivar de las claves efectivas (misma salida en Neutro;
+  en claro con acento no neutro los primarios quedan algo más oscuros = mejor contraste con texto blanco).
+
+Verificación: QSS sin placeholders ni azules base en dark/light × 5 acentos; suite completa
+296 tests OK (skipped=5).
+
 ## Pendiente del operador
 
 - Revisión visual: tema oscuro/claro × cada acento (botón INICIAR INGESTA, barra de progreso, checkboxes marcados).
