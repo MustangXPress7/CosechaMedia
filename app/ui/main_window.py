@@ -307,9 +307,9 @@ class MainWindow(QMainWindow):
         hb.setContentsMargins(10, 3, 10, 3)
         hb.setSpacing(6)
 
-        app_label = QLabel("CosechaMedia")
-        app_label.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {theme.color('accent')};")
-        hb.addWidget(app_label)
+        self.app_label = QLabel("CosechaMedia")
+        self.app_label.setStyleSheet(f"font-weight: bold; font-size: 13px; color: {theme.color('accent')};")
+        hb.addWidget(self.app_label)
         hb.addSpacing(6)
 
         hb.addWidget(QLabel(self.tr("Proyecto:")))
@@ -796,7 +796,11 @@ class MainWindow(QMainWindow):
         date_mode_combo.setCurrentIndex(0 if self.project_date_mode == "auto" else 1)
         gen_grid.addWidget(QLabel(self.tr("Modo de fechas:")), 1, 0)
         gen_grid.addWidget(date_mode_combo, 1, 1)
-
+        btn_manage_overrides = QPushButton(self.tr("Gestionar overrides…"))
+        gen_grid.addWidget(btn_manage_overrides, 1, 2, 1, 2)
+        def _open_overrides():
+            self._show_camera_overrides_dialog()
+        btn_manage_overrides.clicked.connect(_open_overrides)
 
         date_input = QDateEdit()
         date_input.setCalendarPopup(True)
@@ -808,11 +812,15 @@ class MainWindow(QMainWindow):
 
         # Lógica de habilitación
         def _update_ui_state():
+            uses_date = org_combo.currentIndex() in [0,1]
+            date_mode_combo.setEnabled(uses_date)
+            btn_manage_overrides.setEnabled(uses_date)
             is_manual = date_mode_combo.currentIndex() == 1
-            date_input.setEnabled(is_manual)
-            date_label.setEnabled(is_manual)
+            date_input.setEnabled(uses_date and is_manual)
+            date_label.setEnabled(uses_date and is_manual)
 
         date_mode_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
+        org_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
         _update_ui_state()
 
         main_layout.addWidget(gen_group)
@@ -835,16 +843,6 @@ class MainWindow(QMainWindow):
         cam_mode_combo.currentIndexChanged.connect(lambda i: cam_timeout_spin.setEnabled(i == 1))
 
         main_layout.addWidget(cam_group)
-
-        # --- Grupo Overrides por cámara ---
-        ov_group = QGroupBox(self.tr("Overrides por cámara"))
-        ov_layout = QVBoxLayout(ov_group)
-        btn_manage_overrides = QPushButton(self.tr("Gestionar overrides…"))
-        def _open_overrides():
-            self._show_camera_overrides_dialog()
-        btn_manage_overrides.clicked.connect(_open_overrides)
-        ov_layout.addWidget(btn_manage_overrides)
-        main_layout.addWidget(ov_group)
 
         # --- Grupo Proxies ---
         prox_group = QGroupBox(self.tr("Proxies y rendimiento"))
@@ -939,12 +937,21 @@ class MainWindow(QMainWindow):
         table = QTableWidget(0, 2)
         table.setHorizontalHeaderLabels([self.tr("Cámara"), self.tr("Fecha")])
         table.horizontalHeader().setStretchLastSection(True)
+        # Cámaras de sesiones activas
+        active_cams = set()
+        if self.current_project_id is not None:
+            conn = db.get_connection()
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT nombre_dispositivo FROM sessions WHERE project_id=? AND status IN ('active','pending') AND nombre_dispositivo IS NOT NULL", (self.current_project_id,))
+            active_cams = {r[0] for r in cur.fetchall()}
+            conn.close()
         overrides = json.loads(self.project_camera_date_overrides or "{}")
-        for cam, d in overrides.items():
+        # Mostrar solo cámaras activas
+        for cam in active_cams:
             r = table.rowCount()
             table.insertRow(r)
             table.setItem(r, 0, QTableWidgetItem(cam))
-            table.setItem(r, 1, QTableWidgetItem(d))
+            table.setItem(r, 1, QTableWidgetItem(overrides.get(cam, "")))
         layout.addWidget(table)
         btn_row = QHBoxLayout()
         btn_add = QPushButton(self.tr("Añadir"))

@@ -611,5 +611,50 @@ class TestProjectWizard(unittest.TestCase):
             pw_mod.db = orig_pw_db
 
 
+class TestAccentSwitch(unittest.TestCase):
+    """Regresión: cambiar acento/tema no debe lanzar AttributeError en las etiquetas."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_accent_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "accent.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+        self.window = mw.MainWindow()
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_switch_accent_retints_app_label(self):
+        from app.ui import theme
+
+        for accent in ("green", "blue", "default"):
+            self.window._switch_accent(accent)
+            style = self.window.app_label.styleSheet()
+            expected = theme.color("accent")
+            if expected:
+                self.assertIn(expected, style)
+
+    def test_switch_theme_retints_labels(self):
+        for t in ("light", "dark"):
+            self.window._switch_theme(t)
+            self.assertTrue(self.window.app_label.styleSheet())
+
+
 if __name__ == "__main__":
     unittest.main()
