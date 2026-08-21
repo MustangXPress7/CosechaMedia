@@ -70,7 +70,8 @@ class ProjectWizard(QDialog):
         advanced_layout = QVBoxLayout(advanced_widget)
         advanced_layout.setContentsMargins(0, 0, 0, 0)
         advanced_layout.setSpacing(12)
-        self.chk_advanced.toggled.connect(advanced_widget.setVisible)
+        self.advanced_widget = advanced_widget
+        self.chk_advanced.toggled.connect(self._toggle_advanced)
         advanced_widget.setVisible(False)
         self.layout.addWidget(advanced_widget)
 
@@ -105,8 +106,8 @@ class ProjectWizard(QDialog):
         
         self.org_combo = QComboBox()
         self.org_combo.addItems([
-            self.tr("Cámara primero (Cámara/Fecha)"),
-            self.tr("Fecha primero (Fecha/Cámara)"),
+            self.tr("Cámara / Fecha"),
+            self.tr("Fecha / Cámara"),
             self.tr("Solo por cámara"),
             self.tr("Sin subcarpetas")
         ])
@@ -199,6 +200,16 @@ class ProjectWizard(QDialog):
         if idx >= 0:
             self.proxy_combo.setCurrentIndex(idx)
         
+    def _toggle_advanced(self, checked):
+        """Muestra/oculta las opciones avanzadas reajustando la ventana.
+
+        Sin el reajuste, al desplegar el contenido queda apretado y hay que
+        estirar el diálogo a mano desde el borde inferior.
+        """
+        self.advanced_widget.setVisible(checked)
+        self.setMinimumHeight(620 if checked else 380)
+        self.adjustSize()
+
     def _browse_dest(self):
         folder = QFileDialog.getExistingDirectory(
             self, self.tr("Seleccionar ruta maestra"),
