@@ -1,8 +1,8 @@
 import os
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QPushButton, QLineEdit, QMessageBox,
                               QGroupBox, QRadioButton, QButtonGroup, QComboBox, QCheckBox,
-                              QFileDialog, QSpinBox)
+                              QFileDialog, QSpinBox, QWidget)
 from PySide6.QtCore import Qt, QSettings
 from app.core.db import db
 from app.ui import theme
@@ -18,7 +18,7 @@ class ProjectWizard(QDialog):
         self.on_cancel_callback = on_cancel_callback
         self.setWindowTitle(self.tr("Nuevo Proyecto"))
         self.setMinimumWidth(660)
-        self.setMinimumHeight(620)
+        self.setMinimumHeight(380)
         
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(32, 24, 32, 24)
@@ -60,7 +60,20 @@ class ProjectWizard(QDialog):
         btn_browse.clicked.connect(self._browse_dest)
         dest_layout.addWidget(btn_browse)
         self.layout.addWidget(dest_group)
-        
+
+        self.chk_advanced = QCheckBox(self.tr("Opciones avanzadas"))
+        self.chk_advanced.setToolTip(
+            self.tr("Duración, organización, detección de cámara y proxies"))
+        self.layout.addWidget(self.chk_advanced)
+
+        advanced_widget = QWidget()
+        advanced_layout = QVBoxLayout(advanced_widget)
+        advanced_layout.setContentsMargins(0, 0, 0, 0)
+        advanced_layout.setSpacing(12)
+        self.chk_advanced.toggled.connect(advanced_widget.setVisible)
+        advanced_widget.setVisible(False)
+        self.layout.addWidget(advanced_widget)
+
         config_row = QHBoxLayout()
 
         duration_group = QGroupBox(self.tr("Duración"))
@@ -106,8 +119,8 @@ class ProjectWizard(QDialog):
         org_layout.addWidget(self.chk_use_metadata_date)
         
         config_row.addWidget(org_group, 1)
-        
-        self.layout.addLayout(config_row)
+
+        advanced_layout.addLayout(config_row)
 
         config_row2 = QHBoxLayout()
 
@@ -145,7 +158,7 @@ class ProjectWizard(QDialog):
         proxy_layout.addWidget(self.proxy_combo)
         config_row2.addWidget(proxy_group, 1)
 
-        self.layout.addLayout(config_row2)
+        advanced_layout.addLayout(config_row2)
         
         btn_row = QHBoxLayout()
         btn_row.addStretch()
