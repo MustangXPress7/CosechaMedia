@@ -554,6 +554,19 @@ class MainWindow(QMainWindow):
         sess_dest_row.addWidget(self.session_dest_label)
         sess_box_layout.addLayout(sess_dest_row)
 
+        # I-15/I-18: switch cíclico de volcado por sesión (todo / intervalo / N días)
+        sess_dump_row = QHBoxLayout()
+        sess_dump_row.addWidget(QLabel(self.tr("Volcado:")))
+        self.btn_session_dump_mode = QPushButton()
+        self.btn_session_dump_mode.setCursor(Qt.PointingHandCursor)
+        self.btn_session_dump_mode.setToolTip(
+            self.tr("Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días"))
+        self.btn_session_dump_mode.clicked.connect(self._cycle_session_content_mode)
+        sess_dump_row.addWidget(self.btn_session_dump_mode)
+        sess_dump_row.addStretch()
+        sess_box_layout.addLayout(sess_dump_row)
+        self._update_session_dump_switch()
+
         sess_post_row = QHBoxLayout()
         sess_post_row.setSpacing(10)
         sess_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -2385,7 +2398,7 @@ class MainWindow(QMainWindow):
             btn.setEnabled(False)
             btn.setToolTip(self.tr("Activa el origen para configurar su contenido."))
         else:
-            btn.clicked.connect(lambda _=False, r=row: self._open_content_filter(r))
+            btn.clicked.connect(lambda _=False, s=session: self._open_content_filter(s["id"]))
         wrapper_lay.addWidget(btn, 1)
 
         is_wifi = device_id == "wifi:pairdrop"
@@ -2787,12 +2800,14 @@ class MainWindow(QMainWindow):
             self._btn_browse_sess_src.setVisible(False)
             self.session_dest_label.setText(self.tr("Por defecto"))
             self._btn_browse_sess_dest.setVisible(False)
+            self._update_session_dump_switch()
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
             self.sessions_combo.addItem(self.tr("(Sin sesiones)"), None)
             self.sessions_combo.blockSignals(False)
             self.btn_delete_session.setEnabled(False)
+            self._update_session_dump_switch()
             return
         for idx, s in enumerate(sessions, start=1):
             status_fmt = "●" if s["status"] == "active" else "○"
@@ -2810,6 +2825,7 @@ class MainWindow(QMainWindow):
             self._on_session_selected(0)
         self.sessions_combo.blockSignals(False)
         self.btn_delete_session.setEnabled(True)
+        self._update_session_dump_switch()
 
     def _on_session_selected(self, index):
         session_id = self.sessions_combo.itemData(index)
@@ -2820,6 +2836,7 @@ class MainWindow(QMainWindow):
             self._btn_browse_sess_src.setVisible(False)
             self.session_dest_label.setText(self.tr("Por defecto"))
             self._btn_browse_sess_dest.setVisible(False)
+            self._update_session_dump_switch()
             return
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
@@ -2848,6 +2865,98 @@ class MainWindow(QMainWindow):
         dest = session.get("destination_override")
         self.session_dest_label.setText(dest if dest else self.tr("Por defecto"))
         self.session_dest_label.setToolTip(dest or "")
+        self._update_session_dump_switch()
+
+    def _session_content_state(self, sid):
+        """Devuelve (mode, filt, restricted) de la sesión dada.
+
+        restricted = sesión WiFi/FTP (siempre vuelcan todo). El filtro JSON
+        corrupto degrada a None («todo»), nunca crash."""
+        sess = db.get_session(sid) if sid is not None else None
+        if not sess:
+            return "all", None, False
+        device_id = str(sess.get("device_id") or "")
+        restricted = device_id.startswith("wifi:") or device_id.startswith("ftp:")
+        filt = None
+        try:
+            raw = sess.get("content_filter")
+            if raw:
+                filt = json.loads(raw)
+        except (TypeError, ValueError):
+            filt = None
+        mode = sess.get("content_mode") or "all"
+        return mode, filt, restricted
+
+    @staticmethod
+    def _window_days_from_filter(filt):
+        """Días de ventana del filtro (default 7; ignora cutoff_date legacy)."""
+        if isinstance(filt, dict):
+            try:
+                return int(filt.get("window_days", 7))
+            except (TypeError, ValueError):
+                pass
+        return 7
+
+    def _update_session_dump_switch(self):
+        """Refresca el texto/estado del switch de volcado de la sesión actual."""
+        btn = getattr(self, "btn_session_dump_mode", None)
+        if btn is None:
+            return
+        tooltip = self.tr(
+            "Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días")
+        sid = self.current_session_id
+        if sid is None:
+            btn.setEnabled(False)
+            btn.setText(self.tr("Todo el contenido"))
+            btn.setToolTip(tooltip)
+            return
+        mode, filt, restricted = self._session_content_state(sid)
+        if restricted:
+            # WiFi y FTP siempre vuelcan todo el contenido (coherente con start_ingest)
+            btn.setEnabled(False)
+            btn.setText(self.tr("Todo el contenido"))
+            btn.setToolTip(self.tr("WiFi y FTP siempre vuelcan todo el contenido"))
+            return
+        btn.setEnabled(True)
+        btn.setToolTip(tooltip)
+        if mode == "interval":
+            if filt:
+                btn.setText(self.tr("Intervalo: %1").arg(content_summary(filt)))
+            else:
+                btn.setText(self.tr("Intervalo de fechas"))
+        elif mode == "window":
+            btn.setText(self.tr("Últimos %1 días").arg(self._window_days_from_filter(filt)))
+        else:
+            btn.setText(self.tr("Todo el contenido"))
+
+    def _cycle_session_content_mode(self):
+        """Cicla el modo de volcado de la sesión: todo → intervalo → N días → todo."""
+        sid = self.current_session_id
+        if sid is None:
+            return
+        mode, filt, restricted = self._session_content_state(sid)
+        if restricted:
+            return
+        nxt = {"all": "interval", "interval": "window", "window": "all"}.get(mode, "interval")
+        if nxt == "interval":
+            # El asistente persiste modo+filtro al aceptar; al cancelar no cambia nada.
+            ok = self._open_content_filter(sid)
+            if not ok:
+                self._update_session_dump_switch()
+                return
+        elif nxt == "window":
+            days = self._window_days_from_filter(filt)
+            days, ok = QInputDialog.getInt(
+                self, self.tr("Últimos N días"),
+                self.tr("Número de días a volcar:"), days, 1, 3650)
+            if ok:
+                # Sin cutoff congelado: se calcula al iniciar la ingesta.
+                db.update_session_config(
+                    sid, content_mode="window",
+                    content_filter=json.dumps({"window_days": int(days)}))
+        else:
+            db.update_session_config(sid, content_mode="all", content_filter=None)
+        self._update_session_dump_switch()
 
     def _add_manual_session(self):
         if self.current_project_id is None:
@@ -4216,21 +4325,18 @@ class MainWindow(QMainWindow):
         dialog = SelectiveDumpAssistant(self, source_path=source, project_config=project_config)
         dialog.exec()
 
-    def _open_content_filter(self, row):
+    def _open_content_filter(self, session_id):
+        """Abre el asistente en modo filtro para una sesión; True solo si acepta.
+
+        Al aceptar persiste content_mode + content_filter de la sesión."""
         if self.current_project_id is None:
-            return
-        if row < 0 or row >= len(self._source_paths):
-            return
-        path = self._source_paths[row]
-        session = next((s for s in db.get_sessions(self.current_project_id)
-                        if s.get("source_path") == path), None)
+            return False
+        session = db.get_session(session_id) if session_id is not None else None
         if not session:
-            QMessageBox.information(
-                self, self.tr("Aviso"),
-                self.tr("Activa el origen para configurar su contenido."))
-            return
-        session_id = session.get("id")
-        dialog = SelectiveDumpAssistant(self, source_path=path, mode="filter", session_id=session_id)
+            return False
+        path = session.get("source_path") or ""
+        dialog = SelectiveDumpAssistant(self, source_path=path, mode="filter",
+                                        session_id=session_id, initial_mode="interval")
         if dialog.exec() == QDialog.Accepted:
             filt = dialog.content_filter
             mode = dialog.content_mode
@@ -4238,9 +4344,11 @@ class MainWindow(QMainWindow):
                 session_id, 
                 content_filter=json.dumps(filt) if filt else None,
                 content_mode=mode)
-            self._refresh_source_list()
+            self._update_session_dump_switch()
             self.ingest_status_label.setText(
                 self.tr("Contenido del origen %1: %2").arg(path).arg(dialog.content_text))
+            return True
+        return False
 
     def _check_for_updates(self):
         AboutDialog(self, check_updates=True).exec()

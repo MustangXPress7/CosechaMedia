@@ -70,13 +70,25 @@ def _is_next_day(prev: str, cur: str) -> bool:
 def content_summary(content_filter) -> str:
     """Resumen legible de un filtro de contenido para la columna 'Contenido'.
 
-    content_filter: None o dict {"dates": ["YYYY-MM-DD", ...], "include_nodate": bool}.
+    content_filter: None o dict 
+        - Para modo ALL: None
+        - Para modo INTERVAL: {"dates": ["YYYY-MM-DD", ...], "include_nodate": bool}
+        - Para modo WINDOW: {"cutoff_date": "YYYY-MM-DD", "window_days": int, "include_nodate": bool}
     """
     if not content_filter:
         return translator.tr("Todo")
+    
     dates = sorted({d for d in content_filter.get("dates") or [] if isinstance(d, str)})
     include_nodate = bool(content_filter.get("include_nodate"))
+    cutoff_date = content_filter.get("cutoff_date")
+    window_days = content_filter.get("window_days")
 
+    if cutoff_date:
+        text = translator.tr("últimos %1 días").arg(window_days or 7)
+        if include_nodate:
+            text = f"{text} · " + translator.tr("sin fecha")
+        return text
+    
     segments = []
     for d in dates:
         if segments and _is_next_day(segments[-1][-1], d):
@@ -343,7 +355,7 @@ class SelectiveDumpAssistant(QDialog):
     CONTENT_MODE_INTERVAL = "interval"
     CONTENT_MODE_WINDOW = "window"
 
-    def __init__(self, parent=None, source_path=None, project_config=None, mode="dump", auto_scan=True, session_id=None):
+    def __init__(self, parent=None, source_path=None, project_config=None, mode="dump", auto_scan=True, session_id=None, initial_mode=None):
         super().__init__(parent)
         self._mode = mode
         if mode == "filter":
@@ -399,6 +411,13 @@ class SelectiveDumpAssistant(QDialog):
         else:
             if mode == "filter":
                 self.content_mode = self.CONTENT_MODE_INTERVAL
+
+        # I-15: el switch de sesión puede forzar el modo inicial del asistente
+        # (p. ej. «intervalo» al caer desde «Todo»). WiFi/FTP permanecen en all.
+        if (initial_mode in (self.CONTENT_MODE_ALL, self.CONTENT_MODE_INTERVAL,
+                             self.CONTENT_MODE_WINDOW)
+                and not self._session_restricted):
+            self.content_mode = initial_mode
 
         self.content_text = None
         self._cancel_flag = False
