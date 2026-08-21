@@ -170,6 +170,9 @@ class MainWindow(QMainWindow):
         self.project_generate_proxies = False
         self.project_proxy_resolution = "720p"
         self.project_date = QDate.currentDate()
+        self.project_date_mode = "auto"
+        self.project_manual_date = QDate.currentDate()
+        self.project_camera_date_overrides = "{}"
         self.current_session_id = None
         self._ingestors = []
         self._ingest_completed = set()
@@ -488,6 +491,7 @@ class MainWindow(QMainWindow):
         sess_box_layout.setSpacing(4)
 
         sess_top = QHBoxLayout()
+        sess_top.setSpacing(4)
         self.sessions_combo = QComboBox()
         self.sessions_combo.setMinimumWidth(100)
         self.sessions_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -512,7 +516,8 @@ class MainWindow(QMainWindow):
         self.btn_delete_session.clicked.connect(self._delete_current_session)
         sess_top.addWidget(self.btn_delete_session)
 
-        sess_top.addStretch()
+        # Sin stretch final: el combo absorbe el hueco y los botones quedan
+        # pegados al borde derecho de la caja.
         sess_box_layout.addLayout(sess_top)
 
         sess_src_row = QHBoxLayout()
@@ -781,21 +786,17 @@ class MainWindow(QMainWindow):
         gen_grid.addWidget(folder_input, 0, 1)
 
         org_combo = QComboBox()
-        org_combo.addItems([self.tr("Cámara primero"), self.tr("Fecha primero"), self.tr("Solo cámara"), self.tr("Sin subcarpetas")])
+        org_combo.addItems([self.tr("Cámara / Fecha"), self.tr("Fecha / Cámara"), self.tr("Solo cámara"), self.tr("Sin subcarpetas")])
         org_combo.setCurrentIndex(self.project_organization_type)
         gen_grid.addWidget(QLabel(self.tr("Organización:")), 0, 2)
         gen_grid.addWidget(org_combo, 0, 3)
 
-        dur_combo = QComboBox()
-        dur_combo.addItems([self.tr("Un solo día"), self.tr("Múltiples días"), self.tr("Sin fecha")])
-        dur_map = {1: 0, 2: 1, 3: 2}
-        dur_combo.setCurrentIndex(dur_map.get(self.project_duration_type, 0))
-        gen_grid.addWidget(QLabel(self.tr("Duración:")), 1, 0)
-        gen_grid.addWidget(dur_combo, 1, 1)
+        date_mode_combo = QComboBox()
+        date_mode_combo.addItems([self.tr("Automática"), self.tr("Manual")])
+        date_mode_combo.setCurrentIndex(0 if self.project_date_mode == "auto" else 1)
+        gen_grid.addWidget(QLabel(self.tr("Modo de fechas:")), 1, 0)
+        gen_grid.addWidget(date_mode_combo, 1, 1)
 
-        chk_use_meta = QCheckBox(self.tr("Usar fecha de metadatos"))
-        chk_use_meta.setChecked(self.project_use_metadata_date)
-        gen_grid.addWidget(chk_use_meta, 1, 2, 1, 2)
 
         date_input = QDateEdit()
         date_input.setCalendarPopup(True)
@@ -807,27 +808,43 @@ class MainWindow(QMainWindow):
 
         # Lógica de habilitación
         def _update_ui_state():
-            dur_idx = dur_combo.currentIndex()
-            dur_type = {0: 1, 1: 2, 2: 3}.get(dur_idx, 1)
-            use_meta = chk_use_meta.isChecked()
+            is_manual = date_mode_combo.currentIndex() == 1
+            date_input.setEnabled(is_manual)
+            date_label.setEnabled(is_manual)
 
-            # Un solo día fuerza fecha manual y desactiva metadatos
-            if dur_idx == 0:
-                chk_use_meta.setChecked(False)
-                chk_use_meta.setEnabled(False)
-            else:
-                chk_use_meta.setEnabled(True)
-
-            # Fecha solo habilitada si hay fecha en la ruta y no se usa metadato
-            date_enabled = dur_type != 3 and not use_meta
-            date_input.setEnabled(date_enabled)
-            date_label.setEnabled(date_enabled)
-
-        dur_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
-        chk_use_meta.toggled.connect(lambda _: _update_ui_state())
+        date_mode_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
         _update_ui_state()
 
         main_layout.addWidget(gen_group)
+
+        # --- Grupo Detección de cámara ---
+        cam_group = QGroupBox(self.tr("Detección de cámara"))
+        cam_layout = QFormLayout(cam_group)
+
+        cam_mode_combo = QComboBox()
+        cam_mode_combo.addItems([self.tr("Manual"), self.tr("Automático")])
+        cam_mode_combo.setCurrentIndex(0 if self.project_camera_detection_mode != "auto" else 1)
+        cam_layout.addRow(self.tr("Modo:"), cam_mode_combo)
+
+        cam_timeout_spin = QSpinBox()
+        cam_timeout_spin.setRange(1, 30)
+        cam_timeout_spin.setSuffix(" s")
+        cam_timeout_spin.setValue(self.project_camera_detection_timeout)
+        cam_timeout_spin.setEnabled(cam_mode_combo.currentIndex() == 1)
+        cam_layout.addRow(self.tr("Timeout:"), cam_timeout_spin)
+        cam_mode_combo.currentIndexChanged.connect(lambda i: cam_timeout_spin.setEnabled(i == 1))
+
+        main_layout.addWidget(cam_group)
+
+        # --- Grupo Overrides por cámara ---
+        ov_group = QGroupBox(self.tr("Overrides por cámara"))
+        ov_layout = QVBoxLayout(ov_group)
+        btn_manage_overrides = QPushButton(self.tr("Gestionar overrides…"))
+        def _open_overrides():
+            self._show_camera_overrides_dialog()
+        btn_manage_overrides.clicked.connect(_open_overrides)
+        ov_layout.addWidget(btn_manage_overrides)
+        main_layout.addWidget(ov_group)
 
         # --- Grupo Proxies ---
         prox_group = QGroupBox(self.tr("Proxies y rendimiento"))
@@ -853,26 +870,33 @@ class MainWindow(QMainWindow):
         def _save():
             self.project_folder_name = folder_input.currentText().strip() or "Footage"
             self.project_organization_type = org_combo.currentIndex()
-            dur_idx = dur_combo.currentIndex()
-            self.project_duration_type = {0: 1, 1: 2, 2: 3}.get(dur_idx, 1)
-            # Con Un solo día forzamos manual
-            if dur_idx == 0:
-                self.project_use_metadata_date = False
-            else:
-                self.project_use_metadata_date = chk_use_meta.isChecked()
-            self.project_date = date_input.date()
+            self.project_date_mode = "manual" if date_mode_combo.currentIndex() == 1 else "auto"
+            self.project_manual_date = date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else None
             self.project_generate_proxies = chk_gen_proxies.isChecked()
             self.project_proxy_resolution = proxy_res_combo.currentText()
+            self.project_camera_detection_mode = "auto" if cam_mode_combo.currentIndex() == 1 else "manual"
+            self.project_camera_detection_timeout = cam_timeout_spin.value()
+            import json
+            overrides = {}
+            for r in range(ov_table.rowCount()):
+                cam = ov_table.item(r,0).text().strip() if ov_table.item(r,0) else ""
+                d = ov_table.item(r,1).text().strip() if ov_table.item(r,1) else ""
+                if cam and d:
+                    overrides[cam] = d
+            self.project_camera_date_overrides = json.dumps(overrides)
             if self.current_project_id is not None:
                 db.add_footage_folder(self.project_folder_name)
                 conn = db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute(
-                    'UPDATE projects SET folder_name=?, organization_type=?, duration_type=?, '
-                    'use_metadata_date=?, generate_proxies=?, proxy_resolution=? WHERE id=?',
+                    'UPDATE projects SET folder_name=?, organization_type=?, date_mode=?, manual_date=?, '
+                    'generate_proxies=?, proxy_resolution=?, '
+                    'camera_detection_mode=?, camera_detection_timeout=?, camera_date_overrides=? WHERE id=?',
                     (self.project_folder_name, self.project_organization_type,
-                     self.project_duration_type, int(self.project_use_metadata_date),
+                     self.project_date_mode, self.project_manual_date,
                      int(self.project_generate_proxies), self.project_proxy_resolution,
+                     self.project_camera_detection_mode, self.project_camera_detection_timeout,
+                     self.project_camera_date_overrides,
                      self.current_project_id)
                 )
                 conn.commit()
@@ -887,9 +911,10 @@ class MainWindow(QMainWindow):
             settings = QSettings("Audiovisual Production", "CosechaMedia")
             settings.setValue("default_folder_name", folder_input.currentText().strip() or "Footage")
             settings.setValue("default_organization_type", org_combo.currentIndex())
-            settings.setValue("default_duration_type",
-                              {0: 1, 1: 2, 2: 3}.get(dur_combo.currentIndex(), 1))
-            settings.setValue("default_use_metadata_date", chk_use_meta.isChecked())
+            settings.setValue("default_date_mode", "manual" if date_mode_combo.currentIndex() == 1 else "auto")
+            settings.setValue("default_manual_date", date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else "")
+            settings.setValue("default_camera_detection_mode", "auto" if cam_mode_combo.currentIndex() == 1 else "manual")
+            settings.setValue("camera_detection_timeout", cam_timeout_spin.value())
             self.ingest_status_label.setText(self.tr("Valores guardados como predeterminados."))
         btn_defaults.clicked.connect(_set_defaults)
 
@@ -905,62 +930,65 @@ class MainWindow(QMainWindow):
 
         dialog.exec()
 
-    def _show_camera_detection_dialog(self):
-        settings = QSettings("Audiovisual Production", "CosechaMedia")
+    def _show_camera_overrides_dialog(self):
+        import json
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Detección de cámara"))
-        dialog.setMinimumWidth(320)
+        dialog.setWindowTitle(self.tr("Overrides por cámara"))
+        dialog.setMinimumWidth(520)
         layout = QVBoxLayout(dialog)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
-
-        mode_group = QGroupBox(self.tr("Modo"))
-        mode_layout = QVBoxLayout(mode_group)
-        mode_combo = QComboBox()
-        mode_combo.addItems([self.tr("Manual"), self.tr("Automático (experimental)")])
-        mode_combo.setCurrentIndex(0 if self.project_camera_detection_mode != "auto" else 1)
-        mode_combo.setToolTip(
-            self.tr("El modo automático es experimental: detecta la cámara desde un archivo de muestra "
-                    "y puede no funcionar en todas las tarjetas."))
-        mode_layout.addWidget(mode_combo)
-        layout.addWidget(mode_group)
-
-        timeout_group = QGroupBox(self.tr("Tiempo máximo de escaneo"))
-        timeout_layout = QHBoxLayout(timeout_group)
-        timeout_spin = QSpinBox()
-        timeout_spin.setRange(5, 30)
-        timeout_spin.setValue(self.project_camera_detection_timeout)
-        timeout_spin.setEnabled(mode_combo.currentIndex() == 1)
-        timeout_spin.setToolTip(self.tr("Segundos que espera el modo automático antes de preguntar por la cámara."))
-        timeout_layout.addWidget(timeout_spin)
-        timeout_layout.addStretch()
-        layout.addWidget(timeout_group)
-
-        def _on_mode_changed(index):
-            timeout_spin.setEnabled(index == 1)
-        mode_combo.currentIndexChanged.connect(_on_mode_changed)
-
+        table = QTableWidget(0, 2)
+        table.setHorizontalHeaderLabels([self.tr("Cámara"), self.tr("Fecha")])
+        table.horizontalHeader().setStretchLastSection(True)
+        overrides = json.loads(self.project_camera_date_overrides or "{}")
+        for cam, d in overrides.items():
+            r = table.rowCount()
+            table.insertRow(r)
+            table.setItem(r, 0, QTableWidgetItem(cam))
+            table.setItem(r, 1, QTableWidgetItem(d))
+        layout.addWidget(table)
         btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        btn_cancel = QPushButton(self.tr("Cancelar"))
-        btn_cancel.clicked.connect(dialog.reject)
+        btn_add = QPushButton(self.tr("Añadir"))
+        btn_del = QPushButton(self.tr("Eliminar"))
         btn_save = QPushButton(self.tr("Guardar"))
+        btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_save.setObjectName("PrimaryAction")
-        def _save():
-            selected = "auto" if mode_combo.currentIndex() == 1 else "manual"
-            settings.setValue("camera_detection_mode", selected)
-            settings.setValue("camera_detection_timeout", timeout_spin.value())
-            self.project_camera_detection_mode = selected
-            self.project_camera_detection_timeout = timeout_spin.value()
-            self._update_detect_button_state()
-            self._refresh_source_list()
-            self.ingest_status_label.setText(self.tr("Detección de cámara actualizada."))
+        def add_row():
+            r = table.rowCount()
+            table.insertRow(r)
+            table.setItem(r, 0, QTableWidgetItem(""))
+            table.setItem(r, 1, QTableWidgetItem(QDate.currentDate().toString("yyyy-MM-dd")))
+        def del_row():
+            row = table.currentRow()
+            if row >= 0:
+                table.removeRow(row)
+        def save():
+            new_overrides = {}
+            for r in range(table.rowCount()):
+                cam = table.item(r,0).text().strip() if table.item(r,0) else ""
+                d = table.item(r,1).text().strip() if table.item(r,1) else ""
+                if cam and d:
+                    new_overrides[cam] = d
+            self.project_camera_date_overrides = json.dumps(new_overrides)
             dialog.accept()
-        btn_save.clicked.connect(_save)
+        btn_add.clicked.connect(add_row)
+        btn_del.clicked.connect(del_row)
+        btn_save.clicked.connect(save)
+        btn_cancel.clicked.connect(dialog.reject)
+        btn_row.addWidget(btn_add)
+        btn_row.addWidget(btn_del)
+        btn_row.addStretch()
         btn_row.addWidget(btn_cancel)
         btn_row.addWidget(btn_save)
         layout.addLayout(btn_row)
-        dialog.exec()
+        if dialog.exec():
+            # Persistir al proyecto
+            if self.current_project_id is not None:
+                conn = db.get_connection()
+                cursor = conn.cursor()
+                cursor.execute('UPDATE projects SET camera_date_overrides=? WHERE id=?',
+                               (self.project_camera_date_overrides, self.current_project_id))
+                conn.commit()
+                conn.close()
 
     def _show_names_manager(self, title, getter, add_cb, rename_cb, delete_cb, duplicate_cb):
         dialog = QDialog(self)
@@ -1250,7 +1278,9 @@ class MainWindow(QMainWindow):
         cursor = conn.cursor()
         cursor.execute(
             'SELECT name, root_path, description, organization_type, duration_type, default_dispositivo, '
-            'folder_name, delicate_mode, use_metadata_date, generate_proxies, proxy_resolution '
+            'folder_name, delicate_mode, use_metadata_date, generate_proxies, proxy_resolution, '
+            'camera_detection_mode, camera_detection_timeout, '
+            'date_mode, manual_date, camera_date_overrides '
             'FROM projects WHERE id = ?',
             (project_id,)
         )
@@ -1272,6 +1302,11 @@ class MainWindow(QMainWindow):
         self.project_use_metadata_date = bool(res["use_metadata_date"]) if res["use_metadata_date"] is not None else True
         self.project_generate_proxies = bool(res["generate_proxies"]) if res["generate_proxies"] is not None else False
         self.project_proxy_resolution = res["proxy_resolution"] or "720p"
+        self.project_camera_detection_mode = res["camera_detection_mode"] or "auto"
+        self.project_camera_detection_timeout = res["camera_detection_timeout"] if res["camera_detection_timeout"] is not None else 5
+        self.project_date_mode = res["date_mode"] or "auto"
+        self.project_manual_date = res["manual_date"]
+        self.project_camera_date_overrides = res["camera_date_overrides"] or "{}"
 
         name = res["name"]
         root = self.dest_root or self.tr("(sin ruta)")
@@ -1374,11 +1409,23 @@ class MainWindow(QMainWindow):
             f"background-color: {theme.color(color_key)}; border-radius: {radius}px;"
         )
 
+    def _refresh_accent_labels(self):
+        """Re-tinta las etiquetas persistentes con color de acento inline.
+
+        Los setStyleSheet con theme.color() se hornean al construir el
+        widget; sin esto no siguen al acento hasta reiniciar la app.
+        """
+        self.app_label.setStyleSheet(
+            f"font-weight: bold; font-size: 13px; color: {theme.color('accent')};")
+        self.project_path_label.setStyleSheet(
+            f"color: {theme.color('accent')}; font-size: 11px; font-weight: bold;")
+
     def _switch_theme(self, name):
         theme.set_theme(name)
         theme.apply_theme()
         icons.refresh_all()
         self._style_table_viewports()
+        self._refresh_accent_labels()
         self.dashboard_view.update()
         if getattr(self, "_status_color_key", None):
             self._set_status_color(self._status_color_key, self._status_color_radius)
@@ -1388,6 +1435,7 @@ class MainWindow(QMainWindow):
         theme.apply_theme()
         icons.refresh_all()
         self._style_table_viewports()
+        self._refresh_accent_labels()
         self.dashboard_view.update()
         if getattr(self, "_status_color_key", None):
             self._set_status_color(self._status_color_key, self._status_color_radius)
@@ -1590,8 +1638,9 @@ class MainWindow(QMainWindow):
             s_dur = self.project_duration_type if s_dur is None else s_dur
             s_cam = sess.get("default_dispositivo")
             s_cam = self.project_default_dispositivo if s_cam is None else s_cam
-            s_use_meta = sess.get("use_metadata_date")
-            s_use_meta = self.project_use_metadata_date if s_use_meta is None else s_use_meta
+            s_date_mode = sess.get("date_mode") or self.project_date_mode or "auto"
+            s_use_meta = s_date_mode == "auto"
+            s_manual_date = sess.get("manual_date") or (self.project_manual_date if s_date_mode == "manual" else None)
             device_key = sess.get("device_id") or sess.get("source_path") or ""
             dev_delicate = db.get_device_delicate(device_key)
             if dev_delicate is not None:
@@ -1623,6 +1672,11 @@ class MainWindow(QMainWindow):
             if sid is not None:
                 db.update_session_config(sid, status="active")
 
+            cam_overrides = {}
+            try:
+                cam_overrides = json.loads(self.project_camera_date_overrides or "{}")
+            except Exception:
+                cam_overrides = {}
             ing = Ingestor(
                 self.current_project_id,
                 dest_root,
@@ -1634,11 +1688,12 @@ class MainWindow(QMainWindow):
                 delicate_mode=bool(s_delicate),
                 session_id=sid,
                 camera_map=camera_map,
-                manual_date=self.project_date.toString("yyyy-MM-dd"),
+                manual_date=s_manual_date,
                 dump_targets=sess_targets,
                 project_master_root=self.dest_root,
                 content_filter=s_content_filter,
-                content_mode=s_content_mode,  # I-18
+                content_mode=s_content_mode,
+                camera_date_overrides=cam_overrides,
             )
             ing.file_started.connect(
                 lambda sp, i=ing: self.on_file_started(sp, ingestor=i)
@@ -3128,8 +3183,8 @@ class MainWindow(QMainWindow):
 
         m_config = menu_bar.addMenu(self.tr("&Configuración"))
 
-        act_cam_detect = QAction(self.tr("Configurar detección de &cámara…"), self)
-        act_cam_detect.triggered.connect(self._show_camera_detection_dialog)
+        act_cam_detect = QAction(self.tr("Configuración del proyecto…"), self)
+        act_cam_detect.triggered.connect(self._show_metadata_dialog)
         m_config.addAction(act_cam_detect)
 
         m_config.addSeparator()
