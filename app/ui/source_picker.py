@@ -90,8 +90,8 @@ class SourcePickerDialog(QDialog):
         self.btn_ftp.clicked.connect(self._pick_ftp)
         self.btn_wifi_qr = QPushButton(self.tr("WiFi QR"))
         self.btn_wifi_qr.clicked.connect(self._choose_wifi)
-        for btn in (self.btn_browse, self.btn_mtp, self.btn_ftp,
-                    self.btn_wifi_qr):
+        for btn in (self.btn_browse, self.btn_mtp, self.btn_wifi_qr,
+                    self.btn_ftp):
             search_row.addWidget(btn)
         search_row.addStretch()
         layout.addLayout(search_row)

@@ -14,7 +14,6 @@ $sources = @(
     (Join-Path $root "app\ui\ftp_picker.py"),
     (Join-Path $root "app\ui\project_wizard.py"),
     (Join-Path $root "app\ui\selective_dump.py"),
-    (Join-Path $root "app\ui\wifi_picker.py"),
     (Join-Path $root "app\ui\wifi_panel.py"),
     (Join-Path $root "app\ui\source_picker.py"),
     (Join-Path $root "app\core\notifications.py"),

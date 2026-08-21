@@ -761,73 +761,68 @@ class MainWindow(QMainWindow):
     def _show_metadata_dialog(self):
         dialog = QDialog(self)
         dialog.setWindowTitle(self.tr("Configuración"))
-        dialog.setMinimumWidth(480)
-        layout = QFormLayout(dialog)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
+        dialog.setMinimumWidth(620)
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setSpacing(12)
+        main_layout.setContentsMargins(16, 12, 16, 12)
+
+        # --- Grupo Configuración general ---
+        gen_group = QGroupBox(self.tr("Configuración general"))
+        gen_grid = QGridLayout(gen_group)
+        gen_grid.setHorizontalSpacing(16)
+        gen_grid.setVerticalSpacing(8)
 
         folder_input = QComboBox()
         folder_input.setEditable(True)
         folder_input.addItems(db.get_footage_folders())
         folder_input.setCurrentText(self.project_folder_name or "Footage")
-        layout.addRow(self.tr("Carpeta footage:"), folder_input)
+        gen_grid.addWidget(QLabel(self.tr("Carpeta footage:")), 0, 0)
+        gen_grid.addWidget(folder_input, 0, 1)
 
         org_combo = QComboBox()
         org_combo.addItems([self.tr("Cámara primero"), self.tr("Fecha primero"), self.tr("Solo cámara"), self.tr("Sin subcarpetas")])
         org_combo.setCurrentIndex(self.project_organization_type)
-        layout.addRow(self.tr("Organización:"), org_combo)
+        gen_grid.addWidget(QLabel(self.tr("Organización:")), 0, 2)
+        gen_grid.addWidget(org_combo, 0, 3)
 
         dur_combo = QComboBox()
         dur_combo.addItems([self.tr("Un solo día"), self.tr("Múltiples días"), self.tr("Sin fecha")])
         dur_map = {1: 0, 2: 1, 3: 2}
         dur_combo.setCurrentIndex(dur_map.get(self.project_duration_type, 0))
-        layout.addRow(self.tr("Duración:"), dur_combo)
+        gen_grid.addWidget(QLabel(self.tr("Duración:")), 1, 0)
+        gen_grid.addWidget(dur_combo, 1, 1)
 
-        chk_use_meta = QCheckBox()
+        chk_use_meta = QCheckBox(self.tr("Usar fecha de metadatos"))
         chk_use_meta.setChecked(self.project_use_metadata_date)
-        layout.addRow(self.tr("Usar fecha de metadatos:"), chk_use_meta)
+        gen_grid.addWidget(chk_use_meta, 1, 2, 1, 2)
 
         date_input = QDateEdit()
         date_input.setCalendarPopup(True)
         date_input.setDate(self.project_date)
         date_input.setDisplayFormat("yyyy-MM-dd")
-        layout.addRow(self.tr("Fecha:"), date_input)
+        gen_grid.addWidget(QLabel(self.tr("Fecha:")), 2, 0)
+        gen_grid.addWidget(date_input, 2, 1)
 
-        layout.addRow("", QWidget())
+        main_layout.addWidget(gen_group)
 
-        # Proxies
+        # --- Grupo Proxies ---
+        prox_group = QGroupBox(self.tr("Proxies y rendimiento"))
+        prox_layout = QFormLayout(prox_group)
+
         chk_gen_proxies = QCheckBox(self.tr("Generar proxies tras la ingesta"))
         chk_gen_proxies.setChecked(self.project_generate_proxies)
-        layout.addRow(self.tr("Proxies:"), chk_gen_proxies)
+        prox_layout.addRow(chk_gen_proxies)
 
         proxy_res_combo = QComboBox()
         proxy_res_combo.addItems(["720p", "1080p"])
         proxy_res_combo.setCurrentText(self.project_proxy_resolution)
         proxy_res_combo.setEnabled(self.project_generate_proxies)
-        layout.addRow(self.tr("Resolución proxy:"), proxy_res_combo)
+        prox_layout.addRow(self.tr("Resolución proxy:"), proxy_res_combo)
         chk_gen_proxies.toggled.connect(proxy_res_combo.setEnabled)
 
-        layout.addRow("", QWidget())
+        main_layout.addWidget(prox_group)
 
-        # Ruta maestra
-        root_btn = QPushButton(self.tr("Cambiar..."))
-        root_label = QLabel(self.dest_root or self.tr("(sin definir)"))
-        root_label.setStyleSheet(f"color: {theme.color('text_secondary')};")
-        root_row = QHBoxLayout()
-        root_row.addWidget(root_label, 1)
-        root_row.addWidget(root_btn)
-        layout.addRow(self.tr("Ruta maestra:"), root_row)
-
-        def _change_root():
-            path = QFileDialog.getExistingDirectory(dialog, self.tr("Seleccionar ruta maestra"), self.dest_root or "")
-            if path:
-                if self.current_project_id is not None:
-                    self._save_project_root(path)
-                root_label.setText(path)
-
-        root_btn.clicked.connect(_change_root)
-
-        # Botones
+        # --- Botones ---
         btn_save = QPushButton(self.tr("Guardar"))
         btn_save.setObjectName("PrimaryAction")
 
@@ -872,12 +867,13 @@ class MainWindow(QMainWindow):
 
         btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_cancel.clicked.connect(dialog.reject)
+
         btn_row = QHBoxLayout()
         btn_row.addWidget(btn_defaults)
         btn_row.addStretch()
         btn_row.addWidget(btn_cancel)
         btn_row.addWidget(btn_save)
-        layout.addRow("", btn_row)
+        main_layout.addLayout(btn_row)
 
         dialog.exec()
 
@@ -3499,15 +3495,8 @@ class MainWindow(QMainWindow):
             self.tr("Origen WiFi asignado a la sesión #%1").arg(session_id))
 
     def _pick_wifi_source(self):
-        # Import local: los tests parchean app.ui.wifi_picker.WifiMethodDialog.
-        from app.ui.wifi_picker import WifiMethodDialog
-        dialog = WifiMethodDialog(self)
-        if dialog.exec() != QDialog.Accepted:
-            return
-        if dialog.method == "ftp":
-            self._pick_ftp_source()
-        elif dialog.method == "pairdrop":
-            self._open_wifi_panel(force_new_sender=True)
+        # Sin ventana intermedia: el QR se genera directamente.
+        self._open_wifi_panel(force_new_sender=True)
 
     # -- WiFi / PairDrop: origen en la tabla + ventana flotante QR --------
 

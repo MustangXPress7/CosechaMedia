@@ -791,25 +791,11 @@ class TestWifiSource(unittest.TestCase):
         self.assertFalse(any(b.text() == self.window.tr("QR") for b in btns))
         self.assertFalse(any(b.text() == self.window.tr("FTP") for b in btns))
 
-    def test_pick_wifi_source_pairdrop_configures_new_qr(self):
-        """El botón WiFi… siempre configura un QR nuevo (no reabre el existente)."""
-        fake = mock.Mock()
-        fake.method = "pairdrop"
-        fake.exec.return_value = 1
-        with mock.patch("app.ui.wifi_picker.WifiMethodDialog", return_value=fake):
-            with mock.patch.object(mw.MainWindow, "_open_wifi_panel") as open_panel:
-                self.window._pick_wifi_source()
-                open_panel.assert_called_once_with(force_new_sender=True)
-
-    def test_pick_wifi_source_ftp_opens_ftp_picker(self):
-        """El botón WiFi… con FTP clásico abre el selector FTP."""
-        fake = mock.Mock()
-        fake.method = "ftp"
-        fake.exec.return_value = 1
-        with mock.patch("app.ui.wifi_picker.WifiMethodDialog", return_value=fake):
-            with mock.patch.object(mw.MainWindow, "_pick_ftp_source") as pick:
-                self.window._pick_wifi_source()
-                pick.assert_called_once_with()
+    def test_pick_wifi_source_opens_new_qr_directly(self):
+        """El botón WiFi… abre el panel QR directamente, sin diálogo intermedio."""
+        with mock.patch.object(mw.MainWindow, "_open_wifi_panel") as open_panel:
+            self.window._pick_wifi_source()
+            open_panel.assert_called_once_with(force_new_sender=True)
 
     def test_wifi_ingestor_maps_source_to_sender_camera(self):
         """El ingestor WiFi etiqueta los subdirectorios de su caché con el
