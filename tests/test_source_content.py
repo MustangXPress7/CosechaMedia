@@ -8,7 +8,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import (QApplication, QFileDialog, QHBoxLayout, QHeaderView,
+from PySide6.QtWidgets import (QApplication, QFileDialog, QHeaderView,
                               QPushButton, QWidget)
 
 import app.ui.main_window as mw
@@ -21,13 +21,17 @@ class TestSourceContent(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    @staticmethod
-    def _content_button(row, table):
-        wrapper = table.cellWidget(row, 2)
+    def _options_buttons(self, row):
+        wrapper = self.window.source_list.cellWidget(row, 2)
         if isinstance(wrapper, QWidget):
-            for child in wrapper.findChildren(QPushButton):
-                return child
-        return wrapper
+            return wrapper.findChildren(QPushButton)
+        return []
+
+    def _trash_button(self, row):
+        for btn in self._options_buttons(row):
+            if btn.toolTip() == self.window.tr("Eliminar este origen…"):
+                return btn
+        return None
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="sdimport_src_")
@@ -76,28 +80,19 @@ class TestSourceContent(unittest.TestCase):
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def test_source_list_has_content_column_with_button(self):
+    def test_source_list_has_options_column_with_widgets(self):
+        """La tabla tiene 3 columnas; «Opciones» alberga botones pero ningún resumen «Todo»."""
         self.window._refresh_source_list()
-        self.assertEqual(self.window.source_list.columnCount(), 4)
-        btn = self._content_button(0, self.window.source_list)
-        self.assertIsNotNone(btn)
-        self.assertEqual(btn.text(), "Todo")
-        self.assertTrue(btn.isEnabled())
-
-    def test_content_button_disabled_without_session(self):
-        other = os.path.join(self.tmp, "other")
-        os.makedirs(other)
-        self.window._source_paths = [self.src, other]
-        self.window._refresh_source_list()
-        btn = self._content_button(1, self.window.source_list)
-        self.assertFalse(btn.isEnabled())
-
-    def test_content_button_shows_summary(self):
-        filt = json.dumps({"dates": ["2025-05-25", "2025-05-26"], "include_nodate": False})
-        self.db.update_session_config(self.sid, content_filter=filt)
-        self.window._refresh_source_list()
-        btn = self._content_button(0, self.window.source_list)
-        self.assertEqual(btn.text(), "del 25-5-25 al 26-5-25")
+        self.assertEqual(self.window.source_list.columnCount(), 3)
+        self.assertEqual(self.window.source_list.horizontalHeaderItem(2).text(),
+                         self.window.tr("Opciones"))
+        wrapper = self.window.source_list.cellWidget(0, 2)
+        self.assertIsInstance(wrapper, QWidget)
+        btns = wrapper.findChildren(QPushButton)
+        self.assertTrue(btns, "La columna Opciones debe contener botones")
+        for btn in btns:
+            self.assertNotEqual(btn.text(), "Todo")
+        self.assertIsNone(self.window.source_list.cellWidget(0, 3))
 
     def test_change_source_path_updates_session(self):
         new_src = os.path.join(self.tmp, "new_src")
@@ -127,29 +122,10 @@ class TestSourceContent(unittest.TestCase):
         headers = [self.window.table.horizontalHeaderItem(i).text() for i in range(6)]
         self.assertIn("Progreso", headers)
 
-    def test_selective_dump_button_present(self):
-        # B-01: «Volcado selectivo…» vive ahora en el área pre-ingesta de orígenes.
-        self.assertTrue(hasattr(self.window, "btn_selective_dump"))
-        with mock.patch.object(self.window, "_open_selective_dump") as op:
-            self.window.btn_selective_dump.click()
-            op.assert_called_once()
-
-    def test_selective_dump_button_in_scan_row_not_operations(self):
-        scan_row = None
-        op_row = None
-        for layout in self.window.findChildren(QHBoxLayout):
-            widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
-            widgets = [w for w in widgets if w is not None]
-            if self.window.btn_scan_cameras in widgets:
-                scan_row = layout
-            if self.window.btn_clear_completed in widgets:
-                op_row = layout
-        self.assertIsNotNone(scan_row)
-        self.assertIsNotNone(op_row)
-        scan_widgets = [scan_row.itemAt(i).widget() for i in range(scan_row.count())]
-        op_widgets = [op_row.itemAt(i).widget() for i in range(op_row.count())]
-        self.assertIn(self.window.btn_selective_dump, scan_widgets)
-        self.assertNotIn(self.window.btn_selective_dump, op_widgets)
+    def test_global_selective_dump_removed(self):
+        """El botón global «Volcado selectivo…» y su slot ya no existen."""
+        self.assertFalse(hasattr(self.window, "btn_selective_dump"))
+        self.assertFalse(hasattr(mw.MainWindow, "_open_selective_dump"))
 
     def test_source_path_column_interactive_with_default_width(self):
         self.window._refresh_source_list()
@@ -160,10 +136,11 @@ class TestSourceContent(unittest.TestCase):
         header.resizeSection(0, 200)
         self.assertEqual(header.sectionSize(0), 200)
 
-    def test_source_list_has_per_row_delete_column(self):
+    def test_options_widget_has_integrated_delete(self):
+        """La papelera vive dentro del wrapper de Opciones (columna 2)."""
         self.window._refresh_source_list()
-        self.assertEqual(self.window.source_list.columnCount(), 4)
-        btn = self.window.source_list.cellWidget(0, 3)
+        self.assertEqual(self.window.source_list.columnCount(), 3)
+        btn = self._trash_button(0)
         self.assertIsNotNone(btn)
         self.assertIsInstance(btn, QPushButton)
         self.assertFalse(btn.icon().isNull())
@@ -171,7 +148,7 @@ class TestSourceContent(unittest.TestCase):
 
     def test_source_delete_button_hides_source_keeps_session(self):
         self.window._refresh_source_list()
-        btn = self.window.source_list.cellWidget(0, 3)
+        btn = self._trash_button(0)
         with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.Yes):
             btn.click()
         self.assertEqual(len(self.db.get_sessions(self.pid)), 1)
@@ -179,7 +156,7 @@ class TestSourceContent(unittest.TestCase):
 
     def test_source_delete_button_no_keeps_session(self):
         self.window._refresh_source_list()
-        btn = self.window.source_list.cellWidget(0, 3)
+        btn = self._trash_button(0)
         with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.No):
             btn.click()
         self.assertEqual(len(self.db.get_sessions(self.pid)), 1)

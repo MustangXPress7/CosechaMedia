@@ -374,6 +374,56 @@
 <context>
     <name>MainWindow</name>
     <message>
+        <location filename="../ui/main_window.py" line="552"/>
+        <source>Volcado:</source>
+        <translation>Dump:</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2876"/>
+        <source>Todo el contenido</source>
+        <translation>All content</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2892"/>
+        <source>Intervalo de fechas</source>
+        <translation>Date range</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2890"/>
+        <source>Intervalo: %1</source>
+        <translation>Range: %1</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2894"/>
+        <source>Últimos %1 días</source>
+        <translation>Last %1 days</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2916"/>
+        <source>Últimos N días</source>
+        <translation>Last N days</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2917"/>
+        <source>Número de días a volcar:</source>
+        <translation>Number of days to dump:</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="556"/>
+        <source>Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días</source>
+        <translation>Change this session&apos;s dump: all / date range / last N days</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="2884"/>
+        <source>WiFi y FTP siempre vuelcan todo el contenido</source>
+        <translation>WiFi and FTP always dump all content</translation>
+    </message>
+    <message>
+        <location filename="../ui/main_window.py" line="447"/>
+        <source>Opciones</source>
+        <translation>Options</translation>
+    </message>
+    <message>
         <location filename="../ui/main_window.py" line="280"/>
         <source>Proyecto:</source>
         <translation>Project:</translation>

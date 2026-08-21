@@ -18,7 +18,7 @@ from unittest import mock
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QTableWidgetItem
+from PySide6.QtWidgets import QApplication, QPushButton, QTableWidgetItem
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -746,17 +746,19 @@ class TestWifiSource(unittest.TestCase):
         self.assertNotIn(manual, self.window._source_paths)
         self.assertEqual(len(self.db.list_inbox_senders()), 2)
 
-    def test_content_button_wifi_opens_qr_for_sender(self):
-        """La columna «Contenido» de un origen WiFi muestra resumen de contenido."""
+    def test_options_widget_wifi_has_folder_toggle_no_summary(self):
+        """La columna «Opciones» de un origen WiFi tiene toggle carpeta/archivo y sin resumen."""
         self.window._open_wifi_panel()
         sessions = self.db.get_sessions(self.pid)
         alice = next(s for s in sessions if s["device_folder"] == "Alice")
-        wrapper = self.window._build_content_button(0, alice)
-        btn = wrapper.layout().itemAt(0).widget()
-        self.assertEqual(btn.text(), self.window.tr("Todo"))
+        wrapper = self.window._build_options_widget(0, alice)
+        btns = wrapper.findChildren(QPushButton)
+        self.assertTrue(any(not b.icon().isNull() for b in btns),
+                        "Debe incluir el toggle carpeta/archivo con icono")
+        self.assertFalse(any(b.text() == "Todo" for b in btns))
 
-    def test_content_button_ftp_opens_reconfigure(self):
-        """La columna «Contenido» de un origen FTP abre el filtro de contenido."""
+    def test_options_widget_ftp_has_delicate_and_trash(self):
+        """La columna «Opciones» de un origen FTP tiene delicado + papelera, sin resumen."""
         from app.core import ftp as ftpmod
         pid = self.db.add_ftp_profile("Serv", "192.168.1.50")
         dev_id = ftpmod.device_key(pid)
@@ -767,22 +769,27 @@ class TestWifiSource(unittest.TestCase):
         self.db.update_session_config(sid, device_id=dev_id, device_folder="DCIM")
         session = next(s for s in self.db.get_sessions(self.pid)
                        if s.get("device_id") == dev_id)
-        wrapper = self.window._build_content_button(0, session)
-        btn = wrapper.layout().itemAt(0).widget()
-        self.assertEqual(btn.text(), self.window.tr("Todo"))
+        wrapper = self.window._build_options_widget(0, session)
+        btns = wrapper.findChildren(QPushButton)
+        iconed = [b for b in btns if not b.icon().isNull()]
+        self.assertGreaterEqual(len(iconed), 2, "Delicado + papelera esperados")
+        self.assertFalse(any(b.text() == "Todo" for b in btns))
 
-    def test_content_button_normal_opens_filter(self):
-        """Un origen normal conserva el filtro de contenido en «Contenido»."""
+    def test_options_widget_normal_has_delicate_and_trash(self):
+        """Un origen normal conserva delicado + papelera en «Opciones», sin resumen."""
         manual = os.path.join(self.tmp, "manual")
         os.makedirs(manual, exist_ok=True)
         self.db.create_session(self.pid, "Manual", "2026-01-01", "active",
                                source_path=manual)
         session = next(s for s in self.db.get_sessions(self.pid)
                        if s.get("source_path") == manual)
-        wrapper = self.window._build_content_button(0, session)
-        btn = wrapper.layout().itemAt(0).widget()
-        self.assertNotEqual(btn.text(), self.window.tr("QR"))
-        self.assertNotEqual(btn.text(), self.window.tr("FTP"))
+        wrapper = self.window._build_options_widget(0, session)
+        btns = wrapper.findChildren(QPushButton)
+        iconed = [b for b in btns if not b.icon().isNull()]
+        self.assertGreaterEqual(len(iconed), 2, "Delicado + papelera esperados")
+        self.assertFalse(any(b.text() == "Todo" for b in btns))
+        self.assertFalse(any(b.text() == self.window.tr("QR") for b in btns))
+        self.assertFalse(any(b.text() == self.window.tr("FTP") for b in btns))
 
     def test_pick_wifi_source_pairdrop_configures_new_qr(self):
         """El botón WiFi… siempre configura un QR nuevo (no reabre el existente)."""

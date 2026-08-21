@@ -442,19 +442,17 @@ class MainWindow(QMainWindow):
         left_col.addLayout(src_top)
 
         self.source_list = QTableWidget()
-        self.source_list.setColumnCount(4)
+        self.source_list.setColumnCount(3)
         self.source_list.setHorizontalHeaderLabels(
-            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Contenido"), ""])
+            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Opciones")])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Interactive)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Stretch)
-        header.setSectionResizeMode(3, QHeaderView.Fixed)
         header.setMinimumSectionSize(32)
         header.resizeSection(0, 100)
         header.resizeSection(1, 60)
-        header.resizeSection(3, 36)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -478,11 +476,6 @@ class MainWindow(QMainWindow):
         icons.apply(self.btn_scan_cameras, "camera", size=14)
         self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
         src_scan_row.addWidget(self.btn_scan_cameras)
-
-        self.btn_selective_dump = QPushButton(self.tr("Volcado selectivo…"))
-        self.btn_selective_dump.setToolTip(self.tr("Seleccionar por fecha qué archivos volcar de un origen"))
-        self.btn_selective_dump.clicked.connect(self._open_selective_dump)
-        src_scan_row.addWidget(self.btn_selective_dump)
 
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
@@ -2238,10 +2231,8 @@ class MainWindow(QMainWindow):
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
-            # Column 2: content filter (always, including WiFi/FTP)
-            self.source_list.setCellWidget(row, 2, self._build_content_button(row, sess))
-            # Column 3: per-row delete
-            self.source_list.setCellWidget(row, 3, self._build_remove_source_button(row))
+            # Column 2: opciones (toggle WiFi, rápido/delicado y papelera)
+            self.source_list.setCellWidget(row, 2, self._build_options_widget(row, sess))
         self.source_list.blockSignals(False)
         self._update_format_sources_state()
         self._update_source_list_height()
@@ -2366,40 +2357,16 @@ class MainWindow(QMainWindow):
                 lambda _=False, s=session: self._reconfigure_ftp_source(s))
         return btn
 
-    def _build_content_button(self, row, session):
+    def _build_options_widget(self, row, session):
+        """Columna «Opciones»: toggle carpeta/archivo WiFi (si aplica),
+        rápido/delicado y papelera de eliminar origen."""
         device_id = (session or {}).get("device_id") or ""
         device_key = device_id or ((session or {}).get("source_path") or "")
-        filt = None
-        if session:
-            try:
-                raw = session.get("content_filter")
-                if raw:
-                    filt = json.loads(raw)
-            except (TypeError, ValueError):
-                filt = None
-        text = content_summary(filt)
 
         wrapper = QWidget()
         wrapper_lay = QHBoxLayout(wrapper)
         wrapper_lay.setContentsMargins(0, 0, 0, 0)
         wrapper_lay.setSpacing(2)
-
-        btn = QPushButton(text)
-        btn.setToolTip(text)
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(
-            "QPushButton { border: none; text-align: left; padding: 2px 6px;"
-            " color: %s; font-size: 11px; }"
-            "QPushButton:hover { color: %s; }"
-            "QPushButton:disabled { color: %s; }"
-            % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
-        )
-        if not session:
-            btn.setEnabled(False)
-            btn.setToolTip(self.tr("Activa el origen para configurar su contenido."))
-        else:
-            btn.clicked.connect(lambda _=False, s=session: self._open_content_filter(s["id"]))
-        wrapper_lay.addWidget(btn, 1)
 
         is_wifi = device_id == "wifi:pairdrop"
         if is_wifi and session:
@@ -2430,6 +2397,15 @@ class MainWindow(QMainWindow):
             delicate_btn.setEnabled(False)
         wrapper_lay.addWidget(delicate_btn, 0, Qt.AlignRight)
 
+        trash_btn = QPushButton()
+        trash_btn.setObjectName("IconButton")
+        trash_btn.setFixedSize(24, 24)
+        trash_btn.setToolTip(self.tr("Eliminar este origen…"))
+        trash_btn.setCursor(Qt.PointingHandCursor)
+        icons.apply(trash_btn, "trash", size=16)
+        trash_btn.clicked.connect(lambda: self._delete_source_at_row(row))
+        wrapper_lay.addWidget(trash_btn, 0, Qt.AlignRight)
+
         return wrapper
 
     def _toggle_wifi_folder_mode(self, session, btn):
@@ -2451,16 +2427,6 @@ class MainWindow(QMainWindow):
         current = bool(db.get_device_delicate(device_key))
         db.set_device_delicate(device_key, not current)
         icons.apply(btn, "snail" if not current else "zap", size=14)
-
-    def _build_remove_source_button(self, row):
-        btn = QPushButton()
-        btn.setObjectName("IconButton")
-        btn.setFixedSize(24, 24)
-        btn.setToolTip(self.tr("Eliminar este origen…"))
-        btn.setCursor(Qt.PointingHandCursor)
-        icons.apply(btn, "trash", size=16)
-        btn.clicked.connect(lambda: self._delete_source_at_row(row))
-        return btn
 
     def _build_remove_file_button(self, row_item):
         btn = QPushButton()
@@ -4306,24 +4272,6 @@ class MainWindow(QMainWindow):
 
     def show_about(self):
         AboutDialog(self).exec()
-
-    def _open_selective_dump(self):
-        if self.current_project_id is None:
-            QMessageBox.information(
-                self, self.tr("Sin proyecto"),
-                self.tr("Selecciona o crea un proyecto antes de hacer un volcado selectivo."))
-            return
-        source = self.source_input.currentText().strip() or (self._source_paths[0] if self._source_paths else "")
-        project_config = {
-            "dest_root": self.dest_root or "",
-            "folder_name": self.project_folder_name or "Footage",
-            "organization_type": self.project_organization_type,
-            "default_dispositivo": self.project_default_dispositivo or "",
-            "project_id": self.current_project_id,
-            "use_metadata_date": self.project_use_metadata_date,
-        }
-        dialog = SelectiveDumpAssistant(self, source_path=source, project_config=project_config)
-        dialog.exec()
 
     def _open_content_filter(self, session_id):
         """Abre el asistente en modo filtro para una sesión; True solo si acepta.
