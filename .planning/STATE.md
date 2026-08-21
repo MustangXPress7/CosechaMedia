@@ -6,12 +6,12 @@ current_phase: 00
 current_phase_name: Bugs conocidos + features v1.5
 status: active
 stopped_at: None
-last_updated: "2026-08-19T00:00:00.000Z"
+last_updated: "2026-08-21T10:33:06.173Z"
 last_activity: 2026-08-21
-last_activity_desc: Quick 260821-f2k completado — volcado selectivo por sesión (I-15+I-18): switch cíclico de 3 modos por sesión, ventana N días real desde último volcado, tabla Opciones 3 columnas, botón global retirado.
+last_activity_desc: "Quick 260821-f2k completado — volcado selectivo por sesión (I-15+I-18): switch cíclico de 3 modos por sesión, ventana N días real desde último volcado, tabla Opciones 3 columnas, botón global retirado."
 progress:
-  total_phases: 3
-  completed_phases: 1
+  total_phases: 2
+  completed_phases: 0
   total_plans: 5
   completed_plans: 4
 ---
@@ -30,6 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 **Alcance de v1.5 (todo excepto I-01 "acciones rápidas/modo guiado"):**
 
 ### Bugs conocidos (CONCERNS.md)
+
 - FFprobe timeout → metadata "Unknown" + file_size=0
 - Watcher re-ingesta tras pruning >10k archivos
 - DB path depende de CWD cuando no está frozen
@@ -37,6 +38,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 - Device polling en UI thread (freezes)
 
 ### Features pendientes (IDEAS.md → v1.5)
+
 - I-03: Cámara ↔ ID de tarjeta persistida
 - I-06: Reporte CSV de contenido de tarjeta ✅
 - I-07: WiFi reanudar subidas + MD5 en móvil — Por revisar
@@ -49,12 +51,14 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 - Fase 2: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
 
 ### Estética (BACKLOG_UI_V2 → v1.5)
+
 - B-09: Tipografía con jerarquía
 - B-10: Espaciado y superficies
 - B-11: Microinteracciones y botón primario
 - B-12: Auditoría estética formal
 
 ### Reservado para v2.0
+
 - I-01: Acciones rápidas / modo guiado
 - I-13: Pantalla de bienvenida (ligada a I-01)
 
@@ -62,7 +66,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 Phase: 00 (Bugs + features v1.5) — STARTING
 Status: Investigando bugs conocidos de CONCERNS.md
-Last activity: 2026-08-21 - Quick 260821-f2k: volcado selectivo por sesión (I-15+I-18) completado
+Last activity: 2026-08-21 - Volcado por sesión (I-15+I-18): rotativo con icono del modo + botón de configuración legible (1e332ca)
 
 ## Performance Metrics
 
@@ -129,7 +133,8 @@ Recent decisions affecting current work:
 | 260816-k7i | Corregir hallazgos pendientes del UI-REVIEW (ProjectWizard, confirmaciones destructivas, zombie buttons, menú redundante) | 2026-08-16 | 7aa7f98 | Verified (gap fix 5d970b3) | [260816-k7i-corregir-hallazgos-pendientes-del-ui-rev](./quick/260816-k7i-corregir-hallazgos-pendientes-del-ui-rev/) |
 | 260816-mcj | Arreglar MTP (manager COM por hilo), volcado selectivo a orígenes, columnas de borrado por fila y columna de ruta redimensionable | 2026-08-16 | 7b27666 | Verified | [260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub](./quick/260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub/) |
 | 260816-x3b | Reemplazar glifos emoji por iconos SVG vectoriales tintables (app/ui/icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado) | 2026-08-16 | b28b808 | Needs Review | [260816-x3b-reemplazar-los-glifos-emoji-unicode-que-](./quick/260816-x3b-reemplazar-los-glifos-emoji-unicode-que-/) |
-| 260821-f2k | Volcado selectivo por sesión (I-15+I-18): switch cíclico 3 modos por sesión, ventana N días real, tabla Opciones 3 columnas, botón global retirado | 2026-08-21 | 8ff5121 | Needs Review | [260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s](./quick/260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s/) |
+| 260821-f2k | Volcado selectivo por sesión (I-15+I-18): control por sesión en área Sesiones, ventana N días real desde último volcado, tabla Opciones 3 columnas, botón global retirado | 2026-08-21 | 8ff5121 | Needs Review | [260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s](./quick/260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s/) |
+| 260821-f2k-rev | Revisión UX tras feedback: rotativo solo-icono del modo (cuadrado/calendario/cronómetro, cicla sin diálogos) + botón de configuración con texto legible que abre el menú del modo; 3 SVGs nuevos tintables | 2026-08-21 | 1e332ca | Needs Review | [260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s](./quick/260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s/) |
 
 ## Deferred Items
 
