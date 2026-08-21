@@ -125,15 +125,20 @@ QPushButton:disabled {
 }
 
 QPushButton#PrimaryAction {
-    background-color: @success_bg;
+    background-color: @primary_bg;
     border: none;
+    color: @on_accent;
     font-weight: bold;
     font-size: 13px;
     padding: 8px 20px;
 }
 
 QPushButton#PrimaryAction:hover {
-    background-color: @success_hover;
+    background-color: @primary_hover;
+}
+
+QPushButton#PrimaryAction:pressed {
+    background-color: @primary_pressed;
 }
 
 QPushButton#PrimaryAction:disabled {
@@ -234,6 +239,8 @@ QComboBox::down-arrow {
     border-left: 4px solid transparent;
     border-right: 4px solid transparent;
     border-top: 5px solid @text_secondary;
+    width: 0;
+    height: 0;
     margin-right: 4px;
 }
 
@@ -259,7 +266,7 @@ QProgressBar {
 }
 
 QProgressBar::chunk {
-    background-color: @success_bg;
+    background-color: @primary_bg;
     border-radius: 3px;
 }
 
@@ -538,8 +545,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background-color: @success_bg;
-    border-color: @success_bg;
+    background-color: @primary_bg;
+    border-color: @primary_bg;
 }
 
 QCheckBox::indicator:hover {
@@ -721,6 +728,32 @@ def _tint(base_hex: str, accent: str = None) -> str:
     return _mix(base_hex, color_hex, ACCENT_TINT_RATIO)
 
 
+def _primary_action_colors(name: str = None, accent: str = None) -> dict:
+    """Colores de la acción primaria derivados del acento efectivo.
+
+    Sustituye a los verdes fijos: el botón primario, el progreso y los
+    checks usan el acento elegido; con Neutro caen a accent_selection
+    para mantener un azul sólido en ambos temas.
+    """
+    palette = get_palette(name)
+    if accent is None:
+        accent = get_accent()
+    base = ACCENTS.get(accent, ACCENTS[DEFAULT_ACCENT]).get("color")
+    if not base:
+        base = palette["accent_selection"]
+    if palette is DARK:
+        return {
+            "primary_bg": _mix(base, "#000000", 0.30),
+            "primary_hover": base,
+            "primary_pressed": _mix(base, "#000000", 0.55),
+        }
+    return {
+        "primary_bg": base,
+        "primary_hover": _mix(base, "#000000", 0.18),
+        "primary_pressed": _mix(base, "#000000", 0.38),
+    }
+
+
 def _rgba(hex_color: str, alpha: int) -> str:
     r, g, b = _parse_hex(hex_color)
     return "rgba({}, {}, {}, {})".format(r, g, b, alpha)
@@ -738,6 +771,7 @@ def build_qss(name: str = None, accent: str = None) -> str:
     mapping["bg_tinted_alt"] = tinted_bg_alt(name, accent)
     mapping["bg_tinted_50"] = _rgba(mapping["bg_tinted"], 128)
     mapping["bg_tinted_alt_50"] = _rgba(mapping["bg_tinted_alt"], 128)
+    mapping.update(_primary_action_colors(name, accent))
     qss = _QSS_TEMPLATE
     for key, value in sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True):
         qss = qss.replace("@" + key, value)
