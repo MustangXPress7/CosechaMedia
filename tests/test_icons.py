@@ -24,7 +24,7 @@ from app.ui import icons
 
 ICON_NAMES = [
     "refresh", "plus", "minus", "x", "pencil", "copy", "folder", "gear",
-    "trash", "camera", "phone", "wifi", "globe",
+    "wrench", "trash", "camera", "phone", "wifi", "globe",
 ]
 
 

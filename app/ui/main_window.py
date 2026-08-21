@@ -354,7 +354,7 @@ class MainWindow(QMainWindow):
         hb.addStretch()
 
         for btn, icon_name, tip, cb in [
-            ("btn_show_metadata", "gear", self.tr("Configuración"), "_show_metadata_dialog"),
+            ("btn_show_metadata", "wrench", self.tr("Configuración"), "_show_metadata_dialog"),
         ]:
             b = QPushButton()
             b.setObjectName("IconButton")
@@ -447,12 +447,12 @@ class MainWindow(QMainWindow):
             [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Opciones")])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.Interactive)
+        header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.Stretch)
+        header.setSectionResizeMode(2, QHeaderView.Interactive)
         header.setMinimumSectionSize(32)
-        header.resizeSection(0, 100)
-        header.resizeSection(1, 60)
+        header.resizeSection(1, 70)
+        header.resizeSection(2, 110)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -490,7 +490,7 @@ class MainWindow(QMainWindow):
         sess_top = QHBoxLayout()
         self.sessions_combo = QComboBox()
         self.sessions_combo.setMinimumWidth(100)
-        self.sessions_combo.setMaximumWidth(200)
+        self.sessions_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.sessions_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.sessions_combo.currentIndexChanged.connect(self._on_session_selected)
         sess_top.addWidget(self.sessions_combo)
@@ -663,7 +663,8 @@ class MainWindow(QMainWindow):
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setMinimumHeight(18)
-        self.progress_bar.setFormat(self.tr("%v / %m archivos"))
+        # Sin texto hasta que la ingesta termina (el total solo se conoce al final).
+        self.progress_bar.setFormat("")
         left_col.addWidget(self.progress_bar)
 
         stats_row = QHBoxLayout()
@@ -800,8 +801,31 @@ class MainWindow(QMainWindow):
         date_input.setCalendarPopup(True)
         date_input.setDate(self.project_date)
         date_input.setDisplayFormat("yyyy-MM-dd")
-        gen_grid.addWidget(QLabel(self.tr("Fecha:")), 2, 0)
+        date_label = QLabel(self.tr("Fecha:"))
+        gen_grid.addWidget(date_label, 2, 0)
         gen_grid.addWidget(date_input, 2, 1)
+
+        # Lógica de habilitación
+        def _update_ui_state():
+            dur_idx = dur_combo.currentIndex()
+            dur_type = {0: 1, 1: 2, 2: 3}.get(dur_idx, 1)
+            use_meta = chk_use_meta.isChecked()
+
+            # Un solo día fuerza fecha manual y desactiva metadatos
+            if dur_idx == 0:
+                chk_use_meta.setChecked(False)
+                chk_use_meta.setEnabled(False)
+            else:
+                chk_use_meta.setEnabled(True)
+
+            # Fecha solo habilitada si hay fecha en la ruta y no se usa metadato
+            date_enabled = dur_type != 3 and not use_meta
+            date_input.setEnabled(date_enabled)
+            date_label.setEnabled(date_enabled)
+
+        dur_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
+        chk_use_meta.toggled.connect(lambda _: _update_ui_state())
+        _update_ui_state()
 
         main_layout.addWidget(gen_group)
 
@@ -831,7 +855,11 @@ class MainWindow(QMainWindow):
             self.project_organization_type = org_combo.currentIndex()
             dur_idx = dur_combo.currentIndex()
             self.project_duration_type = {0: 1, 1: 2, 2: 3}.get(dur_idx, 1)
-            self.project_use_metadata_date = chk_use_meta.isChecked()
+            # Con Un solo día forzamos manual
+            if dur_idx == 0:
+                self.project_use_metadata_date = False
+            else:
+                self.project_use_metadata_date = chk_use_meta.isChecked()
             self.project_date = date_input.date()
             self.project_generate_proxies = chk_gen_proxies.isChecked()
             self.project_proxy_resolution = proxy_res_combo.currentText()
@@ -1528,6 +1556,7 @@ class MainWindow(QMainWindow):
         self.table.setRowCount(0)
         self.table.setSortingEnabled(False)
         self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("")
         self._file_row_map = {}
         self._processed_count = 0
         self._total_files = 0
@@ -1795,6 +1824,7 @@ class MainWindow(QMainWindow):
             total_processed = sum(ing.get_stats().get("processed", 0) for ing in self._ingestors)
             total_errors = sum(ing.get_stats().get("errors", 0) for ing in self._ingestors)
             total_skipped = sum(ing.get_stats().get("skipped", 0) for ing in self._ingestors)
+            self.progress_bar.setFormat(self.tr("%v / %m archivos"))
             self.ingest_status_label.setText(
                 self.tr("Ingesta completada: %1 procesados, %2 errores, %3 omitidos.")
                 .arg(total_processed).arg(total_errors).arg(total_skipped)

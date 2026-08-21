@@ -127,14 +127,16 @@ class TestSourceContent(unittest.TestCase):
         self.assertFalse(hasattr(self.window, "btn_selective_dump"))
         self.assertFalse(hasattr(mw.MainWindow, "_open_selective_dump"))
 
-    def test_source_path_column_interactive_with_default_width(self):
+    def test_source_path_stretches_and_options_fixed(self):
+        """La ruta estira con el panel; Cámara y Opciones quedan en ancho fijo."""
         self.window._refresh_source_list()
         header = self.window.source_list.horizontalHeader()
-        self.assertEqual(header.sectionResizeMode(0), QHeaderView.Interactive)
+        self.assertEqual(header.sectionResizeMode(0), QHeaderView.Stretch)
+        self.assertEqual(header.sectionResizeMode(1), QHeaderView.Interactive)
+        self.assertEqual(header.sectionResizeMode(2), QHeaderView.Interactive)
         self.assertFalse(header.stretchLastSection())
-        self.assertEqual(header.sectionSize(0), 100)
-        header.resizeSection(0, 200)
-        self.assertEqual(header.sectionSize(0), 200)
+        self.assertEqual(header.sectionSize(1), 70)
+        self.assertEqual(header.sectionSize(2), 110)
 
     def test_options_widget_has_integrated_delete(self):
         """La papelera vive dentro del wrapper de Opciones (columna 2)."""
