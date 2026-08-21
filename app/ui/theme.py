@@ -693,7 +693,9 @@ def get_palette(name: str = None) -> dict:
 
 
 def color(name: str) -> str:
-    return get_palette()[name]
+    palette = dict(get_palette())
+    palette.update(_effective_accent_colors())
+    return palette[name]
 
 
 def _parse_hex(value: str):
@@ -728,29 +730,50 @@ def _tint(base_hex: str, accent: str = None) -> str:
     return _mix(base_hex, color_hex, ACCENT_TINT_RATIO)
 
 
-def _primary_action_colors(name: str = None, accent: str = None) -> dict:
-    """Colores de la acción primaria derivados del acento efectivo.
+def _effective_accent_colors(name: str = None, accent: str = None) -> dict:
+    """Claves accent/accent_selection/accent_pressed ajustadas al acento.
 
-    Sustituye a los verdes fijos: el botón primario, el progreso y los
-    checks usan el acento elegido; con Neutro caen a accent_selection
-    para mantener un azul sólido en ambos temas.
+    Todo lo que en la paleta base es azul fijo (bordes hover/focus,
+    selecciones, textos de acento, barra de proyecto) pasa a seguir el
+    acento elegido. Con Neutro devuelve {} y manda la paleta tal cual.
     """
     palette = get_palette(name)
     if accent is None:
         accent = get_accent()
     base = ACCENTS.get(accent, ACCENTS[DEFAULT_ACCENT]).get("color")
     if not base:
-        base = palette["accent_selection"]
+        return {}
     if palette is DARK:
         return {
-            "primary_bg": _mix(base, "#000000", 0.30),
-            "primary_hover": base,
-            "primary_pressed": _mix(base, "#000000", 0.55),
+            "accent": base,
+            "accent_selection": _mix(base, "#000000", 0.30),
+            "accent_pressed": _mix(base, "#000000", 0.55),
         }
     return {
-        "primary_bg": base,
-        "primary_hover": _mix(base, "#000000", 0.18),
-        "primary_pressed": _mix(base, "#000000", 0.38),
+        "accent": _mix(base, "#000000", 0.25),
+        "accent_selection": _mix(base, "#000000", 0.25),
+        "accent_pressed": _mix(base, "#000000", 0.45),
+    }
+
+
+def _primary_action_colors(name: str = None, accent: str = None) -> dict:
+    """Colores de la acción primaria derivados del acento efectivo.
+
+    Sustituye a los verdes fijos: el botón primario, el progreso y los
+    checks usan la misma familia de acento que selecciones y bordes;
+    con Neutro caen al azul de la paleta.
+    """
+    palette = get_palette(name)
+    eff = _effective_accent_colors(name, accent)
+    acc = eff.get("accent", palette["accent"])
+    sel = eff.get("accent_selection", palette["accent_selection"])
+    pressed = eff.get("accent_pressed", palette["accent_pressed"])
+    if palette is DARK:
+        return {"primary_bg": sel, "primary_hover": acc, "primary_pressed": pressed}
+    return {
+        "primary_bg": acc,
+        "primary_hover": _mix(acc, "#000000", 0.18),
+        "primary_pressed": _mix(acc, "#000000", 0.38),
     }
 
 
@@ -771,6 +794,7 @@ def build_qss(name: str = None, accent: str = None) -> str:
     mapping["bg_tinted_alt"] = tinted_bg_alt(name, accent)
     mapping["bg_tinted_50"] = _rgba(mapping["bg_tinted"], 128)
     mapping["bg_tinted_alt_50"] = _rgba(mapping["bg_tinted_alt"], 128)
+    mapping.update(_effective_accent_colors(name, accent))
     mapping.update(_primary_action_colors(name, accent))
     qss = _QSS_TEMPLATE
     for key, value in sorted(mapping.items(), key=lambda kv: len(kv[0]), reverse=True):
