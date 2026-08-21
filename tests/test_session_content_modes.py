@@ -131,7 +131,10 @@ class TestWindowCutoffCore(unittest.TestCase):
 
 
 class TestSessionDumpSwitch(unittest.TestCase):
-    """Switch cíclico de volcado por sesión en el área «Sesiones» (I-15/I-18)."""
+    """Botones de volcado por sesión en el área «Sesiones» (I-15/I-18).
+
+    Dos botones checkables lado a lado: «Intervalo de fechas» y «Últimos N días».
+    Ninguno pulsado = todo el contenido; pulsar el activo lo desactiva."""
 
     @classmethod
     def setUpClass(cls):
@@ -187,22 +190,25 @@ class TestSessionDumpSwitch(unittest.TestCase):
         self.assertNotEqual(idx, -1)
         self.window.sessions_combo.setCurrentIndex(idx)
 
-    def test_initial_state_all_enabled(self):
-        """Sesión normal seleccionada: switch habilitado en «Todo el contenido»."""
+    def test_initial_buttons_enabled_unchecked(self):
+        """Sesión normal seleccionada: ambos botones habilitados y sin pulsar (todo)."""
         self._select_session(self.sid)
-        btn = self.window.btn_session_dump_mode
-        self.assertTrue(btn.isEnabled())
-        self.assertEqual(btn.text(), self.window.tr("Todo el contenido"))
+        btn_i = self.window.btn_session_interval
+        btn_w = self.window.btn_session_window
+        self.assertTrue(btn_i.isEnabled())
+        self.assertTrue(btn_w.isEnabled())
+        self.assertFalse(btn_i.isChecked())
+        self.assertFalse(btn_w.isChecked())
 
-    def test_cycle_all_to_interval_accepted_persists(self):
-        """all→intervalo aceptado: persiste modo+filtro y el switch muestra «Intervalo:»."""
+    def test_interval_accepted_persists_filter(self):
+        """Pulsar «Intervalo de fechas» y aceptar: persiste modo+filtro y queda pulsado."""
         fake = mock.Mock()
         fake.exec.return_value = mw.QDialog.Accepted
         fake.content_filter = {"dates": ["2024-01-05"], "include_nodate": False}
         fake.content_mode = "interval"
         fake.content_text = "el 5-1-24"
         with mock.patch.object(mw, "SelectiveDumpAssistant", return_value=fake) as MockDlg:
-            self.window.btn_session_dump_mode.click()
+            self.window.btn_session_interval.click()
         kwargs = MockDlg.call_args.kwargs
         self.assertEqual(kwargs.get("mode"), "filter")
         self.assertEqual(kwargs.get("session_id"), self.sid)
@@ -210,73 +216,84 @@ class TestSessionDumpSwitch(unittest.TestCase):
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "interval")
         self.assertEqual(json.loads(sess["content_filter"]), fake.content_filter)
-        self.assertIn("Intervalo:", self.window.btn_session_dump_mode.text())
+        self.assertTrue(self.window.btn_session_interval.isChecked())
+        self.assertFalse(self.window.btn_session_window.isChecked())
 
-    def test_cycle_interval_cancelled_keeps_all(self):
-        """Cancelar el asistente NO persiste nada y el switch vuelve a «Todo»."""
+    def test_interval_cancelled_still_activates_interval(self):
+        """Cancelar el calendario entra igualmente en intervalo (filtro por defecto)."""
         fake = mock.Mock()
         fake.exec.return_value = mw.QDialog.Rejected
         with mock.patch.object(mw, "SelectiveDumpAssistant", return_value=fake):
-            self.window.btn_session_dump_mode.click()
+            self.window.btn_session_interval.click()
         sess = self.db.get_session(self.sid)
-        self.assertEqual(sess["content_mode"], "all")
+        self.assertEqual(sess["content_mode"], "interval")
         self.assertIsNone(sess["content_filter"])
-        self.assertEqual(self.window.btn_session_dump_mode.text(),
-                         self.window.tr("Todo el contenido"))
+        self.assertTrue(self.window.btn_session_interval.isChecked())
 
-    def test_cycle_to_window_accepted_persists_days(self):
-        """interval→ventana aceptado: persiste {window_days: N} sin cutoff congelado."""
+    def test_interval_button_toggles_back_to_all(self):
+        """Pulsar de nuevo el botón activo vuelve a «todo el contenido»."""
         self.db.update_session_config(
             self.sid, content_mode="interval",
             content_filter=json.dumps({"dates": ["2024-01-05"], "include_nodate": False}))
         self.window._update_session_dump_switch()
+        self.window.btn_session_interval.click()
+        sess = self.db.get_session(self.sid)
+        self.assertEqual(sess["content_mode"], "all")
+        self.assertIsNone(sess["content_filter"])
+        self.assertFalse(self.window.btn_session_interval.isChecked())
+
+    def test_window_accepted_persists_days(self):
+        """Pulsar «Últimos N días» y aceptar: persiste {window_days: N} sin cutoff."""
         with mock.patch.object(mw.QInputDialog, "getInt", return_value=(9, True)) as gi:
-            self.window.btn_session_dump_mode.click()
+            self.window.btn_session_window.click()
         gi.assert_called_once()
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "window")
         self.assertEqual(json.loads(sess["content_filter"]), {"window_days": 9})
         self.assertNotIn("cutoff_date", json.loads(sess["content_filter"]))
-        self.assertEqual(self.window.btn_session_dump_mode.text(),
-                         self.window.tr("Últimos %1 días").arg(9))
+        self.assertTrue(self.window.btn_session_window.isChecked())
+        self.assertFalse(self.window.btn_session_interval.isChecked())
 
-    def test_cycle_window_cancelled_keeps_state(self):
-        """Cancelar el diálogo de días NO altera la sesión."""
+    def test_window_cancelled_still_activates_window(self):
+        """Cancelar el diálogo de días entra igualmente en modo ventana."""
         self.db.update_session_config(
             self.sid, content_mode="interval",
             content_filter=json.dumps({"dates": ["2024-01-05"], "include_nodate": False}))
         self.window._update_session_dump_switch()
         with mock.patch.object(mw.QInputDialog, "getInt", return_value=(9, False)):
-            self.window.btn_session_dump_mode.click()
+            self.window.btn_session_window.click()
         sess = self.db.get_session(self.sid)
-        self.assertEqual(sess["content_mode"], "interval")
+        self.assertEqual(sess["content_mode"], "window")
         self.assertEqual(json.loads(sess["content_filter"]),
                          {"dates": ["2024-01-05"], "include_nodate": False})
+        self.assertTrue(self.window.btn_session_window.isChecked())
 
-    def test_cycle_window_to_all(self):
-        """ventana→todo: persiste modo all y filtro None."""
+    def test_window_button_toggles_back_to_all(self):
+        """Pulsar de nuevo «Últimos N días» activo vuelve a «todo el contenido»."""
         self.db.update_session_config(self.sid, content_mode="window",
                                       content_filter=json.dumps({"window_days": 9}))
         self.window._update_session_dump_switch()
-        self.window.btn_session_dump_mode.click()
+        self.window.btn_session_window.click()
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "all")
         self.assertIsNone(sess["content_filter"])
-        self.assertEqual(self.window.btn_session_dump_mode.text(),
-                         self.window.tr("Todo el contenido"))
+        self.assertFalse(self.window.btn_session_window.isChecked())
 
     def test_wifi_session_switch_disabled(self):
-        """Sesión WiFi: switch deshabilitado fijado en «Todo el contenido»."""
+        """Sesión WiFi: ambos botones deshabilitados y sin pulsar."""
         wifi_sid = self.db.create_session(self.pid, "WiFi", "2026-08-10", "active", "")
         self.db.update_session_config(wifi_sid, device_id=WIFI_DEVICE_ID)
         self.window._refresh_sessions_combo()
         self._select_session(wifi_sid)
-        btn = self.window.btn_session_dump_mode
-        self.assertFalse(btn.isEnabled())
-        self.assertEqual(btn.text(), self.window.tr("Todo el contenido"))
+        btn_i = self.window.btn_session_interval
+        btn_w = self.window.btn_session_window
+        self.assertFalse(btn_i.isEnabled())
+        self.assertFalse(btn_w.isEnabled())
+        self.assertFalse(btn_i.isChecked())
+        self.assertFalse(btn_w.isChecked())
 
     def test_switch_refreshes_on_selection_change(self):
-        """Cambiar de sesión en el combo actualiza el texto del switch."""
+        """Cambiar de sesión en el combo actualiza qué botón está pulsado."""
         self.db.update_session_config(self.sid, content_mode="window",
                                       content_filter=json.dumps({"window_days": 9}))
         other = os.path.join(self.tmp, "other")
@@ -288,10 +305,11 @@ class TestSessionDumpSwitch(unittest.TestCase):
         self.window._refresh_sessions_combo()
 
         self._select_session(self.sid)
-        self.assertEqual(self.window.btn_session_dump_mode.text(),
-                         self.window.tr("Últimos %1 días").arg(9))
+        self.assertTrue(self.window.btn_session_window.isChecked())
+        self.assertFalse(self.window.btn_session_interval.isChecked())
         self._select_session(sid2)
-        self.assertIn("Intervalo:", self.window.btn_session_dump_mode.text())
+        self.assertTrue(self.window.btn_session_interval.isChecked())
+        self.assertFalse(self.window.btn_session_window.isChecked())
 
 
 if __name__ == "__main__":
