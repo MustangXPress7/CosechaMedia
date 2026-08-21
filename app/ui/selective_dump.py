@@ -84,7 +84,7 @@ def content_summary(content_filter) -> str:
     window_days = content_filter.get("window_days")
 
     if cutoff_date:
-        text = translator.tr("últimos %1 días").arg(window_days or 7)
+        text = translator.tr("últimos %1 días").arg(window_days or 1)
         if include_nodate:
             text = f"{text} · " + translator.tr("sin fecha")
         return text
@@ -862,7 +862,7 @@ class SelectiveDumpAssistant(QDialog):
                 from datetime import datetime, timedelta
                 try:
                     last_date = datetime.strptime(last_dump_date, "%Y-%m-%d").date()
-                    window_days = db.get_setting("window_days_default", 7)
+                    window_days = db.get_setting("window_days_default", 1)
                     cutoff = last_date - timedelta(days=window_days)
                     self.content_filter = {
                         "cutoff_date": cutoff.strftime("%Y-%m-%d"),
@@ -870,9 +870,9 @@ class SelectiveDumpAssistant(QDialog):
                         "include_nodate": include_nodate,
                     }
                 except (ValueError, TypeError):
-                    self.content_filter = {"window_days": 7, "include_nodate": include_nodate}
+                    self.content_filter = {"window_days": 1, "include_nodate": include_nodate}
             else:
-                self.content_filter = {"window_days": 7, "include_nodate": include_nodate}
+                self.content_filter = {"window_days": 1, "include_nodate": include_nodate}
         else:
             self.content_filter = None
 

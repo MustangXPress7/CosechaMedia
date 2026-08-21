@@ -2862,13 +2862,13 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _window_days_from_filter(filt):
-        """Días de ventana del filtro (default 7; ignora cutoff_date legacy)."""
+        """Días de ventana del filtro (default 1; ignora cutoff_date legacy)."""
         if isinstance(filt, dict):
             try:
-                return int(filt.get("window_days", 7))
+                return int(filt.get("window_days", 1))
             except (TypeError, ValueError):
                 pass
-        return 7
+        return 1
 
     def _update_session_dump_switch(self):
         """Refresca el rotativo (icono del modo) y el botón de configuración.

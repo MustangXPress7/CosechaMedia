@@ -166,7 +166,7 @@ class Ingestor(QObject):
         self._copied_files = self._load_copied_files()
 
         self._content_mode = content_mode
-        self._window_days_default = 7
+        self._window_days_default = 1
 
         if content_mode == self.CONTENT_MODE_INTERVAL:
             self._init_interval_filter(content_filter)

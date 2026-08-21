@@ -106,7 +106,7 @@ class TestWindowCutoffCore(unittest.TestCase):
         self.assertEqual(ing._content_filter["cutoff_date"], expected)
 
     def test_window_days_preserved_without_cutoff(self):
-        """window_days del filtro recibido NO se resetea al default 7."""
+        """window_days del filtro recibido NO se resetea al default 1."""
         ing = self._make_ingestor(content_mode="window",
                                   content_filter={"window_days": 5})
         self.assertEqual(ing._content_filter["window_days"], 5)
@@ -220,7 +220,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
             sess = self.db.get_session(self.sid)
             self.assertEqual(sess["content_mode"], "window")
             self.assertEqual(self.window.btn_session_dump_config.text(),
-                             tr("Últimos %1 días").arg(7))
+                             tr("Últimos %1 días").arg(1))
             self.assertFalse(rot.icon().isNull())
 
             rot.click()

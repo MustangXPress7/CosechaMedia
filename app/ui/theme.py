@@ -158,7 +158,7 @@ QPushButton#DangerAction:disabled {
     color: @text_disabled;
 }
 
-QLineEdit, QComboBox, QDateEdit {
+QLineEdit, QComboBox, QDateEdit, QTimeEdit, QSpinBox, QDoubleSpinBox {
     background-color: @bg;
     border: 1px solid @border;
     padding: 3px 6px;
@@ -170,8 +170,54 @@ QLineEdit, QComboBox, QDateEdit {
     font-size: 11px;
 }
 
-QLineEdit:focus, QComboBox:focus, QDateEdit:focus {
+QLineEdit:focus, QComboBox:focus, QDateEdit:focus, QTimeEdit:focus,
+QSpinBox:focus, QDoubleSpinBox:focus {
     border-color: @accent;
+}
+
+QSpinBox::up-button, QDoubleSpinBox::up-button,
+QDateEdit::up-button, QTimeEdit::up-button {
+    subcontrol-origin: border;
+    subcontrol-position: top right;
+    width: 16px;
+    border-left: 1px solid @border;
+    background-color: @bg_hover;
+}
+
+QSpinBox::down-button, QDoubleSpinBox::down-button,
+QDateEdit::down-button, QTimeEdit::down-button {
+    subcontrol-origin: border;
+    subcontrol-position: bottom right;
+    width: 16px;
+    border-left: 1px solid @border;
+    background-color: @bg_hover;
+}
+
+QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
+QDateEdit::up-button:hover, QTimeEdit::up-button:hover,
+QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover,
+QDateEdit::down-button:hover, QTimeEdit::down-button:hover {
+    background-color: @bg_elevated;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow,
+QDateEdit::up-arrow, QTimeEdit::up-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 5px solid @text_secondary;
+    width: 0;
+    height: 0;
+}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow,
+QDateEdit::down-arrow, QTimeEdit::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid @text_secondary;
+    width: 0;
+    height: 0;
 }
 
 QPushButton:focus {
