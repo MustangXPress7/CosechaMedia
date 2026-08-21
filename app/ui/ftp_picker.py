@@ -379,13 +379,21 @@ class FtpDevicePane(QWidget):
         from PySide6.QtWidgets import QStyle
         return self.style().standardIcon(QStyle.SP_DirIcon)
 
+    def _norm_path(self, p):
+        if not p:
+            return ""
+        return "/".join([x for x in p.split("/") if x])
+
     def _load_children(self, item):
         data = item.data(0, Qt.UserRole) or {}
         if data.get("loaded"):
             return
         if not self.device_id:
             return
-        path = data["path"]
+        # marcar como cargado antes de consultar para evitar reentrada
+        data["loaded"] = True
+        item.setData(0, Qt.UserRole, data)
+        path = self._norm_path(data.get("path", ""))
         try:
             children = self._backend.list_children(self.device_id, path)
         except Exception:
@@ -394,14 +402,14 @@ class FtpDevicePane(QWidget):
 
     def _load_children_into(self, item, children):
         data = item.data(0, Qt.UserRole) or {}
-        data["loaded"] = True
-        item.setData(0, Qt.UserRole, data)
-        path = data["path"]
+        # loaded ya se marcó en _load_children
+        base_path = self._norm_path(data.get("path", ""))
         for child in children:
             if not child.is_dir:
                 continue
+            child_path = self._norm_path(base_path + "/" + child.name) if base_path else self._norm_path(child.name)
             child_item = QTreeWidgetItem([child.name])
-            child_item.setData(0, Qt.UserRole, {"path": path + "/" + child.name, "loaded": False})
+            child_item.setData(0, Qt.UserRole, {"path": child_path, "loaded": False})
             child_item.setIcon(0, self._folder_icon())
             child_item.setChildIndicatorPolicy(QTreeWidgetItem.ShowIndicator)
             item.addChild(child_item)
@@ -447,7 +455,7 @@ class FtpDevicePane(QWidget):
         if not items:
             return ""
         data = items[0].data(0, Qt.UserRole) or {}
-        return data.get("path", "")
+        return self._norm_path(data.get("path", ""))
 
     def _update_ok_state(self, *_):
         path = self._selected_path()

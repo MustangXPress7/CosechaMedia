@@ -33,6 +33,7 @@ from app.core import shoot_inbox as inboxmod
 from app.core.ftp import FtpBackend
 from app.core.metadata_engine import _is_system_entry
 from app.ui.ftp_picker import FtpPickerDialog
+from app.ui.ftp_status import FtpStatusDialog
 from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
 from app.ui.source_picker import SourcePickerDialog
 from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
@@ -2297,6 +2298,16 @@ class MainWindow(QMainWindow):
         if row < 0 or row >= len(self._source_paths):
             return
         old = self._source_paths[row]
+        # Detectar origen FTP por device_id asociado a la sesión
+        if self.current_project_id is not None:
+            sessions = db.get_sessions(self.current_project_id)
+            sess = next((s for s in sessions if s.get("source_path") == old), None)
+            if sess:
+                device_id = sess.get("device_id") or ""
+                if str(device_id).startswith("ftp:"):
+                    dlg = FtpStatusDialog(self, device_id=device_id)
+                    dlg.exec()
+                    return
         start = old if os.path.isdir(old) else os.path.expanduser("~")
         new = QFileDialog.getExistingDirectory(
             self, self.tr("Seleccionar carpeta de la Tarjeta SD"), start)
@@ -2479,7 +2490,7 @@ class MainWindow(QMainWindow):
             tip = self.tr("Cambiar carpeta del dispositivo...")
         else:
             text = self.tr("FTP")
-            tip = self.tr("Configurar este origen FTP")
+            tip = self.tr("Comprobar estado del origen FTP")
         btn = QPushButton(text)
         btn.setToolTip(tip)
         btn.setCursor(Qt.PointingHandCursor)
@@ -2499,8 +2510,9 @@ class MainWindow(QMainWindow):
             btn.clicked.connect(
                 lambda _=False, s=session: self._reconfigure_mtp_source(s))
         else:
+            device_id = (session or {}).get("device_id") or ""
             btn.clicked.connect(
-                lambda _=False, s=session: self._reconfigure_ftp_source(s))
+                lambda _=False, did=device_id: self._show_ftp_status_for_device(did))
         return btn
 
     def _build_options_widget(self, row, session):
@@ -3772,6 +3784,14 @@ class MainWindow(QMainWindow):
         self._wifi_panel.raise_()
         self._wifi_panel.activateWindow()
 
+    def _show_ftp_status(self):
+        dlg = FtpStatusDialog(self)
+        dlg.exec()
+
+    def _show_ftp_status_for_device(self, device_id):
+        dlg = FtpStatusDialog(self, device_id=device_id)
+        dlg.exec()
+
     def _sync_wifi_sessions(self):
         """Crea/elimina las sesiones fuente WiFi del proyecto (una por remitente)
         y refresca la tabla de orígenes."""
@@ -4059,6 +4079,7 @@ class MainWindow(QMainWindow):
                 self.tr("Selecciona o crea un proyecto antes de elegir un dispositivo.")
             )
             return
+        name = dialog.device_name or ""
         cache_dir = mtp.device_cache_dir(dialog.device_id, dialog.device_folder)
         try:
             os.makedirs(cache_dir, exist_ok=True)
@@ -4066,7 +4087,7 @@ class MainWindow(QMainWindow):
             cache_dir = mtp.device_cache_dir(dialog.device_id, "")
             os.makedirs(cache_dir, exist_ok=True)
         self._register_device_source(
-            cache_dir, dialog.device_id, dialog.device_folder, dialog.device_name,
+            cache_dir, dialog.device_id, dialog.device_folder, name,
             backend=ftp.FtpBackend(),
         )
 
@@ -4074,6 +4095,12 @@ class MainWindow(QMainWindow):
         if cache_dir not in self._source_paths:
             self._source_paths.append(cache_dir)
             self.source_input.setCurrentText("")
+        # Guardar nombre del dispositivo para recordarlo en futuros proyectos
+        if device_id and device_name:
+            try:
+                db.save_dispositivo_config(device_id, device_name)
+            except Exception:
+                pass
         sessions = db.get_sessions(self.current_project_id)
         existing = next((s for s in sessions if s.get("source_path") == cache_dir), None)
         if existing:
@@ -4081,6 +4108,7 @@ class MainWindow(QMainWindow):
                 existing["id"],
                 device_id=device_id, device_folder=device_folder,
                 source_path=cache_dir,
+                nombre_dispositivo=device_name,
             )
             sid = existing["id"]
         else:
@@ -4091,6 +4119,7 @@ class MainWindow(QMainWindow):
                 db.update_session_config(
                     sid, source_path=cache_dir, name=f"Auto ({base})",
                     device_id=device_id, device_folder=device_folder,
+                    nombre_dispositivo=device_name,
                 )
             else:
                 sid = db.create_session(
@@ -4098,7 +4127,8 @@ class MainWindow(QMainWindow):
                     QDate.currentDate().toString("yyyy-MM-dd"), "active",
                     source_path=cache_dir,
                 )
-                db.update_session_config(sid, device_id=device_id, device_folder=device_folder)
+                db.update_session_config(sid, device_id=device_id, device_folder=device_folder,
+                                          nombre_dispositivo=device_name)
         self._refresh_source_list()
         self._refresh_sessions_combo()
         self.update_start_button_state()

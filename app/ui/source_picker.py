@@ -22,6 +22,7 @@ from app.ui import theme
 from app.ui import icons
 from app.ui.device_picker import DevicePickerDialog
 from app.ui.ftp_picker import FtpPickerDialog
+from app.ui.wifi_panel import SenderEditDialog
 
 
 class SourcePickerDialog(QDialog):
@@ -147,12 +148,24 @@ class SourcePickerDialog(QDialog):
             self.accept()
 
     def _pick_ftp(self):
+        # Pedir nombre antes de configurar el servidor, como en WiFi
+        name_dlg = SenderEditDialog(
+            self,
+            title=self.tr("Añadir servidor FTP"),
+            name_label=self.tr("Nombre del servidor (aparecerá en la tabla de orígenes):"),
+            name_hint=self.tr("Ej.: Servidor rodaje A"),
+        )
+        if name_dlg.exec() != QDialog.Accepted:
+            return
+        name = name_dlg.name_edit.text().strip()
+        if not name:
+            return
         dialog = FtpPickerDialog(self)
         if (dialog.exec() == QDialog.Accepted
                 and dialog.device_id and dialog.device_folder):
             self.kind = "ftp_new"
             self.value = (dialog.profile_id, dialog.device_id,
-                          dialog.device_folder, dialog.device_name)
+                          dialog.device_folder, name)
             self.accept()
 
     def _choose_wifi(self):
