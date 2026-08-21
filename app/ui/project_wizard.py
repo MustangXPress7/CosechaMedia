@@ -63,7 +63,7 @@ class ProjectWizard(QDialog):
 
         self.chk_advanced = QCheckBox(self.tr("Opciones avanzadas"))
         self.chk_advanced.setToolTip(
-            self.tr("Duración, organización, detección de cámara y proxies"))
+            self.tr("Modo de fechas, organización, detección de cámara y proxies"))
         self.layout.addWidget(self.chk_advanced)
 
         advanced_widget = QWidget()
@@ -77,29 +77,18 @@ class ProjectWizard(QDialog):
 
         config_row = QHBoxLayout()
 
-        duration_group = QGroupBox(self.tr("Duración"))
-        duration_layout = QVBoxLayout(duration_group)
+        date_group = QGroupBox(self.tr("Modo de fechas"))
+        date_layout = QVBoxLayout(date_group)
         
-        self.duration_group = QButtonGroup()
+        self.date_mode_combo = QComboBox()
+        self.date_mode_combo.addItems([
+            self.tr("Automática"),
+            self.tr("Manual")
+        ])
+        self.date_mode_combo.setMinimumHeight(36)
+        date_layout.addWidget(self.date_mode_combo)
         
-        self.radio_one_day = QRadioButton(self.tr("Un solo día"))
-        self.radio_one_day.setChecked(True)
-        self.radio_one_day.setToolTip(self.tr("Todos los archivos pertenecen al mismo día"))
-        
-        self.radio_multiple_days = QRadioButton(self.tr("Múltiples días"))
-        self.radio_multiple_days.setToolTip(self.tr("Los archivos se organizarán por fecha de rodaje"))
-        
-        self.radio_no_date = QRadioButton(self.tr("Sin fecha"))
-        self.radio_no_date.setToolTip(self.tr("No se usará fecha para organizar los archivos"))
-        
-        self.duration_group.addButton(self.radio_one_day, 1)
-        self.duration_group.addButton(self.radio_multiple_days, 2)
-        self.duration_group.addButton(self.radio_no_date, 3)
-        
-        duration_layout.addWidget(self.radio_one_day)
-        duration_layout.addWidget(self.radio_multiple_days)
-        duration_layout.addWidget(self.radio_no_date)
-        config_row.addWidget(duration_group, 1)
+        config_row.addWidget(date_group, 1)
         
         org_group = QGroupBox(self.tr("Organización"))
         org_layout = QVBoxLayout(org_group)
@@ -108,16 +97,11 @@ class ProjectWizard(QDialog):
         self.org_combo.addItems([
             self.tr("Cámara / Fecha"),
             self.tr("Fecha / Cámara"),
-            self.tr("Solo por cámara"),
+            self.tr("Solo cámara"),
             self.tr("Sin subcarpetas")
         ])
         self.org_combo.setMinimumHeight(36)
         org_layout.addWidget(self.org_combo)
-        
-        self.chk_use_metadata_date = QCheckBox(self.tr("Usar fecha de metadatos"))
-        self.chk_use_metadata_date.setChecked(True)
-        self.chk_use_metadata_date.setToolTip(self.tr("Usar las fechas de los archivos en lugar de la fecha manual"))
-        org_layout.addWidget(self.chk_use_metadata_date)
         
         config_row.addWidget(org_group, 1)
 
@@ -129,8 +113,8 @@ class ProjectWizard(QDialog):
         detect_layout = QVBoxLayout(detect_group)
         self.detect_combo = QComboBox()
         self.detect_combo.addItems([
-            self.tr("Automática (ffprobe)"),
-            self.tr("Manual (preguntar)")
+            self.tr("Manual"),
+            self.tr("Automático")
         ])
         self.detect_combo.setMinimumHeight(36)
         detect_layout.addWidget(self.detect_combo)
@@ -139,6 +123,8 @@ class ProjectWizard(QDialog):
         self.spin_detect_timeout.setValue(5)
         self.spin_detect_timeout.setSuffix(" s")
         self.spin_detect_timeout.setToolTip(self.tr("Tiempo máximo de espera para auto-detección"))
+        self.spin_detect_timeout.setEnabled(self.detect_combo.currentIndex() == 1)
+        self.detect_combo.currentIndexChanged.connect(lambda i: self.spin_detect_timeout.setEnabled(i == 1))
         timeout_row = QHBoxLayout()
         timeout_row.addWidget(QLabel(self.tr("Timeout:")))
         timeout_row.addWidget(self.spin_detect_timeout)
@@ -148,7 +134,7 @@ class ProjectWizard(QDialog):
 
         proxy_group = QGroupBox(self.tr("Proxies y rendimiento"))
         proxy_layout = QVBoxLayout(proxy_group)
-        self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies"))
+        self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies tras la ingesta"))
         self.chk_generate_proxies.setToolTip(self.tr("Crear copias de baja resolución para edición ligera"))
         proxy_layout.addWidget(self.chk_generate_proxies)
         self.proxy_combo = QComboBox()
@@ -178,19 +164,14 @@ class ProjectWizard(QDialog):
         self.layout.addLayout(btn_row)
 
         settings = QSettings("Audiovisual Production", "CosechaMedia")
-        saved_dur = settings.value("default_duration_type", 1, type=int)
-        dur_map = {1: self.radio_one_day, 2: self.radio_multiple_days, 3: self.radio_no_date}
-        btn = dur_map.get(saved_dur)
-        if btn:
-            btn.setChecked(True)
+        saved_date_mode = settings.value("default_date_mode", "auto")
+        self.date_mode_combo.setCurrentIndex(0 if saved_date_mode == "auto" else 1)
         saved_org = settings.value("default_organization_type", 0, type=int)
         if 0 <= saved_org < self.org_combo.count():
             self.org_combo.setCurrentIndex(saved_org)
-        self.chk_use_metadata_date.setChecked(
-            settings.value("default_use_metadata_date", True, type=bool)
-        )
-        saved_detect = settings.value("camera_detection_mode", "auto")
-        self.detect_combo.setCurrentIndex(0 if saved_detect == "auto" else 1)
+        saved_detect = settings.value("default_camera_detection_mode", "manual")
+        # detect_combo items: Manual=0, Automático=1
+        self.detect_combo.setCurrentIndex(1 if saved_detect == "auto" else 0)
         self.spin_detect_timeout.setValue(
             settings.value("camera_detection_timeout", 5, type=int))
         self.chk_generate_proxies.setChecked(
@@ -239,8 +220,11 @@ class ProjectWizard(QDialog):
             ''', (name, os.path.abspath(dest)))
             project_id = cursor.lastrowid
             
-            duration_type = self.duration_group.checkedId()
             org_type = self.org_combo.currentIndex()
+            date_mode = "auto" if self.date_mode_combo.currentIndex() == 0 else "manual"
+            use_metadata_date = date_mode == "auto"
+            duration_type = 2 if date_mode == "auto" else 1
+            camera_detection_mode = "auto" if self.detect_combo.currentIndex() == 1 else "manual"
             
             cursor.execute('''
                 UPDATE projects SET 
@@ -248,6 +232,7 @@ class ProjectWizard(QDialog):
                     duration_type = ?,
                     organization_type = ?,
                     use_metadata_date = ?,
+                    date_mode = ?,
                     camera_detection_mode = ?,
                     camera_detection_timeout = ?,
                     generate_proxies = ?,
@@ -257,8 +242,9 @@ class ProjectWizard(QDialog):
                 self.desc_input.text().strip(),
                 duration_type,
                 org_type,
-                self.chk_use_metadata_date.isChecked(),
-                "auto" if self.detect_combo.currentIndex() == 0 else "manual",
+                use_metadata_date,
+                date_mode,
+                camera_detection_mode,
                 self.spin_detect_timeout.value(),
                 self.chk_generate_proxies.isChecked(),
                 self.proxy_combo.currentText(),

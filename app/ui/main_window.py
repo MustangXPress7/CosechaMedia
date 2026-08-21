@@ -466,6 +466,7 @@ class MainWindow(QMainWindow):
         self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
         self.source_list.customContextMenuRequested.connect(
             self._show_source_context_menu)
+        self.source_list.installEventFilter(self)
         left_col.addWidget(self.source_list)
 
         src_scan_row = QHBoxLayout()
@@ -604,13 +605,13 @@ class MainWindow(QMainWindow):
         post_terminar.addLayout(format_row)
         self.chk_format_sources.toggled.connect(self.combo_format_mode.setEnabled)
 
-        self.chk_shutdown = QCheckBox(self.tr("Apagar al acabar"))
-        self.chk_shutdown.setToolTip(self.tr("Apaga el ordenador al finalizar todas las tareas de ingesta"))
-        post_terminar.addWidget(self.chk_shutdown)
-
         self.chk_generate_report = QCheckBox(self.tr("Generar CSV de integridad al acabar"))
         self.chk_generate_report.setToolTip(self.tr("Exporta un reporte CSV con hashes y estado de cada archivo"))
         post_terminar.addWidget(self.chk_generate_report)
+
+        self.chk_shutdown = QCheckBox(self.tr("Apagar al acabar"))
+        self.chk_shutdown.setToolTip(self.tr("Apaga el ordenador al finalizar todas las tareas de ingesta"))
+        post_terminar.addWidget(self.chk_shutdown)
 
         post_box_layout.addLayout(post_terminar)
 
@@ -797,7 +798,7 @@ class MainWindow(QMainWindow):
         gen_grid.addWidget(QLabel(self.tr("Modo de fechas:")), 1, 0)
         gen_grid.addWidget(date_mode_combo, 1, 1)
         btn_manage_overrides = QPushButton(self.tr("Gestionar overrides…"))
-        gen_grid.addWidget(btn_manage_overrides, 1, 2, 1, 2)
+        gen_grid.addWidget(btn_manage_overrides, 2, 2, 1, 2)
         def _open_overrides():
             self._show_camera_overrides_dialog()
         btn_manage_overrides.clicked.connect(_open_overrides)
@@ -814,8 +815,8 @@ class MainWindow(QMainWindow):
         def _update_ui_state():
             uses_date = org_combo.currentIndex() in [0,1]
             date_mode_combo.setEnabled(uses_date)
-            btn_manage_overrides.setEnabled(uses_date)
             is_manual = date_mode_combo.currentIndex() == 1
+            btn_manage_overrides.setEnabled(uses_date)
             date_input.setEnabled(uses_date and is_manual)
             date_label.setEnabled(uses_date and is_manual)
 
@@ -874,14 +875,6 @@ class MainWindow(QMainWindow):
             self.project_proxy_resolution = proxy_res_combo.currentText()
             self.project_camera_detection_mode = "auto" if cam_mode_combo.currentIndex() == 1 else "manual"
             self.project_camera_detection_timeout = cam_timeout_spin.value()
-            import json
-            overrides = {}
-            for r in range(ov_table.rowCount()):
-                cam = ov_table.item(r,0).text().strip() if ov_table.item(r,0) else ""
-                d = ov_table.item(r,1).text().strip() if ov_table.item(r,1) else ""
-                if cam and d:
-                    overrides[cam] = d
-            self.project_camera_date_overrides = json.dumps(overrides)
             if self.current_project_id is not None:
                 db.add_footage_folder(self.project_folder_name)
                 conn = db.get_connection()
@@ -930,13 +923,18 @@ class MainWindow(QMainWindow):
 
     def _show_camera_overrides_dialog(self):
         import json
+        from PySide6.QtWidgets import QHeaderView
+        from PySide6.QtCore import QDate, Qt
         dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Overrides por cámara"))
-        dialog.setMinimumWidth(520)
+        dialog.setWindowTitle(self.tr("Fechas por cámara"))
+        dialog.setMinimumWidth(640)
         layout = QVBoxLayout(dialog)
-        table = QTableWidget(0, 2)
-        table.setHorizontalHeaderLabels([self.tr("Cámara"), self.tr("Fecha")])
-        table.horizontalHeader().setStretchLastSection(True)
+        table = QTableWidget(0, 3)
+        table.setHorizontalHeaderLabels([self.tr("Cámara"), self.tr("Modo"), self.tr("Fecha")])
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
+        table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
+        table.setColumnWidth(2, 180)
         # Cámaras de sesiones activas
         active_cams = set()
         if self.current_project_id is not None:
@@ -946,47 +944,81 @@ class MainWindow(QMainWindow):
             active_cams = {r[0] for r in cur.fetchall()}
             conn.close()
         overrides = json.loads(self.project_camera_date_overrides or "{}")
-        # Mostrar solo cámaras activas
-        for cam in active_cams:
+        # Mostrar cámaras activas con modo manual por defecto
+        for cam in sorted(active_cams):
             r = table.rowCount()
             table.insertRow(r)
-            table.setItem(r, 0, QTableWidgetItem(cam))
-            table.setItem(r, 1, QTableWidgetItem(overrides.get(cam, "")))
+            item_cam = QTableWidgetItem(cam)
+            item_cam.setFlags(item_cam.flags() & ~Qt.ItemIsEditable)
+            table.setItem(r, 0, item_cam)
+
+            mode_combo = QComboBox()
+            mode_combo.addItems([self.tr("Manual"), self.tr("Automático")])
+            # Cargar modo/fecha existente
+            existing = overrides.get(cam, "")
+            if isinstance(existing, dict):
+                mode_val = existing.get("mode", "manual")
+                date_str = existing.get("date", "")
+                mode_idx = 0 if str(mode_val).lower() == "manual" else 1
+            elif isinstance(existing, str) and existing:
+                mode_idx = 0
+                date_str = existing
+            else:
+                mode_idx = 0
+                date_str = QDate.currentDate().toString("yyyy-MM-dd")
+            mode_combo.setCurrentIndex(mode_idx)
+
+            date_edit = QDateEdit()
+            date_edit.setCalendarPopup(True)
+            date_edit.setDisplayFormat("yyyy-MM-dd")
+            qdate = QDate.fromString(date_str, "yyyy-MM-dd")
+            if not qdate.isValid():
+                qdate = QDate.currentDate()
+            date_edit.setDate(qdate)
+            date_edit.setEnabled(mode_idx == 0)
+
+            def on_mode_changed(idx, de=date_edit):
+                de.setEnabled(idx == 0)
+
+            mode_combo.currentIndexChanged.connect(on_mode_changed)
+            table.setCellWidget(r, 1, mode_combo)
+            table.setCellWidget(r, 2, date_edit)
+
         layout.addWidget(table)
         btn_row = QHBoxLayout()
-        btn_add = QPushButton(self.tr("Añadir"))
-        btn_del = QPushButton(self.tr("Eliminar"))
         btn_save = QPushButton(self.tr("Guardar"))
         btn_cancel = QPushButton(self.tr("Cancelar"))
         btn_save.setObjectName("PrimaryAction")
-        def add_row():
-            r = table.rowCount()
-            table.insertRow(r)
-            table.setItem(r, 0, QTableWidgetItem(""))
-            table.setItem(r, 1, QTableWidgetItem(QDate.currentDate().toString("yyyy-MM-dd")))
-        def del_row():
-            row = table.currentRow()
-            if row >= 0:
-                table.removeRow(row)
-        def save():
-            new_overrides = {}
-            for r in range(table.rowCount()):
-                cam = table.item(r,0).text().strip() if table.item(r,0) else ""
-                d = table.item(r,1).text().strip() if table.item(r,1) else ""
-                if cam and d:
-                    new_overrides[cam] = d
-            self.project_camera_date_overrides = json.dumps(new_overrides)
-            dialog.accept()
-        btn_add.clicked.connect(add_row)
-        btn_del.clicked.connect(del_row)
-        btn_save.clicked.connect(save)
-        btn_cancel.clicked.connect(dialog.reject)
-        btn_row.addWidget(btn_add)
-        btn_row.addWidget(btn_del)
         btn_row.addStretch()
         btn_row.addWidget(btn_cancel)
         btn_row.addWidget(btn_save)
         layout.addLayout(btn_row)
+
+        def save():
+            # Mantener overrides de cámaras no visibles y actualizar las activas
+            try:
+                existing_overrides = json.loads(self.project_camera_date_overrides or "{}")
+                if not isinstance(existing_overrides, dict):
+                    existing_overrides = {}
+            except Exception:
+                existing_overrides = {}
+            merged = dict(existing_overrides)
+            for r in range(table.rowCount()):
+                item_cam = table.item(r, 0)
+                if not item_cam:
+                    continue
+                cam = item_cam.text().strip()
+                mode_combo = table.cellWidget(r, 1)
+                date_edit = table.cellWidget(r, 2)
+                mode = "manual" if mode_combo.currentIndex() == 0 else "auto"
+                date_str = date_edit.date().toString("yyyy-MM-dd")
+                if cam:
+                    merged[cam] = {"mode": mode, "date": date_str}
+            self.project_camera_date_overrides = json.dumps(merged)
+            dialog.accept()
+
+        btn_save.clicked.connect(save)
+        btn_cancel.clicked.connect(dialog.reject)
         if dialog.exec():
             # Persistir al proyecto
             if self.current_project_id is not None:
@@ -1681,7 +1713,16 @@ class MainWindow(QMainWindow):
 
             cam_overrides = {}
             try:
-                cam_overrides = json.loads(self.project_camera_date_overrides or "{}")
+                raw_overrides = json.loads(self.project_camera_date_overrides or "{}")
+                # Normalizar a dict cam -> fecha para modos manual
+                for cam, val in raw_overrides.items():
+                    if isinstance(val, dict):
+                        if str(val.get("mode", "manual")).lower() == "manual":
+                            date_str = val.get("date")
+                            if date_str:
+                                cam_overrides[cam] = date_str
+                    elif isinstance(val, str) and val:
+                        cam_overrides[cam] = val
             except Exception:
                 cam_overrides = {}
             ing = Ingestor(
@@ -2359,8 +2400,9 @@ class MainWindow(QMainWindow):
         device_id = (session or {}).get("device_id") or ""
         is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
         is_ftp = bool(session) and device_id.startswith("ftp:")
-        if is_wifi or is_ftp:
-            remote_btn = self._build_remote_source_button(row, session, is_wifi)
+        is_mtp = bool(session) and device_id and not is_wifi and not is_ftp
+        if is_wifi or is_ftp or is_mtp:
+            remote_btn = self._build_remote_source_button(row, session, is_wifi, is_mtp)
             lay.addWidget(remote_btn)
         return widget
 
@@ -2428,10 +2470,16 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self.update_start_button_state()
 
-    def _build_remote_source_button(self, row, session, is_wifi):
-        text = self.tr("QR") if is_wifi else self.tr("FTP")
-        tip = (self.tr("Mostrar el código QR de este dispositivo")
-               if is_wifi else self.tr("Configurar este origen FTP"))
+    def _build_remote_source_button(self, row, session, is_wifi, is_mtp=False):
+        if is_wifi:
+            text = self.tr("QR")
+            tip = self.tr("Mostrar el código QR de este dispositivo")
+        elif is_mtp:
+            text = self.tr("USB/MTP")
+            tip = self.tr("Cambiar carpeta del dispositivo...")
+        else:
+            text = self.tr("FTP")
+            tip = self.tr("Configurar este origen FTP")
         btn = QPushButton(text)
         btn.setToolTip(tip)
         btn.setCursor(Qt.PointingHandCursor)
@@ -2447,6 +2495,9 @@ class MainWindow(QMainWindow):
                            or session.get("device_folder") or "")
             btn.clicked.connect(
                 lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
+        elif is_mtp:
+            btn.clicked.connect(
+                lambda _=False, s=session: self._reconfigure_mtp_source(s))
         else:
             btn.clicked.connect(
                 lambda _=False, s=session: self._reconfigure_ftp_source(s))
@@ -2556,6 +2607,23 @@ class MainWindow(QMainWindow):
         profile_id = ftp.profile_id_from_device_key(
             session.get("device_id") or "")
         self._pick_ftp_source(preset_profile_id=profile_id)
+
+    def _reconfigure_mtp_source(self, session):
+        """Reabre el selector de dispositivo MTP con los datos del origen."""
+        from app.ui.device_picker import DevicePickerDialog
+        from app.core import mtp
+        dialog = DevicePickerDialog(self)
+        if dialog.exec() == QDialog.Accepted and dialog.device_id and dialog.device_folder:
+            cache_dir = mtp.device_cache_dir(dialog.device_id, dialog.device_folder)
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except OSError:
+                cache_dir = mtp.device_cache_dir(dialog.device_id, "")
+                os.makedirs(cache_dir, exist_ok=True)
+            old_path = session.get("source_path")
+            self._register_device_source(
+                cache_dir, dialog.device_id, dialog.device_folder,
+                dialog.device_name, backend=mtp.WpdBackend())
 
     @staticmethod
     def _drive_label(path):
@@ -2778,6 +2846,28 @@ class MainWindow(QMainWindow):
         delete_action.triggered.connect(
             lambda: self._delete_source_at_row(row))
         menu.exec(self.source_list.viewport().mapToGlobal(pos))
+
+    def _clear_source_list_selection(self):
+        """Deselecciona todas las filas de la lista de orígenes."""
+        self.source_list.clearSelection()
+        self.source_list.setCurrentCell(-1, -1)
+
+    def _source_list_event_filter(self, obj, ev):
+        """Event filter for source_list to handle ESC key and click-away deselect."""
+        if obj == self.source_list:
+            if ev.type() == ev.Type.KeyPress:
+                if ev.key() == Qt.Key_Escape:
+                    self._clear_source_list_selection()
+                    return True
+            elif ev.type() == ev.Type.MouseButtonPress:
+                pos = ev.pos()
+                if not self.source_list.geometry().contains(pos):
+                    self._clear_source_list_selection()
+                    return True
+        return super().eventFilter(obj, ev)
+
+    def eventFilter(self, obj, ev):
+        return self._source_list_event_filter(obj, ev)
 
     def _delete_source_at_row(self, row):
         if row < 0 or row >= len(self._source_paths):

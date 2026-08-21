@@ -23,7 +23,7 @@ Ciclo de vida:
 
 import os
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, QEvent
 from PySide6.QtGui import QColor, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QDialog, QDialogButtonBox, QFormLayout,
@@ -85,12 +85,61 @@ class ShootInboxPanel(QWidget):
         if icon is not None:
             self.setWindowIcon(icon)
         self.resize(420, 460)
+        self._theme_updating = False
         self._server = None
         self._bridge = _Bridge()
         self._bridge.received.connect(self._on_file_received)
         self._sender_name = None
         self._build_ui()
+        self._apply_theme()
         self.refresh()
+
+    def _apply_theme(self):
+        if getattr(self, "_theme_updating", False):
+            return
+        self._theme_updating = True
+        try:
+            # Fondo del panel y borde del QR según tema actual
+            self.setStyleSheet("background-color: {};".format(theme.color("bg")))
+            if hasattr(self, "qr_label"):
+                self.qr_label.setStyleSheet(
+                    "border: 1px solid {}; border-radius: 6px; background: transparent;".format(theme.color("border"))
+                )
+            if hasattr(self, "url_label"):
+                self.url_label.setStyleSheet(
+                    "font-family: 'Cascadia Mono', Consolas, monospace; font-size: 10px;"
+                    "color: {}; background: {}; border: 1px solid {}; border-radius: 4px;"
+                    "padding: 3px 6px;".format(
+                        theme.color("text"), theme.color("bg"), theme.color("border")))
+            if hasattr(self, "hint_label"):
+                self.hint_label.setStyleSheet("color: {}; font-size: 12px;".format(theme.color("text_secondary")))
+            if hasattr(self, "status_label"):
+                self.status_label.setStyleSheet("font-weight: 600; color: {};".format(theme.color("text")))
+            # Re-renderiza el QR con los colores del tema
+            self._render_current()
+            # Refresca estilos de botones y asegura contraste
+            if hasattr(self, "stop_btn"):
+                self.stop_btn.style().unpolish(self.stop_btn)
+                self.stop_btn.style().polish(self.stop_btn)
+                obj = self.stop_btn.objectName()
+                if obj == "PrimaryAction":
+                    bg = theme.color("accent")
+                    fg = theme.color("on_accent")
+                    self.stop_btn.setStyleSheet("background-color: {}; color: {}; border: none; padding: 8px 20px; font-weight: bold; font-size: 13px;".format(bg, fg))
+                elif obj == "DangerAction":
+                    bg = theme.color("danger_bg")
+                    fg = theme.color("on_accent")
+                    self.stop_btn.setStyleSheet("background-color: {}; color: {}; border: none; padding: 4px 10px; font-size: 11px;".format(bg, fg))
+                else:
+                    self.stop_btn.setStyleSheet("")
+        finally:
+            self._theme_updating = False
+
+    def changeEvent(self, event):
+        # Actualiza tema en tiempo real sin recursión
+        if event.type() in (QEvent.PaletteChange, QEvent.StyleChange):
+            self._apply_theme()
+        super().changeEvent(event)
 
     # -- UI --------------------------------------------------------------
 
@@ -103,7 +152,7 @@ class ShootInboxPanel(QWidget):
         self.qr_label.setFixedSize(260, 260)
         self.qr_label.setAlignment(Qt.AlignCenter)
         self.qr_label.setStyleSheet(
-            "border: 1px solid #333; border-radius: 6px; background: #ffffff;")
+            "border: 1px solid {}; border-radius: 6px; background: transparent;".format(theme.color("border")))
         layout.addWidget(self.qr_label, 0, Qt.AlignHCenter)
 
         url_row = QHBoxLayout()
@@ -129,14 +178,14 @@ class ShootInboxPanel(QWidget):
         self.status_label.setStyleSheet("font-weight: 600;")
         layout.addWidget(self.status_label)
 
-        hint = QLabel(
+        self.hint_label = QLabel(
             self.tr("Escanea este código QR desde el móvil para enviar "
                     "archivos sin instalar nada. El móvil y el ordenador "
                     "deben estar en la misma red WiFi."))
-        hint.setWordWrap(True)
-        hint.setStyleSheet(
+        self.hint_label.setWordWrap(True)
+        self.hint_label.setStyleSheet(
             "color: {}; font-size: 12px;".format(theme.color("text_secondary")))
-        layout.addWidget(hint)
+        layout.addWidget(self.hint_label)
 
         layout.addStretch(1)
 
@@ -173,8 +222,26 @@ class ShootInboxPanel(QWidget):
             self.status_label.setText(
                 self.tr("Servidor activo. Comparte esta dirección con los móviles: "
                         "%1").arg(self._server.base_url()))
-        self.stop_btn.style().unpolish(self.stop_btn)
-        self.stop_btn.style().polish(self.stop_btn)
+        # Forzar colores visibles en tema claro/oscuro
+        self.status_label.setStyleSheet("font-weight: 600; color: {};".format(theme.color("text")))
+        if hasattr(self, "hint_label"):
+            self.hint_label.setStyleSheet("color: {}; font-size: 12px;".format(theme.color("text_secondary")))
+        # Refrescar estilo del botón según objectName
+        if hasattr(self, "stop_btn"):
+            self.stop_btn.style().unpolish(self.stop_btn)
+            self.stop_btn.style().polish(self.stop_btn)
+            # Asegurar contraste explícito
+            obj = self.stop_btn.objectName()
+            if obj == "PrimaryAction":
+                bg = theme.color("accent")
+                fg = theme.color("on_accent")
+                self.stop_btn.setStyleSheet("background-color: {}; color: {}; border: none; padding: 8px 20px; font-weight: bold; font-size: 13px;".format(bg, fg))
+            elif obj == "DangerAction":
+                bg = theme.color("danger_bg")
+                fg = theme.color("on_accent")
+                self.stop_btn.setStyleSheet("background-color: {}; color: {}; border: none; padding: 4px 10px; font-size: 11px;".format(bg, fg))
+            else:
+                self.stop_btn.setStyleSheet("")
 
     def closeEvent(self, event):
         # Cerrar solo oculta; el servidor sigue (lo gestiona la ventana principal).
@@ -240,15 +307,16 @@ class ShootInboxPanel(QWidget):
         n = len(matrix)
         scale = max(1, 232 // n)
         pix = QPixmap(n * scale, n * scale)
-        pix.fill(QColor("#ffffff"))
+        bg_color = QColor(theme.color("bg_elevated"))
+        fg_color = QColor(theme.color("text"))
+        pix.fill(bg_color)
         painter = QPainter(pix)
-        painter.setBrush(QColor("#ffffff"))
+        painter.setBrush(bg_color)
         painter.setPen(Qt.NoPen)
         for r in range(n):
             for c in range(n):
                 if matrix[r][c]:
-                    painter.fillRect(c * scale, r * scale, scale, scale,
-                                     QColor("#000000"))
+                    painter.fillRect(c * scale, r * scale, scale, scale, fg_color)
         painter.end()
         return pix
 

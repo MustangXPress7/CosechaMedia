@@ -109,7 +109,7 @@ class TestShootInboxServer(unittest.TestCase):
 
     def test_page_dark_by_default(self):
         body = urlopen(f"{self.base}/?src={self.alice['name']}", timeout=10).read()
-        self.assertIn(b"background: #111", body)
+        self.assertIn(b"background: #0d1117", body)
         self.assertNotIn(b"background: #ffffff", body)
 
     def test_page_light_when_server_configured_light(self):

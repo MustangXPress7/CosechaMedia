@@ -27,61 +27,51 @@ from urllib.parse import parse_qs, urlsplit
 
 from app.core.db import db as _default_db
 from app.core.ftp import local_ip
+from app.ui import theme
 
-# CSS de la página web de subida (B-07): se elige en _serve_page según el tema
-# de la aplicación (claro/oscuro). El navegador del móvil no sabe nada de Qt.
-_PAGE_CSS = {
-    "dark": """<style>
-  body { font-family: system-ui, -apple-system, sans-serif; background: #111;
-         color: #eee; margin: 0 auto; padding: 24px; max-width: 560px; }
-  h1 { font-size: 20px; margin: 0 0 6px; }
-  .alias { color: #7ee787; font-weight: 700; }
-  .sub { font-size: 12px; color: #888; }
-  .card { background: #1c1c1c; border: 1px solid #333; border-radius: 12px;
-          padding: 16px; margin: 16px 0; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { background: #2ea043; color: #fff; border: 0; border-radius: 8px;
-         padding: 12px 18px; font-size: 15px; cursor: pointer; }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn.ghost { background: transparent; border: 1px solid #444;
-               color: #bbb; }
-  progress { width: 100%; margin: 8px 0; }
-  #files { list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }
-  #files li { margin: 4px 0; }
-  #files li.pending { color: #d0d7de; }
-  #files li.ok { color: #7ee787; }
-  #files li.err { color: #f85149; }
-  #status { font-size: 13px; color: #bbb; min-height: 18px; }
-  #status.ok { color: #7ee787; }
-  #status.err { color: #f85149; }
-  .sub strong { color: #eee; }
-</style>""",
-    "light": """<style>
-  body { font-family: system-ui, -apple-system, sans-serif; background: #ffffff;
-         color: #1f2328; margin: 0 auto; padding: 24px; max-width: 560px; }
-  h1 { font-size: 20px; margin: 0 0 6px; }
-  .alias { color: #1a7f37; font-weight: 700; }
-  .sub { font-size: 12px; color: #59636e; }
-  .card { background: #f6f8fa; border: 1px solid #d0d7de; border-radius: 12px;
-          padding: 16px; margin: 16px 0; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; }
-  .btn { background: #1f883d; color: #fff; border: 0; border-radius: 8px;
-         padding: 12px 18px; font-size: 15px; cursor: pointer; }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .btn.ghost { background: transparent; border: 1px solid #d0d7de;
-               color: #59636e; }
-  progress { width: 100%; margin: 8px 0; }
-  #files { list-style: none; padding: 0; font-size: 13px; margin: 8px 0 0; }
-  #files li { margin: 4px 0; }
-  #files li.pending { color: #57606a; }
-  #files li.ok { color: #1a7f37; }
-  #files li.err { color: #cf222e; }
-  #status { font-size: 13px; color: #59636e; min-height: 18px; }
-  #status.ok { color: #1a7f37; }
-  #status.err { color: #cf222e; }
-  .sub strong { color: #1f2328; }
-</style>""",
-}
+# CSS de la página web de subida (B-07): se genera dinámicamente a partir del tema
+# de la aplicación para mantener coherencia con la UI de escritorio.
+def _make_page_css(dark: bool) -> str:
+    # Selecciona paleta según el modo solicitado
+    name = "dark" if dark else "light"
+    pal = theme.get_palette(name)
+    # Accesos con fallback seguro
+    bg = pal.get("bg", "#ffffff")
+    bg_elevated = pal.get("bg_elevated", "#f6f8fa")
+    border = pal.get("border", "#d0d7de")
+    text = pal.get("text", "#1f2328")
+    text_secondary = pal.get("text_secondary", "#59636e")
+    accent = pal.get("accent", "#0969da")
+    on_accent = pal.get("on_accent", "#ffffff")
+    success = pal.get("success", "#2f9e55")
+    danger = pal.get("danger", "#cf222e")
+    return f"""<style>
+  body {{ font-family: system-ui, -apple-system, sans-serif; background: {bg};
+         color: {text}; margin: 0 auto; padding: 24px; max-width: 560px; }}
+  h1 {{ font-size: 22px; margin: 0 0 8px; text-align: center; }}
+  .alias {{ color: {accent}; font-weight: 700; }}
+  .sub {{ font-size: 12px; color: {text_secondary}; text-align: center; }}
+  .card {{ background: {bg_elevated}; border: 1px solid {border}; border-radius: 12px;
+           padding: 20px; margin: 20px 0; text-align: center; }}
+  label {{ display: block; margin: 0 auto 10px; font-weight: 600; }}
+  input[type=file] {{ width: 100%; max-width: 420px; margin: 0 auto 16px; display: block; }}
+  .row {{ display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 12px; }}
+  .btn {{ background: {accent}; color: {on_accent}; border: 0; border-radius: 8px;
+         padding: 12px 20px; font-size: 15px; cursor: pointer; }}
+  .btn:disabled {{ opacity: .5; cursor: default; }}
+  .btn.ghost {{ background: transparent; border: 1px solid {border};
+               color: {text_secondary}; }}
+  progress {{ width: 100%; max-width: 420px; margin: 8px auto; display: block; }}
+  #files {{ list-style: none; padding: 0; font-size: 13px; margin: 12px auto 0; max-width: 420px; text-align: left; }}
+  #files li {{ margin: 4px 0; }}
+  #files li.pending {{ color: {text_secondary}; }}
+  #files li.ok {{ color: {success}; }}
+  #files li.err {{ color: {danger}; }}
+  #status {{ font-size: 13px; color: {text_secondary}; min-height: 18px; margin-top: 8px; }}
+  #status.ok {{ color: {success}; }}
+  #status.err {{ color: {danger}; }}
+  .sub strong {{ color: {text}; }}
+</style>"""
 
 _PAGE_TEMPLATE = """<!doctype html>
 <html lang="es">
@@ -347,7 +337,7 @@ class _UploadHandler(BaseHTTPRequestHandler):
         alias = html.escape(sanitize_alias(self._query().get("src", [""])[0]))
         folder_mode = bool(getattr(self.server.owner, "folder_mode", False))
         page_dark = bool(getattr(self.server.owner, "page_dark", True))
-        style = _PAGE_CSS["dark" if page_dark else "light"]
+        style = _make_page_css(page_dark)
         page = _PAGE_TEMPLATE.format(
             style=style,
             alias=alias,
