@@ -5,8 +5,12 @@ se usan como placeholders @clave dentro de la plantilla QSS (_QSS_TEMPLATE).
 Para cambiar el color de la app entera basta con editar una clave de la paleta.
 """
 
+import os
+
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QApplication
+
+from app.core.utils import resource_path
 
 _ORG = "Audiovisual Production"
 _APP = "CosechaMedia"
@@ -207,22 +211,16 @@ QDateEdit::down-button:hover, QTimeEdit::down-button:hover {
 
 QSpinBox::up-arrow, QDoubleSpinBox::up-arrow,
 QDateEdit::up-arrow, QTimeEdit::up-arrow {
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-bottom: 5px solid @text_secondary;
-    width: 0;
-    height: 0;
+    image: @arrow_up;
+    width: 8px;
+    height: 8px;
 }
 
 QSpinBox::down-arrow, QDoubleSpinBox::down-arrow,
 QDateEdit::down-arrow, QTimeEdit::down-arrow {
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid @text_secondary;
-    width: 0;
-    height: 0;
+    image: @arrow_down;
+    width: 8px;
+    height: 8px;
 }
 
 QPushButton:focus {
@@ -235,12 +233,9 @@ QComboBox::drop-down {
 }
 
 QComboBox::down-arrow {
-    image: none;
-    border-left: 4px solid transparent;
-    border-right: 4px solid transparent;
-    border-top: 5px solid @text_secondary;
-    width: 0;
-    height: 0;
+    image: @arrow_down;
+    width: 10px;
+    height: 10px;
     margin-right: 4px;
 }
 
@@ -787,9 +782,18 @@ def rgba50(hex_color: str) -> str:
     return _rgba(hex_color, 128)
 
 
+def _arrow_url(name: str) -> str:
+    """URL de file:// para un SVG de flecha, con separadores QSS-safe."""
+    path = resource_path(os.path.join("app", "ui", "assets", "icons", name + ".svg"))
+    return 'url("%s")' % path.replace("\\", "/")
+
+
 def build_qss(name: str = None, accent: str = None) -> str:
     palette = get_palette(name)
     mapping = dict(palette)
+    is_dark = palette is DARK
+    mapping["arrow_down"] = _arrow_url("arrow-down-dark" if is_dark else "arrow-down-light")
+    mapping["arrow_up"] = _arrow_url("arrow-up-dark" if is_dark else "arrow-up-light")
     mapping["bg_tinted"] = tinted_bg(name, accent)
     mapping["bg_tinted_alt"] = tinted_bg_alt(name, accent)
     mapping["bg_tinted_50"] = _rgba(mapping["bg_tinted"], 128)
