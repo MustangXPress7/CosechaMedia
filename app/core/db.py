@@ -63,6 +63,9 @@ class DatabaseManager:
             ("camera_detection_timeout", "INTEGER DEFAULT 5"),
             ("generate_proxies", "INTEGER DEFAULT 0"),
             ("proxy_resolution", "TEXT DEFAULT '720p'"),
+            ("date_mode", "TEXT DEFAULT 'auto'"),
+            ("manual_date", "TEXT"),
+            ("camera_date_overrides", "TEXT DEFAULT '{}'"),
         ]
         for col_name, col_def in project_migrations:
             if col_name not in existing_cols:
@@ -157,6 +160,8 @@ class DatabaseManager:
             ("device_id", "TEXT"),
             ("device_folder", "TEXT"),
             ("enabled", "INTEGER DEFAULT 1"),
+            ("date_mode", "TEXT"),
+            ("manual_date", "TEXT"),
         ]
         for col_name, col_def in session_migrations:
             if col_name not in sess_cols:

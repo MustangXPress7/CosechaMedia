@@ -135,7 +135,8 @@ class Ingestor(QObject):
                  camera_map: Optional[Dict[str, str]] = None,
                  manual_date: Optional[str] = None,
                  content_filter: Optional[Dict] = None,
-                 content_mode: str = CONTENT_MODE_ALL):
+                 content_mode: str = CONTENT_MODE_ALL,
+                 camera_date_overrides: Optional[Dict[str,str]] = None):
         super().__init__()
         self.project_id = project_id
         self.session_id = session_id
@@ -144,6 +145,7 @@ class Ingestor(QObject):
         self.folder_name = folder_name
         self.use_metadata_date = use_metadata_date
         self.manual_date = manual_date
+        self.camera_date_overrides = camera_date_overrides or {}
         self.order_type = order_type
         self.duration_type = duration_type
         self.default_dispositivo = default_dispositivo
@@ -586,18 +588,18 @@ class Ingestor(QObject):
             name = name.replace(char, '_')
         return name.strip()
 
-    def _determine_date(self, metadata: Dict) -> str:
+    def _determine_date(self, metadata: Dict, camera_name: str = "") -> str:
         if self.duration_type == 3:
             return ""
-        
+        # Override por cámara
+        if camera_name and camera_name in self.camera_date_overrides:
+            return self.camera_date_overrides[camera_name]
         if self.use_metadata_date and metadata.get("creation_date"):
             date_str = metadata["creation_date"]
             if len(date_str) >= 10:
                 return date_str[:10]
-        
         if self.manual_date:
             return self.manual_date
-        
         return datetime.now().strftime("%Y-%m-%d")
 
     def _update_dispositivo_mapping(self, file_path: str, camera_name: str):
@@ -645,7 +647,7 @@ class Ingestor(QObject):
                 continue
             
             for file_path, metadata in files:
-                shoot_date = self._determine_date(metadata)
+                shoot_date = self._determine_date(metadata, camera_name)
                 new_dir = create_folder_structure(
                     self.destination_root,
                     camera_name,
