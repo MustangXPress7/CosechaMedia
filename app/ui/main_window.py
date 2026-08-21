@@ -33,7 +33,7 @@ from app.core import shoot_inbox as inboxmod
 from app.core.ftp import FtpBackend
 from app.core.metadata_engine import _is_system_entry
 from app.ui.ftp_picker import FtpPickerDialog
-from app.ui.selective_dump import SelectiveDumpAssistant
+from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
 from app.ui.source_picker import SourcePickerDialog
 from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
 
@@ -547,23 +547,22 @@ class MainWindow(QMainWindow):
         sess_dest_row.addWidget(self.session_dest_label)
         sess_box_layout.addLayout(sess_dest_row)
 
-        # I-15/I-18: botones de volcado por sesión (todo / intervalo / N días)
+        # I-15/I-18: botón rotativo de modo (icono según modo) + botón de menú
         sess_dump_row = QHBoxLayout()
         sess_dump_row.addWidget(QLabel(self.tr("Volcado:")))
-        self.btn_session_interval = QPushButton(self.tr("Intervalo de fechas"))
-        self.btn_session_interval.setCheckable(True)
-        self.btn_session_interval.setCursor(Qt.PointingHandCursor)
-        self.btn_session_interval.setToolTip(self.tr(
-            "Filtrar por intervalo de fechas; pulsa de nuevo para volver a todo"))
-        self.btn_session_interval.clicked.connect(self._on_session_interval_clicked)
-        sess_dump_row.addWidget(self.btn_session_interval)
-        self.btn_session_window = QPushButton(self.tr("Últimos N días"))
-        self.btn_session_window.setCheckable(True)
-        self.btn_session_window.setCursor(Qt.PointingHandCursor)
-        self.btn_session_window.setToolTip(self.tr(
-            "Volcar solo los últimos N días; pulsa de nuevo para volver a todo"))
-        self.btn_session_window.clicked.connect(self._on_session_window_clicked)
-        sess_dump_row.addWidget(self.btn_session_window)
+        self.btn_session_dump_mode = QPushButton()
+        self.btn_session_dump_mode.setCursor(Qt.PointingHandCursor)
+        self.btn_session_dump_mode.setToolTip(self.tr(
+            "Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días"))
+        self.btn_session_dump_mode.clicked.connect(self._cycle_session_content_mode)
+        icons.apply(self.btn_session_dump_mode, "square", size=16)
+        sess_dump_row.addWidget(self.btn_session_dump_mode)
+        self.btn_session_dump_config = QPushButton()
+        self.btn_session_dump_config.setCursor(Qt.PointingHandCursor)
+        self.btn_session_dump_config.setToolTip(self.tr(
+            "Abrir las opciones del modo de volcado actual"))
+        self.btn_session_dump_config.clicked.connect(self._open_session_dump_menu)
+        sess_dump_row.addWidget(self.btn_session_dump_config)
         sess_dump_row.addStretch()
         sess_box_layout.addLayout(sess_dump_row)
         self._update_session_dump_switch()
@@ -2872,63 +2871,78 @@ class MainWindow(QMainWindow):
         return 7
 
     def _update_session_dump_switch(self):
-        """Refresca el estado de los botones de volcado de la sesión actual.
+        """Refresca el rotativo (icono del modo) y el botón de configuración.
 
-        Ningún botón pulsado = «todo el contenido»; el activo queda checked."""
-        btn_i = getattr(self, "btn_session_interval", None)
-        btn_w = getattr(self, "btn_session_window", None)
-        if btn_i is None or btn_w is None:
+        El rotativo muestra solo el icono del modo vigente (cuadrado=todo,
+        calendario=intervalo, cronómetro=N días); el botón de configuración
+        muestra en texto la configuración actual y abre su menú al pulsar."""
+        btn = getattr(self, "btn_session_dump_mode", None)
+        cfg = getattr(self, "btn_session_dump_config", None)
+        if btn is None or cfg is None:
             return
         sid = self.current_session_id
         if sid is None:
-            btn_i.setEnabled(False)
-            btn_w.setEnabled(False)
-            btn_i.setChecked(False)
-            btn_w.setChecked(False)
+            btn.setEnabled(False)
+            cfg.setEnabled(False)
+            icons.apply(btn, "square", size=16)
+            cfg.setText(self.tr("Todo el contenido"))
             return
         mode, filt, restricted = self._session_content_state(sid)
         if restricted:
             # WiFi y FTP siempre vuelcan todo el contenido (coherente con start_ingest)
-            btn_i.setEnabled(False)
-            btn_w.setEnabled(False)
-            btn_i.setChecked(False)
-            btn_w.setChecked(False)
-            btn_i.setToolTip(self.tr("WiFi y FTP siempre vuelcan todo el contenido"))
-            btn_w.setToolTip(self.tr("WiFi y FTP siempre vuelcan todo el contenido"))
+            btn.setEnabled(False)
+            cfg.setEnabled(False)
+            icons.apply(btn, "square", size=16)
+            cfg.setText(self.tr("Todo el contenido"))
+            tip = self.tr("WiFi y FTP siempre vuelcan todo el contenido")
+            btn.setToolTip(tip)
+            cfg.setToolTip(tip)
             return
-        tip_i = self.tr("Filtrar por intervalo de fechas; pulsa de nuevo para volver a todo")
-        tip_w = self.tr("Volcar solo los últimos N días; pulsa de nuevo para volver a todo")
-        btn_i.setEnabled(True)
-        btn_w.setEnabled(True)
-        btn_i.setToolTip(tip_i)
-        btn_w.setToolTip(tip_w)
-        btn_i.setChecked(mode == "interval")
-        btn_w.setChecked(mode == "window")
+        btn.setEnabled(True)
+        btn.setToolTip(self.tr(
+            "Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días"))
+        cfg.setToolTip(self.tr("Abrir las opciones del modo de volcado actual"))
+        if mode == "interval":
+            icons.apply(btn, "calendar", size=16)
+            if filt:
+                cfg.setText(self.tr("Intervalo: %1").arg(content_summary(filt)))
+            else:
+                cfg.setText(self.tr("Intervalo de fechas"))
+            cfg.setEnabled(True)
+        elif mode == "window":
+            icons.apply(btn, "timer", size=16)
+            cfg.setText(self.tr("Últimos %1 días").arg(self._window_days_from_filter(filt)))
+            cfg.setEnabled(True)
+        else:
+            icons.apply(btn, "square", size=16)
+            cfg.setText(self.tr("Todo el contenido"))
+            # El modo «todo» no tiene opciones que configurar
+            cfg.setEnabled(False)
 
-    def _on_session_interval_clicked(self):
-        """Activa/desactiva el modo intervalo de fechas de la sesión actual."""
+    def _cycle_session_content_mode(self):
+        """Cicla el modo de volcado de la sesión sin abrir diálogos."""
+        sid = self.current_session_id
+        if sid is not None:
+            mode, filt, restricted = self._session_content_state(sid)
+            if not restricted:
+                nxt = {"all": "interval", "interval": "window",
+                       "window": "all"}.get(mode, "interval")
+                if nxt == "all":
+                    db.update_session_config(sid, content_mode=nxt, content_filter=None)
+                else:
+                    db.update_session_config(sid, content_mode=nxt)
+        self._update_session_dump_switch()
+
+    def _open_session_dump_menu(self):
+        """Abre el diálogo de configuración del modo de volcado activo."""
         sid = self.current_session_id
         if sid is not None:
             mode, filt, restricted = self._session_content_state(sid)
             if not restricted:
                 if mode == "interval":
-                    # Ya activo: volver a «todo el contenido»
-                    db.update_session_config(sid, content_mode="all", content_filter=None)
-                else:
-                    # Activar intervalo; el asistente solo edita las fechas.
-                    db.update_session_config(sid, content_mode="interval")
+                    # El asistente persiste al aceptar; cancelar conserva el filtro.
                     self._open_content_filter(sid)
-        self._update_session_dump_switch()
-
-    def _on_session_window_clicked(self):
-        """Activa/desactiva el modo ventana (últimos N días) de la sesión actual."""
-        sid = self.current_session_id
-        if sid is not None:
-            mode, filt, restricted = self._session_content_state(sid)
-            if not restricted:
-                if mode == "window":
-                    db.update_session_config(sid, content_mode="all", content_filter=None)
-                else:
+                elif mode == "window":
                     days = self._window_days_from_filter(filt)
                     days, ok = QInputDialog.getInt(
                         self, self.tr("Últimos N días"),
@@ -2938,9 +2952,6 @@ class MainWindow(QMainWindow):
                         db.update_session_config(
                             sid, content_mode="window",
                             content_filter=json.dumps({"window_days": int(days)}))
-                    else:
-                        # Cancelar: entra igualmente en modo ventana con los días actuales.
-                        db.update_session_config(sid, content_mode="window")
         self._update_session_dump_switch()
 
     def _add_manual_session(self):

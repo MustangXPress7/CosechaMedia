@@ -410,13 +410,13 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="556"/>
-        <source>Filtrar por intervalo de fechas; pulsa de nuevo para volver a todo</source>
-        <translation>Filter by date range; press again to go back to everything</translation>
+        <source>Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días</source>
+        <translation>Change this session&apos;s dump: all / date range / last N days</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="561"/>
-        <source>Volcar solo los últimos N días; pulsa de nuevo para volver a todo</source>
-        <translation>Dump only the last N days; press again to go back to everything</translation>
+        <source>Abrir las opciones del modo de volcado actual</source>
+        <translation>Open options of the current dump mode</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="2884"/>
