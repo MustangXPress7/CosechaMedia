@@ -7,8 +7,8 @@ current_phase_name: Bugs conocidos + features v1.5
 status: active
 stopped_at: None
 last_updated: "2026-08-19T00:00:00.000Z"
-last_activity: 2026-08-20
-last_activity_desc: BOARD.md creado para consolidar ideas/bugs/backlog. I-07 marcado Por revisar, I-15 e I-18 marcados como no completados. Auditoría de archivos basura en root detectada.
+last_activity: 2026-08-21
+last_activity_desc: Quick 260821-f2k completado — volcado selectivo por sesión (I-15+I-18): switch cíclico de 3 modos por sesión, ventana N días real desde último volcado, tabla Opciones 3 columnas, botón global retirado.
 progress:
   total_phases: 3
   completed_phases: 1
@@ -43,8 +43,8 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 - I-11: Crear proyecto en un solo paso ✅
 - I-12: Fix "establecer como predeterminado" ✅
 - I-14: Forzar nombre de cámara al registrar origen ✅
-- I-15: Interruptor de contenido en volcado selectivo — Pendiente, no completado
-- I-18: Filtrado de volcado por sesión — Pendiente, no completado correctamente
+- I-15: Interruptor de contenido en volcado selectivo ✅ — quick 260821-f2k
+- I-18: Filtrado de volcado por sesión ✅ — quick 260821-f2k
 - I-19: Revisar temas claro/oscuro ✅
 - Fase 2: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
 
@@ -62,7 +62,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 Phase: 00 (Bugs + features v1.5) — STARTING
 Status: Investigando bugs conocidos de CONCERNS.md
-Last activity: 2026-08-19 - UI layout fixes completados + backlog auditado
+Last activity: 2026-08-21 - Quick 260821-f2k: volcado selectivo por sesión (I-15+I-18) completado
 
 ## Performance Metrics
 
@@ -129,6 +129,7 @@ Recent decisions affecting current work:
 | 260816-k7i | Corregir hallazgos pendientes del UI-REVIEW (ProjectWizard, confirmaciones destructivas, zombie buttons, menú redundante) | 2026-08-16 | 7aa7f98 | Verified (gap fix 5d970b3) | [260816-k7i-corregir-hallazgos-pendientes-del-ui-rev](./quick/260816-k7i-corregir-hallazgos-pendientes-del-ui-rev/) |
 | 260816-mcj | Arreglar MTP (manager COM por hilo), volcado selectivo a orígenes, columnas de borrado por fila y columna de ruta redimensionable | 2026-08-16 | 7b27666 | Verified | [260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub](./quick/260816-mcj-arreglar-mtp-manager-com-por-hilo-y-reub/) |
 | 260816-x3b | Reemplazar glifos emoji por iconos SVG vectoriales tintables (app/ui/icons.py + 13 SVGs, hook refresh_all en tema/acento, .ts sincronizado) | 2026-08-16 | b28b808 | Needs Review | [260816-x3b-reemplazar-los-glifos-emoji-unicode-que-](./quick/260816-x3b-reemplazar-los-glifos-emoji-unicode-que-/) |
+| 260821-f2k | Volcado selectivo por sesión (I-15+I-18): switch cíclico 3 modos por sesión, ventana N días real, tabla Opciones 3 columnas, botón global retirado | 2026-08-21 | 8ff5121 | Needs Review | [260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s](./quick/260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s/) |
 
 ## Deferred Items
 
