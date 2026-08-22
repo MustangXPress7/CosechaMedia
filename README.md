@@ -16,11 +16,14 @@ SD card ingestion tool for audiovisual production. Verified copies (MD5), organi
 
 - **Verified ingest**: SD card copies with MD5 checks and removal of corrupted destinations.
 - **Automatic organization**: `Footage/<Camera>/<Date>` with several modes (camera first, date first, camera only, no subfolders).
-- **(WIP) Camera detection**: source scanning and manual renaming of unknown cameras.
+- **Device detection**: automatic source scanning with persistent device names (set when registering the source).
+- **Selective dump per session**: dump all content, a date interval, or only the days since the last dump (configurable window, 1 day by default), session by session — with an assistant that scans the card, groups files by shooting day, and copies verified.
+- **Flexible shoot dates**: taken automatically from video metadata or set manually per project, with per-device overrides for cards without reliable metadata.
+- **One-step projects**: the creation wizard collects every project setting up front (advanced options collapsed by default).
 - **Multiple dump destinations**: automatic distribution across drives (when one fills up, it moves to the next).
 - **Proxies**: 720p/1080p proxy generation for video clips.
-- **Post-ingest**: source formatting (Windows) and scheduled shutdown.
-- **Themes and accents**: dark/light theme with color accents and animated wheat background.
+- **Post-ingest**: CSV reports (card contents before dumping, integrity after ingest), source formatting (Windows), and scheduled shutdown.
+- **Themes and accents**: dark/light theme with color accents, tintable SVG icons that follow the accent, and animated wheat background.
 - **Internationalization**: Spanish and English (switchable from the *Language* menu).
 - **Automatic updates**: checks via GitHub Releases with SHA-256 verification.
 - **Ingest from phones and cameras**: import over USB (MTP), over WiFi with QR-code reception (PairDrop, nothing to install on the phone), or via an FTP server on the device, with incremental sync and automatic rescanning.
@@ -133,11 +136,14 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 
 - **Ingesta verificada**: copia de tarjetas SD con comprobación MD5 y eliminación de destinos corruptos.
 - **Organización automática**: `Footage/<Cámara>/<Fecha>` con varios modos (cámara primero, fecha primero, solo cámara, sin subcarpetas).
-- **(WIP) Detección de cámaras**: escaneo de orígenes y renombrado manual de cámaras desconocidas.
+- **Detección de dispositivos**: escaneo automático de orígenes con nombres de dispositivo persistentes (se fijan al registrar el origen).
+- **Volcado selectivo por sesión**: vuelca todo el contenido, un intervalo de días o solo los días transcurridos desde el último volcado (ventana configurable, 1 día por defecto), sesión a sesión, con un asistente que escanea la tarjeta, agrupa por día de rodaje y copia verificado.
+- **Fechas de rodaje flexibles**: tomadas automáticamente de los metadatos de vídeo o fijadas a mano por proyecto, con excepciones por dispositivo para tarjetas sin metadatos fiables.
+- **Proyectos en un solo paso**: el asistente de creación recoge todos los ajustes del proyecto desde el principio (opciones avanzadas plegadas por defecto).
 - **Destinos de volcado múltiples**: reparto automático entre discos (cuando uno se llena, pasa al siguiente).
 - **Proxies**: generación de proxies 720p/1080p de los clips de vídeo.
-- **Post-ingesta**: formateo de orígenes (Windows) y apagado programado.
-- **Temas y acentos**: tema oscuro/claro con acentos de color y fondo de trigo animado.
+- **Post-ingesta**: informes CSV (contenido de la tarjeta antes de volcar, integridad tras la ingesta), formateo de orígenes (Windows) y apagado programado.
+- **Temas y acentos**: tema oscuro/claro con acentos de color, iconos SVG tintables que siguen al acento y fondo de trigo animado.
 - **Internacionalización**: español e inglés (se cambia en el menú *Idioma*).
 - **Actualizaciones automáticas**: comprobación vía GitHub Releases con verificación SHA-256.
 - **Ingesta desde móviles y cámaras**: importa por USB (MTP), por WiFi con recepción por código QR (PairDrop, sin instalar nada en el móvil) o por servidor FTP en el dispositivo, con sincronización incremental y reescaneo automático.
