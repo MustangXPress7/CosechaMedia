@@ -75,6 +75,8 @@ jobs:
           </dict>
           </plist>
           PLIST
+          codesign --force --deep -s - dist/CosechaMedia.app
+          codesign --display dist/CosechaMedia.app >/dev/null && echo "firma ad-hoc aplicada"
           mkdir -p release
           ditto -c -k --keepParent dist/CosechaMedia.app release/CosechaMedia-macos.app.zip
           cd release
