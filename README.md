@@ -115,9 +115,9 @@ main.spec        PyInstaller configuration
 
 ## License
 
-**PolyForm Noncommercial License 1.0.0** (SPDX: `PolyForm-Noncommercial-1.0.0`).
+**GNU General Public License v3.0 or later** (SPDX: `GPL-3.0-or-later`).
 
-You may use, copy and modify the code **for noncommercial purposes only**. Selling the program, charging for it, or using it for commercial gain is not allowed. See [LICENSE](LICENSE).
+Free software: you can use, study, modify and redistribute it under the terms of the [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html), either version 3 or (at your option) any later version. Contributions are welcome under the same terms. See [LICENSE](LICENSE).
 
 ## Credits
 
@@ -235,9 +235,9 @@ main.spec        Configuración de PyInstaller
 
 ## Licencia
 
-**PolyForm Noncommercial License 1.0.0** (SPDX: `PolyForm-Noncommercial-1.0.0`).
+**GNU General Public License v3.0 o posterior** (SPDX: `GPL-3.0-or-later`).
 
-Puedes usar, copiar y modificar el código **solo con fines no comerciales**. No está permitido vender el programa, cobrar por él ni usarlo para obtener beneficio económico. Ver [LICENSE](LICENSE).
+Software libre: puedes usarlo, estudiarlo, modificarlo y redistribuirlo bajo los términos de la [GNU GPLv3](https://www.gnu.org/licenses/gpl-3.0.html), en su versión 3 o (a tu elección) cualquier versión posterior. Las contribuciones son bienvenidas bajo la misma licencia. Consulta [LICENSE](LICENSE).
 
 ## Créditos
 
