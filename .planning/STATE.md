@@ -6,9 +6,9 @@ current_phase: 00
 current_phase_name: Bugs conocidos + features v1.5
 status: active
 stopped_at: None
-last_updated: "2026-08-21T10:33:06.173Z"
-last_activity: 2026-08-21
-last_activity_desc: "Quick 260821-f2k completado — volcado selectivo por sesión (I-15+I-18): switch cíclico de 3 modos por sesión, ventana N días real desde último volcado, tabla Opciones 3 columnas, botón global retirado."
+last_updated: "2026-08-22T15:26:00.000Z"
+last_activity: 2026-08-22
+last_activity_desc: "Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)"
 progress:
   total_phases: 2
   completed_phases: 0
@@ -66,7 +66,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 Phase: 00 (Bugs + features v1.5) — STARTING
 Status: Investigando bugs conocidos de CONCERNS.md
-Last activity: 2026-08-22 - Completed quick task 260822-ive: Cambiar licencia a GPL-3.0 y preparar firma de binarios (69f3555, d5bcd70, aec250a)
+Last activity: 2026-08-22 - Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)
 
 ## Performance Metrics
 
@@ -139,6 +139,8 @@ Recent decisions affecting current work:
 | 260821-io6 | Lote de pulido UI: wizard avanzadas colapsables con auto-reajuste, WiFi directo al QR, orden del lanzador, progreso sin texto hasta finalizar, combo de sesiones elástico con botones al borde, icono llave, anchos de orígenes, flechas svg reales (combo+spinbox), primarios y todo el azul por defecto según acento con retintado en caliente, fix json local en start_ingest | 2026-08-21 | c6815e1 | Needs Review | [260821-io6-ui-polish-batch-wizard-advanced-toggle-d](./quick/260821-io6-ui-polish-batch-wizard-advanced-toggle-d/) |
 | 260822-gi3 | Actualizar README para versión 1.5: volcado selectivo por sesión, fechas flexibles, proyectos en un paso, informes CSV en post-ingesta, detección de dispositivos completada (sin WIP), iconos SVG tintables — mitades EN/ES simétricas 18/18 | 2026-08-22 | 768ceb0 | Verified | [260822-gi3-actualizar-readme-para-version-1-5-con-l](./quick/260822-gi3-actualizar-readme-para-version-1-5-con-l/) |
 | 260822-ive | Licencia GPL-3.0-or-later (LICENSE canónica de gnu.org + README bilingüe + cabecera main.py) y preparación firma: codesign ad-hoc macOS en CI antes de zip/hash, docs/SIGNING.md con roadmap SignPath Foundation y workaround Gatekeeper | 2026-08-22 | aec250a | Needs Review | [260822-ive-cambiar-licencia-a-gpl-3-0-y-preparar-fi](./quick/260822-ive-cambiar-licencia-a-gpl-3-0-y-preparar-fi/) |
+| 260822-ml7 | Cask de Homebrew para distribución macOS: cask propio (arm64 temporal + dependencia ffmpeg, sha256 :no_check documentado), docs/HOMEBREW.md (instalación --no-quarantine, publicación manual del tap homebrew-tap, checklist por release con fijado de SHA-256) y subsección Homebrew espejo EN/ES en README | 2026-08-22 | ffd2957, cd1feb2, a314038 | Needs Review | [260822-ml7-cask-de-homebrew-para-distribucion-macos](./quick/260822-ml7-cask-de-homebrew-para-distribucion-macos/) |
+| 11 | Bump version 1.5.0.b3 para release beta3 (licencia GPL + firma ad-hoc macOS) | 2026-08-22 | ee2c0ca | — | — |
 
 ## Deferred Items
 
@@ -149,6 +151,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-08-16T13:21:06.313Z
-Stopped at: Completed 260816-k7i-PLAN.md (quick)
+Last session: 2026-08-22T15:26:00.000Z
+Stopped at: Completed 260822-ml7-PLAN.md (quick)
 Resume file: None
