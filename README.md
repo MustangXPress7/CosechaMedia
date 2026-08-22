@@ -48,6 +48,8 @@ Compiled releases are published on **GitHub Releases**:
 
 The app checks for updates on startup (adjustable under *Help → Check for updates…*) and, when a new version is available, downloads it, verifies its SHA-256, and installs itself on restart.
 
+Binaries carry no developer-certificate signature (macOS builds get an ad-hoc signature); see [SIGNING](docs/SIGNING.md) for what that means and how to open the app on macOS the first time.
+
 ## Ingest from phones and cameras
 
 You can import files (e.g. the `DCIM` folder) straight from a phone or camera, in addition to SD cards.
@@ -167,6 +169,8 @@ Las versiones compiladas se publican en **GitHub Releases**:
 - Linux → `CosechaMedia-linux-x86_64`
 
 La aplicación comprueba actualizaciones al inicio (ajustable en *Ayuda → Búsqueda de actualizaciones…*) y, cuando hay una versión nueva, la descarga, verifica su SHA-256 y se instala sola al reiniciar.
+
+Los binarios no llevan firma de certificado de desarrollador (las builds de macOS reciben una firma ad-hoc); consulta [SIGNING](docs/SIGNING.md) para saber qué implica y cómo abrir la app en macOS la primera vez.
 
 ## Ingesta desde móviles y cámaras
 
