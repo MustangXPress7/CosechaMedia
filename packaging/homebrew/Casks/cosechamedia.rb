@@ -1,13 +1,11 @@
 cask "cosechamedia" do
   version "1.5.0.b3"
+  sha256 "563680fd9af262ecc878372e792a52e5cb91f2bcfa650e97f9dac913b0875ec3"
 
-  # Sin hash fijado todavía: la release v1.5.0.b3 aún no está publicada en
-  # GitHub Releases (comprobado vía API al crear este cask). En cuanto exista,
-  # sustituir la línea de abajo por el hash real del asset:
-  #   curl -LO https://github.com/MustangXPress7/CosechaMedia/releases/download/v<VERSIÓN>/CosechaMedia-macos.app.zip
-  #   shasum -a 256 CosechaMedia-macos.app.zip
-  # Checklist completa por release en docs/HOMEBREW.md.
-  sha256 :no_check
+  # Fijado del asset CosechaMedia-macos.app.zip de v1.5.0.b3 (verificado
+  # contra el digest de GitHub). Para cada release nueva: descargar el zip,
+  # calcular shasum -a 256 y actualizar ambas copias del cask (esta y la del
+  # tap homebrew-tap). Checklist completa por release en docs/HOMEBREW.md.
 
   url "https://github.com/MustangXPress7/CosechaMedia/releases/download/v#{version}/CosechaMedia-macos.app.zip"
   name "CosechaMedia"
