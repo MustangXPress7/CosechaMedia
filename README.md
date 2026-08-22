@@ -28,7 +28,7 @@ SD card ingestion tool for audiovisual production. Verified copies (MD5), organi
 - **Automatic updates**: checks via GitHub Releases with SHA-256 verification.
 - **Ingest from phones and cameras**: import over USB (MTP), over WiFi with QR-code reception (PairDrop, nothing to install on the phone), or via an FTP server on the device, with incremental sync and automatic rescanning.
 
-![CosechaMedia UI](https://i.imgur.com/wn2ZprQ.png)
+![CosechaMedia UI]([https://i.imgur.com/WzW2kka.png))
 
 ## Requirements
 
@@ -45,6 +45,8 @@ Compiled releases are published on **GitHub Releases**:
 - Windows → `CosechaMedia-windows-x86_64.exe`
 - macOS → `CosechaMedia-macos.app.zip` (contains the `.app` bundle)
 - Linux → `CosechaMedia-linux-x86_64`
+
+![CosechaMedia UI]([https://i.imgur.com/qdKnbdZ.png))
 
 The app checks for updates on startup (adjustable under *Help → Check for updates…*) and, when a new version is available, downloads it, verifies its SHA-256, and installs itself on restart.
 
@@ -159,7 +161,7 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 - **Actualizaciones automáticas**: comprobación vía GitHub Releases con verificación SHA-256.
 - **Ingesta desde móviles y cámaras**: importa por USB (MTP), por WiFi con recepción por código QR (PairDrop, sin instalar nada en el móvil) o por servidor FTP en el dispositivo, con sincronización incremental y reescaneo automático.
 
-![UI de CosechaMedia](https://i.imgur.com/wn2ZprQ.png)
+![UI de CosechaMedia](https://i.imgur.com/WzW2kka.png)
 
 ## Requisitos
 
@@ -176,6 +178,8 @@ Las versiones compiladas se publican en **GitHub Releases**:
 - Windows → `CosechaMedia-windows-x86_64.exe`
 - macOS → `CosechaMedia-macos.app.zip` (contiene la aplicación `.app`)
 - Linux → `CosechaMedia-linux-x86_64`
+
+- ![UI de CosechaMedia](https://i.imgur.com/qdKnbdZ.png))
 
 La aplicación comprueba actualizaciones al inicio (ajustable en *Ayuda → Búsqueda de actualizaciones…*) y, cuando hay una versión nueva, la descarga, verifica su SHA-256 y se instala sola al reiniciar.
 
