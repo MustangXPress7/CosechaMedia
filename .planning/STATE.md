@@ -66,7 +66,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 Phase: 00 (Bugs + features v1.5) — STARTING
 Status: Investigando bugs conocidos de CONCERNS.md
-Last activity: 2026-08-22 - Completed quick task 260822-gi3: Actualizar README para versión 1.5 con los features actuales (768ceb0)
+Last activity: 2026-08-22 - Completed quick task 260822-ive: Cambiar licencia a GPL-3.0 y preparar firma de binarios (69f3555, d5bcd70, aec250a)
 
 ## Performance Metrics
 
@@ -138,6 +138,7 @@ Recent decisions affecting current work:
 | 260821-f2k-rev2 | Ventana de volcado por defecto a 1 día (ingestor, UI y asistente) + QSS estandarizado para QSpinBox/QDoubleSpinBox/QTimeEdit con paleta del tema (antes nativo claro ilegible en oscuro) | 2026-08-21 | e97edc8 | Verified | [260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s](./quick/260821-f2k-volcado-selectivo-por-sesion-i-15-i-18-s/) |
 | 260821-io6 | Lote de pulido UI: wizard avanzadas colapsables con auto-reajuste, WiFi directo al QR, orden del lanzador, progreso sin texto hasta finalizar, combo de sesiones elástico con botones al borde, icono llave, anchos de orígenes, flechas svg reales (combo+spinbox), primarios y todo el azul por defecto según acento con retintado en caliente, fix json local en start_ingest | 2026-08-21 | c6815e1 | Needs Review | [260821-io6-ui-polish-batch-wizard-advanced-toggle-d](./quick/260821-io6-ui-polish-batch-wizard-advanced-toggle-d/) |
 | 260822-gi3 | Actualizar README para versión 1.5: volcado selectivo por sesión, fechas flexibles, proyectos en un paso, informes CSV en post-ingesta, detección de dispositivos completada (sin WIP), iconos SVG tintables — mitades EN/ES simétricas 18/18 | 2026-08-22 | 768ceb0 | Verified | [260822-gi3-actualizar-readme-para-version-1-5-con-l](./quick/260822-gi3-actualizar-readme-para-version-1-5-con-l/) |
+| 260822-ive | Licencia GPL-3.0-or-later (LICENSE canónica de gnu.org + README bilingüe + cabecera main.py) y preparación firma: codesign ad-hoc macOS en CI antes de zip/hash, docs/SIGNING.md con roadmap SignPath Foundation y workaround Gatekeeper | 2026-08-22 | aec250a | Needs Review | [260822-ive-cambiar-licencia-a-gpl-3-0-y-preparar-fi](./quick/260822-ive-cambiar-licencia-a-gpl-3-0-y-preparar-fi/) |
 
 ## Deferred Items
 
