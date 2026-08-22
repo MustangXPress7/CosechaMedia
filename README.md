@@ -28,7 +28,7 @@ SD card ingestion tool for audiovisual production. Verified copies (MD5), organi
 - **Automatic updates**: checks via GitHub Releases with SHA-256 verification.
 - **Ingest from phones and cameras**: import over USB (MTP), over WiFi with QR-code reception (PairDrop, nothing to install on the phone), or via an FTP server on the device, with incremental sync and automatic rescanning.
 
-![CosechaMedia UI]([https://i.imgur.com/WzW2kka.png))
+![UI de CosechaMedia](https://i.imgur.com/WzW2kka.png)
 
 ## Requirements
 
@@ -46,7 +46,7 @@ Compiled releases are published on **GitHub Releases**:
 - macOS → `CosechaMedia-macos.app.zip` (contains the `.app` bundle)
 - Linux → `CosechaMedia-linux-x86_64`
 
-![CosechaMedia UI]([https://i.imgur.com/qdKnbdZ.png))
+![UI de CosechaMedia](https://i.imgur.com/qdKnbdZ.png)
 
 The app checks for updates on startup (adjustable under *Help → Check for updates…*) and, when a new version is available, downloads it, verifies its SHA-256, and installs itself on restart.
 
@@ -179,7 +179,7 @@ Las versiones compiladas se publican en **GitHub Releases**:
 - macOS → `CosechaMedia-macos.app.zip` (contiene la aplicación `.app`)
 - Linux → `CosechaMedia-linux-x86_64`
 
-- ![UI de CosechaMedia](https://i.imgur.com/qdKnbdZ.png))
+![UI de CosechaMedia](https://i.imgur.com/qdKnbdZ.png)
 
 La aplicación comprueba actualizaciones al inicio (ajustable en *Ayuda → Búsqueda de actualizaciones…*) y, cuando hay una versión nueva, la descarga, verifica su SHA-256 y se instala sola al reiniciar.
 
