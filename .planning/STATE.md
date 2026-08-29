@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.5
-current_phase: 01.5.0
-current_phase_name: Consolidación y bugs del flujo
-status: executing
+status: Awaiting next milestone
 stopped_at: Completed 01.5.0-04-PLAN.md
-last_updated: "2026-08-29T20:30:00.000Z"
+last_updated: "2026-08-29T20:13:45.558Z"
 last_activity: 2026-08-29
-last_activity_desc: Plan 01.5.0-04 (regresiones R3/R5 + full suite gate) completed — Phase 01.5.0 complete
-state_head: 463d741
+last_activity_desc: Milestone v1.5.0 completed and archived
+state_head: 0890edfd8a6c8cad90fdd0287c53460bfb1f9fea
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 0
+  total_plans: 9
+  completed_plans: 8
 milestone_name: Consolidación y bugs
+current_phase: 01.5.0
+current_phase_name: Consolidación y bugs del flujo
 ---
 
 # Project State
@@ -65,9 +65,10 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: 01.5.0 (Consolidación y bugs del flujo) — COMPLETED
-Status: Phase 01.5.0 complete — all 4 plans executed
-Last activity: 2026-08-29 — Plan 01.5.0-04 completed; full suite gate passed
+Phase: Milestone v1.5.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-08-29 — Milestone v1.5.0 completed and archived
 
 ## Performance Metrics
 
@@ -155,13 +156,24 @@ Recent decisions affecting current work:
 
 ## Deferred Items
 
-| Category | Item | Status | Deferred At |
-|----------|------|--------|-------------|
-| Implementación de reubicaciones | UI-04/UI-05 (v2) | Pending | 2026-08-15 |
-| Refactor core | MainWindow god object, logging, migraciones | Out of scope | 2026-08-15 |
+| Category | Item | Status | Deferred At | Milestone |
+|----------|------|--------|-------------|-----------|
+| debug_sessions | bug-qr-proyecto-blanco | investigating | 2026-08-29 | v1.5.0 |
+| debug_sessions | revisemos-bugs-anotados-para-r | investigating | 2026-08-29 | v1.5.0 |
+| quick_tasks | 260821-io6-ui-polish-batch-wizard-advanced-toggle-d | unknown | 2026-08-29 | v1.5.0 |
+| quick_tasks | 260821-nem-ui-tabla-origenes-boton-dedicado-usb-mtp | unknown | 2026-08-29 | v1.5.0 |
+| todos | revisar-awesome-python.md | (presence-only) | 2026-08-29 | v1.5.0 |
+| todos | ui-sugerencias-dispositivos-conocidos.md | (presence-only) | 2026-08-29 | v1.5.0 |
+| verification_gaps | 01/01-VERIFICATION.md | human_needed | 2026-08-29 | v1.5.0 |
+| Implementación de reubicaciones | UI-04/UI-05 (v2) | Pending | 2026-08-15 | v1.0 |
+| Refactor core | MainWindow god object, logging, migraciones | Out of scope | 2026-08-15 | v1.0 |
 
 ## Session Continuity
 
 Last session: 2026-08-29T12:31:01.662Z
 Stopped at: Completed 01.5.0-02-PLAN.md
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
