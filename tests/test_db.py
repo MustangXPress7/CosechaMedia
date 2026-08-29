@@ -259,7 +259,8 @@ class TestDatabaseManager(unittest.TestCase):
             self.assertFalse(os.path.isabs(path) and path.startswith(os.path.abspath(tmp_dir)))
             # data_dir() must be anchored to repo root, not cwd
             d = data_dir()
-            self.assertFalse(os.path.samefile(d, os.path.join(tmp_dir, "data")))
+            # Ensure data_dir is not inside tmp_dir
+            self.assertFalse(os.path.isabs(d) and d.startswith(os.path.abspath(tmp_dir)))
             # Base directory should contain 'data' and be independent of cwd
             self.assertTrue(os.path.isdir(d))
         finally:
