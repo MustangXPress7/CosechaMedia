@@ -246,6 +246,26 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertTrue(wifi)
         self.assertEqual(wifi[0]["device_folder"], "Alice")
 
+    def test_resolve_db_path_independent_of_cwd(self):
+        from app.core.db import _resolve_db_path, data_dir
+        orig_cwd = os.getcwd()
+        tmp_dir = tempfile.mkdtemp(prefix="cwd_test_")
+        try:
+            os.chdir(tmp_dir)
+            path = _resolve_db_path()
+            # Path must end with data/sd_import.db
+            self.assertTrue(str(path).endswith(os.path.join("data", "sd_import.db")))
+            # Path must not be under the temporary cwd
+            self.assertFalse(os.path.isabs(path) and path.startswith(os.path.abspath(tmp_dir)))
+            # data_dir() must be anchored to repo root, not cwd
+            d = data_dir()
+            self.assertFalse(os.path.samefile(d, os.path.join(tmp_dir, "data")))
+            # Base directory should contain 'data' and be independent of cwd
+            self.assertTrue(os.path.isdir(d))
+        finally:
+            os.chdir(orig_cwd)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
 
 class TestWatcherSeen(unittest.TestCase):
     def setUp(self):
