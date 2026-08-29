@@ -5,15 +5,20 @@ import sys
 from datetime import datetime
 from typing import List, Tuple, Optional
 
-def _resolve_db_path() -> str:
+def data_dir() -> str:
+    """Directorio de datos de la app (junto al ejecutable si frozen)."""
     if getattr(sys, "frozen", False):
         base_dir = os.path.dirname(sys.executable)
     else:
         from pathlib import Path
         base_dir = str(Path(__file__).resolve().parents[2])
-    data_dir = os.path.join(base_dir, "data")
-    os.makedirs(data_dir, exist_ok=True)
-    return os.path.join(data_dir, "sd_import.db")
+    data_dir_path = os.path.join(base_dir, "data")
+    os.makedirs(data_dir_path, exist_ok=True)
+    return data_dir_path
+
+
+def _resolve_db_path() -> str:
+    return os.path.join(data_dir(), "sd_import.db")
 
 
 WIFI_DEVICE_ID = "wifi:pairdrop"

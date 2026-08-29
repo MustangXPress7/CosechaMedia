@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import tempfile
@@ -25,20 +26,29 @@ class FakeMeta:
         return "2024-01-02"
 
 
+class RefMeta(FakeMeta):
+    def get_file_type_info(self, path):
+        return {"type": "other", "category": "reference"}
+
+
 class TestIngestor(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="sdimport_ing_")
         self.src_dir = os.path.join(self.tmp, "src")
         self.dst_dir = os.path.join(self.tmp, "dst")
+        self.resume_dir = os.path.join(self.tmp, "resume")
         os.makedirs(self.src_dir)
         os.makedirs(self.dst_dir)
+        os.makedirs(self.resume_dir)
 
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "ingest.db"))
         self._orig_db = ingestor_module.db
         self._orig_meta = ingestor_module.metadata_engine
         self._orig_calc = ingestor_module.calculate_md5
+        self._orig_data_dir = ingestor_module.data_dir
         ingestor_module.db = self.db
         ingestor_module.metadata_engine = FakeMeta()
+        ingestor_module.data_dir = lambda: self.resume_dir
 
         self.ing = Ingestor(1, self.dst_dir, session_id=1)
 
@@ -48,6 +58,7 @@ class TestIngestor(unittest.TestCase):
         ingestor_module.db = self._orig_db
         ingestor_module.metadata_engine = self._orig_meta
         ingestor_module.calculate_md5 = self._orig_calc
+        ingestor_module.data_dir = self._orig_data_dir
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _make_source(self, name="clip.mp4", size=2048, content=None):
@@ -249,6 +260,51 @@ class TestIngestor(unittest.TestCase):
                             "El archivo debe re-volcarse al faltar el destino")
         finally:
             ing2.stop()
+
+    def test_reference_file_missing_dest_recopied(self):
+        src = os.path.join(self.src_dir, "notes.txt")
+        with open(src, "w") as f:
+            f.write("hoja de rodaje")
+        ingestor_module.metadata_engine = RefMeta()
+        self.ing.handle_new_file(src)
+        self.ing.executor.shutdown(wait=True)
+        dest = os.path.join(self.dst_dir, "_reference", "notes.txt")
+        self.assertTrue(os.path.exists(dest))
+
+        # El usuario borra la copia: la ingesta debe volver a copiarla aunque
+        # la fila de la DB esté en estado 'reference' (no 'completed').
+        os.remove(dest)
+        ing2 = Ingestor(1, self.dst_dir, session_id=1)
+        try:
+            ing2.handle_new_file(src)
+            ing2.executor.shutdown(wait=True)
+            self.assertTrue(os.path.exists(dest),
+                            "El archivo de referencia borrado debe re-copiarse")
+        finally:
+            ing2.stop()
+
+    def test_json_resume_alone_does_not_skip_missing_dest(self):
+        src = self._make_source()
+        # Estado legacy: el resume JSON dice copiado pero no hay fila en la DB.
+        legacy = os.path.join(self.dst_dir, ".sdimport_session_9.json")
+        with open(legacy, "w") as f:
+            json.dump({"copied_files": [src]}, f)
+
+        ing = Ingestor(1, self.dst_dir, session_id=9)
+        try:
+            # El .json legacy de la raíz de destino se elimina al construirse
+            # el Ingestor (ya no tiene cabida junto a Footage).
+            self.assertFalse(os.path.exists(legacy),
+                             "El resume JSON legacy no debe quedar en la raíz de destino")
+            ing.handle_new_file(src)
+            ing.executor.shutdown(wait=True)
+            stats = ing.get_stats()
+            self.assertEqual(stats["processed"], 1,
+                             "Sin fila volcada en la DB no se debe saltar por el JSON")
+            dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
+            self.assertTrue(os.path.exists(dest))
+        finally:
+            ing.stop()
 
 
 class TestUtils(unittest.TestCase):

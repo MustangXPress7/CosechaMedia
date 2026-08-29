@@ -1,12 +1,13 @@
+import glob
+import json
 import os
 import shutil
 import threading
 import time
-import json
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Set
-from app.core.db import db
+from app.core.db import db, data_dir
 from app.core.utils import create_folder_structure, calculate_md5
 from app.core.metadata_engine import metadata_engine
 
@@ -162,10 +163,13 @@ class Ingestor(QObject):
         self._full_targets: Set[int] = set()
 
         self._session_file = os.path.join(
-            destination_root, f".sdimport_session_{self.session_id if self.session_id is not None else 'reactive'}.json"
+            data_dir(),
+            f"resume_proj_{self.project_id}_sess_"
+            f"{self.session_id if self.session_id is not None else 'reactive'}.json"
         )
         self._legacy_session_file = os.path.join(destination_root, ".sdimport_session.json")
         self._copied_files = self._load_copied_files()
+        self._remove_legacy_session_files()
 
         self._content_mode = content_mode
         self._window_days_default = 1
@@ -273,6 +277,20 @@ class Ingestor(QObject):
                     continue
         return set()
 
+    def _remove_legacy_session_files(self):
+        """Limpia los viejos .json de reanudación que se escribían en la raíz
+        de destino (junto a Footage), molestando al usuario. El estado de
+        reanudación vive ahora en data/; los legacy se leen y se eliminan."""
+        patterns = [
+            os.path.join(self.destination_root, ".sdimport_session*.json"),
+        ]
+        for pattern in patterns:
+            for path in glob.glob(pattern):
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
     def _save_copied_files(self):
         try:
             with self._processed_lock:
@@ -357,18 +375,16 @@ class Ingestor(QObject):
     def _is_completed_and_present(self, source_path: str) -> bool:
         """¿El archivo ya está volcado y su copia destino sigue en disco?
 
-        Consulta la última fila 'completed' de la DB y verifica que el destino
-        exista realmente. Si el archivo de la carpeta maestra fue borrado, la
-        ingesta vuelve a volcarlo en vez de darlo por completado. Sin fila en
-        DB (estado de reanudación legacy del resume JSON) conserva el skip."""
+        El disco es la única fuente de verdad: se consulta la última fila
+        volcada (completed/reference) y se verifica que el destino exista.
+        Si no hay fila o el destino fue borrado de la carpeta maestra, la
+        ingesta vuelve a volcar (copia verificada e idempotente). El resume
+        JSON no exime de la verificación de disco."""
         dest = self._completed_dest_path(source_path)
-        if dest:
-            return os.path.isfile(dest)
-        with self._processed_lock:
-            return source_path in self._copied_files
+        return bool(dest) and os.path.isfile(dest)
 
     def _completed_dest_path(self, source_path: str) -> Optional[str]:
-        """Última ruta destino registrada como 'completed' para un origen."""
+        """Última ruta destino registrada como volcada para un origen."""
         with self._db_lock:
             try:
                 conn = db.get_connection()
@@ -376,7 +392,8 @@ class Ingestor(QObject):
                     cursor = conn.cursor()
                     cursor.execute(
                         "SELECT dest_path FROM files WHERE source_path = ? "
-                        "AND status = 'completed' ORDER BY id DESC LIMIT 1",
+                        "AND status IN ('completed', 'reference') "
+                        "ORDER BY id DESC LIMIT 1",
                         (source_path,)
                     )
                     row = cursor.fetchone()

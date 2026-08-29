@@ -43,10 +43,14 @@ class TestEndToEndIngest(unittest.TestCase):
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self._orig_notif = mw.NotificationManager
+        self._orig_data_dir = ingestor_module.data_dir
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "e2e.db"))
         mw.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        ingestor_module.data_dir = lambda: os.path.join(self.tmp, "resume")
+
+        os.makedirs(os.path.join(self.tmp, "resume"), exist_ok=True)
 
         class StubNotif:
             def notify_ingest_complete(self, stats):
@@ -90,6 +94,7 @@ class TestEndToEndIngest(unittest.TestCase):
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         mw.NotificationManager = self._orig_notif
+        ingestor_module.data_dir = self._orig_data_dir
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _wait_done(self, timeout=30):
@@ -128,6 +133,40 @@ class TestEndToEndIngest(unittest.TestCase):
         # La sesión debe marcarse como completada
         sess = mw.db.get_session(self.sid)
         self.assertEqual(sess["status"], "completed")
+
+    def test_redump_after_master_delete(self):
+        """Si el usuario borra clips de la carpeta maestra, una nueva ingesta
+        los vuelve a volcar (no debe darlos por completados). Además no debe
+        quedar ningún .json de reanudación junto al destino."""
+        self.window.start_ingest()
+        done = self._wait_done()
+        self.assertTrue(done, "La primera ingesta no terminó a tiempo")
+        date_dir = self.window.project_date.toString("yyyy-MM-dd")
+
+        def clips():
+            found = []
+            for disk in (self.disk_a, self.disk_b):
+                base = os.path.join(disk, "Footage", "Unknown_Camera", date_dir)
+                if os.path.isdir(base):
+                    found.extend(os.listdir(base))
+            return sorted(found)
+
+        self.assertEqual(clips(), ["clip1.mp4", "clip2.MOV"])
+        for c in clips():
+            os.remove(os.path.join(
+                self.disk_a, "Footage", "Unknown_Camera", date_dir, c))
+
+        # Re-ingesta tras borrar de la carpeta maestra
+        self.window.start_ingest()
+        done = self._wait_done()
+        self.assertTrue(done, "La segunda ingesta no terminó a tiempo")
+        self.assertEqual(clips(), ["clip1.mp4", "clip2.MOV"],
+                         "Los clips borrados de la carpeta maestra deben re-volcarse")
+
+        # Sin residuo .json molesto en la raíz del destino
+        residue = [f for f in os.listdir(self.dest)
+                   if f.startswith(".sdimport_session")]
+        self.assertEqual(residue, [])
 
 
 if __name__ == "__main__":
