@@ -1,8 +1,10 @@
+import builtins
 import json
 import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 import app.core.ingestor as ingestor_module
 from app.core.db import DatabaseManager
@@ -128,26 +130,39 @@ class TestIngestor(unittest.TestCase):
         self.assertGreaterEqual(len(progress), 1)
         self.assertEqual(progress[-1][0], progress[-1][1])
 
-    def test_mismatch_detected_and_dest_removed(self):
+    def test_copy_verified_single_pass_no_dest_reread(self):
         src = self._make_source()
-        ingestor_module.calculate_md5 = lambda p: "0" * 32  # dest nunca coincidirá
-        self.ing._process_single_file(src, {"type": "video", "category": "footage"})
+        dest = os.path.join(self.dst_dir, "single_pass.bin")
+        ingestor_module.calculate_md5 = mock.Mock(return_value="")
+        try:
+            result = self.ing._copy_verified(src, dest)
+            # (a) el destino NO se vuelve a leer con calculate_md5 en el pase único
+            ingestor_module.calculate_md5.assert_not_called()
+            # (b) el destino existe y está íntegro en disco
+            self.assertTrue(os.path.exists(dest), "El destino debe existir tras el pase único")
+            self.assertEqual(
+                os.path.getsize(dest), os.path.getsize(src),
+                "El destino debe contener exactamente los bytes copiados del origen")
+            # (c) el hash devuelto == hash real del contenido del destino (leído en el test)
+            self.assertEqual(result, self._orig_calc(dest))
+        finally:
+            ingestor_module.calculate_md5 = self._orig_calc
 
-        stats = self.ing.get_stats()
-        self.assertEqual(stats["processed"], 0)
-        self.assertEqual(stats["errors"], 1)
-        dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
-        self.assertFalse(os.path.exists(dest), "El destino corrupto debe eliminarse")
-
-    def test_copy_error_removes_partial(self):
+    def test_copy_error_removes_partial_dest(self):
         src = self._make_source()
         dest = os.path.join(self.dst_dir, "partial.bin")
-        self.ing._copy_verified(src, dest)
-        self.assertTrue(os.path.exists(dest))
+        real_open = builtins.open
 
-        ingestor_module.calculate_md5 = lambda p: "1" * 32
-        self.ing._copy_verified(src, dest)
-        self.assertFalse(os.path.exists(dest), "El destino con hash erróneo debe eliminarse")
+        def _raise_write(path, mode, *args, **kwargs):
+            if any(ch in mode for ch in ("w", "a", "x", "+")):
+                raise OSError("disk full")
+            return real_open(path, mode, *args, **kwargs)
+
+        with mock.patch("builtins.open", side_effect=_raise_write):
+            result = self.ing._copy_verified(src, dest)
+
+        self.assertIsNone(result, "Ante error de escritura el retorno debe ser None")
+        self.assertFalse(os.path.exists(dest), "El destino parcial debe eliminarse")
 
     def test_reference_unique_names(self):
         os.makedirs(os.path.join(self.src_dir, "a"))
