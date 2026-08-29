@@ -24,7 +24,9 @@ CosechaMedia es la aplicación para **agilizar el proceso de volcar una SD o dis
 
 ## En Fase 1.5.0 (planeado — ROADMAP.md)
 
-Fase: **1.5.0 — Consolidación y bugs del flujo** (incluye las mejoras al volcado selectivo de la antigua Fase 2: multi-origen, escaneo MTP completo y opción todo; depende de Fase 1)
+Fase: **1.5.0 — Consolidación y bugs del flujo** (fase ligera: solo bugs activos de
+CONCERNS.md resueltos por quick tasks). Los features del volcado selectivo listados abajo
+(antigua Fase 2) pasan a **Fase 1.6.0** (decisión 2026-08-29); depende de Fase 1
 
 | ID | Idea | Prioridad | Justificación |
 |----|------|-----------|---------------|
@@ -34,6 +36,8 @@ Fase: **1.5.0 — Consolidación y bugs del flujo** (incluye las mejoras al volc
 | ID-03 | Opción **"todo"** dentro del volcado selectivo para revertir la selección y volver a "volcar todo" | uso | Sin salida del filtro, el operador queda encerrado en el rango; es una fricción diaria |
 
 **Verificación (2026-08-28):** ID-03 quedó cubierta por el modo "Todo" de I-15 (quick 260821-f2k). ID-04 está cubierta a medias: el origen de las sesiones MTP apunta a la caché local `data/device_cache/`, por lo que es usable para filtrar/volcar sin el dispositivo conectado si ya se escenificó, pero no hay navegación por alias ni opción explícita de "eliminar caché". ID-01 (volcado selectivo global multi-origen) y ID-02 (escaneo completo vía caché) siguen sin implementar.
+
+**Reasignación (2026-08-29):** ID-01 e ID-02 (junto a ID-04) se planifican en la **Fase 1.6.0**; la Fase 1.5.0 queda acotada a los bugs activos de CONCERNS.md (fase ligera por quicks) y el I-07 queda como decisión de dashboard.
 
 ## Ideas abiertas
 
@@ -66,7 +70,7 @@ Fase: **1.5.0 — Consolidación y bugs del flujo** (incluye las mejoras al volc
 | R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto. Alcance apuntado abajo. **Fase 1.5.0** |
 | R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración). **Fase 2.0** |
 | R-03 | **Destinos "fallback"/servidor para el volcado** (copia local + nube, p. ej. si el proyecto se reasigna) | nuevo feature | I-02 — la base (enviar un volcado a múltiples destinos) ya funciona hoy |
-| R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | **Fase 1.5.0** (antigua Fase 2) |
+| R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | **Fase 1.6.0** (ID-01/ID-02/ID-04; antigua Fase 2) |
 | R-05 | **Verificación avanzada: XXH64 + ASC MHL** | nuevo feature | Diseño D1-D5 en `.planning/notes/diseno-xxh64-asc-mhl.md`. **Fase 1.6.0** |
 | R-06 | **Reorganizar footage** (reconstrucción de volcados a mano) | uso | REQ-06 — definido en require. Integrado como acción de la app con diálogo propio. **Fase 1.6.0** |
 

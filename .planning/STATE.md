@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo del proyecto de forma fiable y sin perder datos — cada archivo copiado con verificación de integridad y organizado correctamente.
-**Current focus:** v1.5 — Consolidación de bugs + features pendientes (excepto modo guiado, reservado para v2.0)
+**Current focus:** v1.5 — Consolidación de bugs del flujo (1.5.0 ligera por quicks; features multi-origen/escaneo MTP pasan a 1.6.0)
 
 ## Objective: v1.5
 
@@ -48,7 +48,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 - I-15: Interruptor de contenido en volcado selectivo ✅ — quick 260821-f2k
 - I-18: Filtrado de volcado por sesión ✅ — quick 260821-f2k
 - I-19: Revisar temas claro/oscuro ✅
-- Fase 1.5.0: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
+- Fase 1.6.0 (migrado desde 1.5.0): Volcado selectivo multi-origen (ID-01), escaneo MTP vía caché (ID-02), ID-04 borrado de caché
 
 ### Estética (BACKLOG_UI_V2 → v1.5)
 
@@ -106,17 +106,18 @@ Recent decisions affecting current work:
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
 - [Phase ?]: Quick k7i: ProjectWizard reactivado como única vía de creación de proyecto (600x520, callbacks on_finished/on_cancel)
 - [Phase ?]: Quick k7i: gestión de dispositivos guardados migrada a Añadir origen — rol ('device', id) + menú contextual Eliminar guardado; menú Ingesta depurado sin código zombie
-- [Fase 1.5.0]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección
+- [Fase 1.5.0 → 1.6.0 (2026-08-29)]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección (reasignada: los features pasan a la Fase 1.6.0; la 1.5.0 queda acotada a bugs)
 - [Priorización]: Convención de prioridades de uso — cambios críticos de usabilidad = "uso"; funcionalidad nueva = "nuevo feature" (no feature-request genérico)
 
 ### Roadmap Evolution
 
 - Roadmap renumerado por versión (2026-08-29): fases 1.5.0 / 1.6.0 / 2.0. La antigua Fase 2 (volcado selectivo multi-origen) queda dentro de 1.5.0; la antigua Fase 3 (verificación avanzada XXH64+ASC MHL) pasa a 1.6.0 junto a REQ-06 (Reorganizar footage); modo guiado (I-01) y pantalla de bienvenida (I-13) quedan en 2.0
+- Acotación posterior (2026-08-29): la 1.5.0 queda como fase ligera de bugs (CONCERNS.md) resueltos por quick tasks; ID-01/ID-02/ID-04 migran a la 1.6.0 y el I-07 pasa a decisión de dashboard, fuera del alcance de la 1.5.0
 
 ### Pending Todos
 
 - Investigar y fixear bugs conocidos de CONCERNS.md (FFprobe timeout, watcher re-ingesta, DB path CWD, doble MD5, device polling UI thread)
-- Features v1.5: I-03, I-06, I-07, I-11, I-14, Fase 2
+- Features v1.5: I-03/I-06/I-11/I-14 ✅ ya implementados; I-07 decisión por dashboard; Fase 2 (ID-01/ID-02/ID-04) → Fase 1.6.0
 - Estética v1.5: B-09, B-10, B-11, B-12
 
 ### Blockers/Concerns

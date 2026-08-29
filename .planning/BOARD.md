@@ -15,13 +15,13 @@ Fase: 00 Bugs conocidos + features v1.5 — STARTING
 
 | Versión | Contenido |
 |---------|-----------|
-| **1.5.0** | Bugs y fricciones del flujo de volcado (CONCERNS.md activos + primera ola F-01..F-05 aplicada), volcado selectivo multi-origen + escaneo MTP vía caché (antigua Fase 2), I-07 WiFi resume a decidir |
-| **1.6.0** | Verificación avanzada: XXH64 + ASC MHL (R-05) + Reorganizar footage REQ-06 (R-06) |
+| **1.5.0** | Bugs y fricciones del flujo de volcado (CONCERNS.md activos + primera ola F-01..F-05 aplicada) — fase ligera; I-07 WiFi resume como decisión de dashboard (fuera) |
+| **1.6.0** | Verificación avanzada: XXH64 + ASC MHL (R-05) + Reorganizar footage REQ-06 (R-06) + volcado selectivo multi-origen ID-01 e ID-02 (desde 1.5.0) |
 | **2.0** | Modo guiado I-01 + Pantalla de bienvenida I-13; candidatas REQ-07 notificadores y REQ-08 WiFi cámaras (spike) |
 
 ## Resumen ejecutivo
 - Fase 1 Auditoría UI completada 4/4 planes. Sin cambios de código.
-- Fase 1.5.0 Consolidación y bugs en curso; mejoras volcado selectivo (ID-01/ID-02) pendientes de planificar. ID-03 "todo" cubierta por I-15.
+- Fase 1.5.0 Consolidación de bugs en curso (solo CONCERNS.md, por quicks); mejoras volcado selectivo (ID-01/ID-02) reasignadas a la Fase 1.6.0. ID-03 "todo" cubierta por I-15.
 - Working tree con fixes de tests sin commitear (test_source_picker.py, test_main_window.py).
 
 ## Features v1.5
@@ -37,8 +37,8 @@ Fase: 00 Bugs conocidos + features v1.5 — STARTING
 - ✅ I-19 Revisar temas claro/oscuro
 
 ### Pendientes v1.5 (Fase 1.5.0)
-- 🔍 I-07 WiFi inbox: reanudar subidas interrumpidas + MD5 en móvil — Por revisar (solo `.part` atómico; sin reanudación ni MD5 en el móvil)
-- Volcado selectivo multi-origen (ID-01) y escaneo MTP vía caché (ID-02) — sin planificar
+- Bugs activos de CONCERNS.md (FFprobe timeout, watcher re-ingesta, DB path CWD, doble MD5, polling en UI thread) — a planificar
+- 🔍 I-07 WiFi inbox: reanudar subidas interrumpidas + MD5 en móvil — **decisión por dashboard** (fuera de la 1.5.0)
 
 ### Reservado v2.0 (Fase 2.0)
 - I-01 Acciones rápidas / modo guiado
@@ -47,6 +47,7 @@ Fase: 00 Bugs conocidos + features v1.5 — STARTING
 ### Asignado v1.6.0 (Fase 1.6.0)
 - Verificación avanzada XXH64 + ASC MHL (R-05)
 - Reorganizar footage REQ-06 (R-06)
+- Volcado selectivo global multi-origen (ID-01) y escaneo MTP vía caché (ID-02) — desde 1.5.0
 
 ## Ideas abiertas importantes
 - I-02 Destinos fallback/servidor
@@ -144,11 +145,12 @@ tests/test_source_picker.py — fix mock SenderEditDialog (hang)
 tests/test_main_window.py — fix índice combo del wizard (Manual=0)
 
 ## Próximos pasos sugeridos
-1. Decidir I-07 WiFi resume + MD5 (solo `.part` atómico hoy)
-2. Fase 1.5.0: planificar ID-01/ID-02 (multi-origen global + escaneo MTP vía caché); ID-04 borrado de caché
-3. B-09/B-10/B-12 auditoría estética formal (resto de I-09)
-4. B-20: ampliar "olvidar dispositivo" para limpiar device_settings/sd_cards/caché
-5. Commit de fixes de tests
+1. Fase 1.5.0: planificar bugs activos de CONCERNS.md (fase ligera por quicks)
+2. Dashboard: decidir I-07 WiFi resume + MD5 (fuera de 1.5.0)
+3. Fase 1.6.0: ID-01/ID-02 (multi-origen global + escaneo MTP vía caché); ID-04 borrado de caché
+4. B-09/B-10/B-12 auditoría estética formal (resto de I-09)
+5. B-20: ampliar "olvidar dispositivo" para limpiar device_settings/sd_cards/caché
+6. Commit de fixes de tests
 
 ## Enlaces clave
 .planning/STATE.md
