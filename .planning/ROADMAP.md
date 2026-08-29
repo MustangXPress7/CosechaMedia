@@ -69,7 +69,7 @@ la Fase 1.6.0; I-07 (WiFi resume) se decide por dashboard, fuera de esta fase
 
   2. La suite completa de tests (`tests/`, Qt offscreen) pasa; cada fix lleva su test de regresión
 
-**Plans:** 3/4 plans executed (bugs en waves de implementación; la investigación 2026-08-29 reveló que 3 de los 5 bloques no estaban aplicados)
+**Plans:** 4/4 plans executed ✅ COMPLETED
 
 Plans:
 **Wave 1**
@@ -83,7 +83,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01.5.0-04-PLAN.md — Regresiones R3 (DB path CWD) y R5 (auto-sync off-thread) + gate de suite completa
+- [x] 01.5.0-04-PLAN.md — Regresiones R3 (DB path CWD) y R5 (auto-sync off-thread) + gate de suite completa
 
 ### Phase 1.6.0: Verificación avanzada + Reorganizador de footage
 
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 2.0
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auditoría UI y Plan de Reubicación | 4/4 | In Progress|  |
-| 1.5.0. Consolidación y bugs del flujo | 3/4 | In Progress|  |
+| 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
+| 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
 | 1.6.0. Verificación avanzada + Reorganizador de footage | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |

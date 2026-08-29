@@ -4,16 +4,16 @@ milestone: v1.5
 current_phase: 01.5.0
 current_phase_name: Consolidación y bugs del flujo
 status: executing
-stopped_at: Completed 01.5.0-03-PLAN.md
-last_updated: "2026-08-29T14:00:00.000Z"
+stopped_at: Completed 01.5.0-04-PLAN.md
+last_updated: "2026-08-29T20:30:00.000Z"
 last_activity: 2026-08-29
-last_activity_desc: Plan 01.5.0-03 (watcher inventory persistence + should_skip predicate) completed
-state_head: cc63871
+last_activity_desc: Plan 01.5.0-04 (regresiones R3/R5 + full suite gate) completed — Phase 01.5.0 complete
+state_head: 463d741
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 9
-  completed_plans: 6
+  completed_phases: 1
+  total_plans: 4
+  completed_plans: 4
 milestone_name: Consolidación y bugs
 ---
 
@@ -65,9 +65,9 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: 01.5.0 (Consolidación y bugs del flujo) — EXECUTING
-Status: Executing Phase 01.5.0
-Last activity: 2026-08-29 — Phase 01.5.0 execution started
+Phase: 01.5.0 (Consolidación y bugs del flujo) — COMPLETED
+Status: Phase 01.5.0 complete — all 4 plans executed
+Last activity: 2026-08-29 — Plan 01.5.0-04 completed; full suite gate passed
 
 ## Performance Metrics
 
@@ -94,9 +94,9 @@ Last activity: 2026-08-29 — Phase 01.5.0 execution started
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | 01.5.0-01 (D-01/D-02 ffprobe retry + marker) | 22m | 3 tasks | 4 files |
-| Phase 260816-k7i-corregir-hallazgos-pendientes-del-ui-rev P1 | 0h | 3 tasks | 4 files |
-| Phase 01.5.0 P02 | 12min | 3 tasks | 2 files |
-| 01.5.0-03 (watcher inventory + should_skip) | 45min | 3 tasks | 5 files |
+| 01.5.0-02 (copy_verified hash stream-through) | 12m | 3 tasks | 2 files |
+| 01.5.0-03 (watcher inventory + should_skip) | 45m | 3 tasks | 5 files |
+| 01.5.0-04 (R3/R5 regression + full suite gate) | 15m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
