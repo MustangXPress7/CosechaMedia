@@ -79,5 +79,20 @@ hallazgos con disposición en `.planning/notes/exploracion-reordenar-notificacio
 - [ ] El alcance de modelos se delimita por las cámaras reales de los operadores (research question 2026-08-29) y por el resultado del spike de viabilidad (servidor FTP embebido, privilegios OS, persistencia segura de credenciales de red)
 - [ ] Las credenciales de red se avisan como dato sensible (persistencia del SO: perfil cifrado Win, keychain macOS, plaintext root-only Linux)
 
+### REQ-09 · Registro unificado de dispositivos físicos (known_devices) — Fase 1.6.0
+
+- [ ] Nueva tabla SQLite `known_devices` en `sd_import.db` con columnas: `id`, `volume_label`, `device_serial` (nullable), `card_hash` (nullable), `camera_model`, `camera_make`, `last_mount_path`, `last_ingest_date`, `ingest_count`, `preferences_json` (ventana contenido, destino, etc.), `created_at`, `updated_at`
+- [ ] Clave de identidad compuesta: `(volume_label, device_serial, card_hash)` — se usa lo que esté disponible; adaptadores USB-SD pueden no exponer serial único
+- [ ] Aprende de **cada ingesta exitosa** (MTP y SD): si la ruta/volumen coincide con registro existente → actualiza `last_mount_path`, `last_ingest_date`, `ingest_count`, `camera_model/make` si la detección tuvo éxito; si no existe → crea registro nuevo con datos inferidos
+- [ ] Consulta en "Añadir origen": al detectar ruta/volumen conocido, ofrece sugerencia contextual (ver REQ-09-UI)
+
+### REQ-10 · Instrumentación de detección de cámara (metadata_engine) — Fase 1.6.0
+
+- [ ] Log estructurado en `metadata_engine.get_video_metadata`: metadata raw completa de ffprobe (formato JSON), `camera_model`/`camera_make` devueltos, `metadata_verified` flag, razón de no-coincidencia con BD de cámaras conocidas (si aplica)
+- [ ] Nivel de log configurable (DEBUG para desarrollo, WARNING para producción) sin impacto en rendimiento cuando está deshabilitado
+- [ ] Salida correlacionable con `session_id` y `source_path` para trazabilidad completa
+- [ ] Base para decidir si el registro inferido (REQ-09) *sustituye* o *complementa* la detección automática
+
 ---
-*Requirements definidos: 2026-08-29 — sesión /gsd-explore. Asignaciones por versión (roadmap reordenado 2026-08-29): REQ-06 → Fase 1.6.0 (junto a verificación avanzada XXH64+ASC MHL); REQ-07/08 candidatas a Fase 2.0 (REQ-08 bloqueado por spike de viabilidad).*
+
+*Requirements definidos: 2026-08-29 — sesión /gsd-explore. Asignaciones por versión (roadmap reordenado 2026-08-29): REQ-06 → Fase 1.6.0 (junto a verificación avanzada XXH64+ASC MHL); REQ-07/08 candidatas a Fase 2.0 (REQ-08 bloqueado por spike de viabilidad); REQ-09/10 → Fase 1.6.0 (registro unificado + instrumentación detección).*
