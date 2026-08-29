@@ -8,7 +8,7 @@ stopped_at: Phase 1.5.0 context gathered
 last_updated: "2026-08-29T14:22:00.000Z"
 last_activity: 2026-08-29
 last_activity_desc: Plan 01.5.0-01 (D-01/D-02 ffprobe retry + marker) completed
-state_head: ec76ddb3fa1c62e60d25058a5145807317ebb6e3
+state_head: db15ccb
 progress:
   total_phases: 4
   completed_phases: 0
