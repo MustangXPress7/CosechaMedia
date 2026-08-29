@@ -167,129 +167,149 @@ class MetadataEngine:
                 timeout=10
             )
             data = json.loads(result.stdout)
-
-            metadata = {
-                "camera_model": "Unknown",
-                "camera_make": "Unknown",
-                "serial": None,
-                "creation_date": None,
-                "creation_dt": None,
-                "date_source": None,
-                "duration": 0,
-                "bitrate": 0,
-                "format": "",
-                "width": 0,
-                "height": 0,
-                "fps": 0,
-                "codec": "",
-                "audio_codec": "",
-                "file_size": os.path.getsize(file_path),
-                "is_video": False,
-                "is_audio": False,
-                "is_image": False
-            }
-
-            if "format" in data:
-                fmt = data["format"]
-                metadata["format"] = fmt.get("format_name", "Unknown")
-                metadata["duration"] = float(fmt.get("duration", 0))
-                metadata["bitrate"] = int(fmt.get("bitrate", 0))
-
-                format_tags = fmt.get("tags", {})
-                metadata["creation_date"] = self._first_tag(format_tags, _DATE_KEYS)
-                self._apply_camera_tags(metadata, format_tags)
-                metadata["serial"] = self._first_tag(format_tags, _SERIAL_KEYS)
-
-            for stream in data.get("streams", []):
-                codec_type = stream.get("codec_type", "")
-
-                if codec_type == "video":
-                    metadata["is_video"] = True
-                    metadata["width"] = int(stream.get("width", 0))
-                    metadata["height"] = int(stream.get("height", 0))
-                    metadata["codec"] = stream.get("codec_name", "")
-
-                    fps_str = stream.get("r_frame_rate", "0/1")
-                    if "/" in fps_str:
-                        num, den = fps_str.split("/")
-                        if int(den) > 0:
-                            metadata["fps"] = round(int(num) / int(den), 2)
-
-                    tags = stream.get("tags", {})
-                    self._apply_camera_tags(metadata, tags)
-                    if not metadata["creation_date"]:
-                        metadata["creation_date"] = self._first_tag(tags, _DATE_KEYS)
-                    if not metadata["serial"]:
-                        metadata["serial"] = self._first_tag(tags, _SERIAL_KEYS)
-
-                elif codec_type == "audio":
-                    metadata["is_audio"] = True
-                    metadata["audio_codec"] = stream.get("codec_name", "")
-
-            ext = os.path.splitext(file_path)[1].lower()
-            image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
-            raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
-
-            if ext in image_extensions or ext in raw_extensions:
-                metadata["is_image"] = True
-                metadata["is_video"] = False
-                camera_from_ext = self._camera_from_extension(ext)
-                if metadata["camera_model"] == "Unknown" and camera_from_ext:
-                    metadata["camera_model"] = camera_from_ext
-
-            self._finalize_dates(metadata, file_path)
-
-            with self._cache_lock:
-                self._cache[file_path] = (mtime, metadata.copy())
-                if len(self._cache) > self._MAX_CACHE:
-                    for k in list(self._cache)[: self._MAX_CACHE // 2]:
-                        self._cache.pop(k, None)
-
-            return metadata
-
         except subprocess.TimeoutExpired:
-            metadata = {"camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
-                    "creation_date": None, "creation_dt": None, "date_source": None,
-                    "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
-                    "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
-                    "is_video": False, "is_audio": False, "is_image": False}
+            # Reintento degradado: ante timeout del probe inicial (format+
+            # streams, 10 s) solo reintentamos con el probe format-only (más
+            # rápido, sin -show_streams) y timeout ampliado (30 s). Si el
+            # reintento responde, continuamos al parseo normal (verificado);
+            # si vuelve a fallar, devolvemos el fallback marcado como no
+            # verificado — nunca lanzamos.
+            retry_cmd = [
+                self.ffprobe_path,
+                "-v", "quiet",
+                "-print_format", "json",
+                "-show_format",
+                file_path
+            ]
             try:
-                metadata["file_size"] = os.path.getsize(file_path)
-            except OSError:
-                pass
-            ext = os.path.splitext(file_path)[1].lower()
-            image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
-            raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
-            if ext in image_extensions or ext in raw_extensions:
-                metadata["is_image"] = True
-                camera_from_ext = self._camera_from_extension(ext)
-                if camera_from_ext and camera_from_ext != "Unknown":
-                    metadata["camera_model"] = camera_from_ext
-                    metadata["camera_make"] = camera_from_ext
-            self._finalize_dates(metadata, file_path)
-            return metadata
-        except Exception as e:
-            print(f"Error extracting metadata from {file_path}: {e}")
-            metadata = {"camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
-                    "creation_date": None, "creation_dt": None, "date_source": None,
-                    "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
-                    "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
-                    "is_video": False, "is_audio": False, "is_image": False}
-            try:
-                metadata["file_size"] = os.path.getsize(file_path)
-            except OSError:
-                pass
-            ext = os.path.splitext(file_path)[1].lower()
-            image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
-            raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
-            if ext in image_extensions or ext in raw_extensions:
-                metadata["is_image"] = True
-                camera_from_ext = self._camera_from_extension(ext)
-                if camera_from_ext and camera_from_ext != "Unknown":
-                    metadata["camera_model"] = camera_from_ext
-                    metadata["camera_make"] = camera_from_ext
-            self._finalize_dates(metadata, file_path)
-            return metadata
+                result = subprocess.run(
+                    retry_cmd,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    startupinfo=self.startupinfo,
+                    timeout=30
+                )
+                data = json.loads(result.stdout)
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, OSError) as e:
+                print(f"Error metadata (timeout/retry) {file_path}: {e}")
+                return self._fallback_metadata(file_path, "timeout")
+        except (subprocess.CalledProcessError, OSError, json.JSONDecodeError) as e:
+            print(f"Error metadata {file_path}: {e}")
+            return self._fallback_metadata(file_path, str(e))
+
+        metadata = {
+            "camera_model": "Unknown",
+            "camera_make": "Unknown",
+            "serial": None,
+            "creation_date": None,
+            "creation_dt": None,
+            "date_source": None,
+            "duration": 0,
+            "bitrate": 0,
+            "format": "",
+            "width": 0,
+            "height": 0,
+            "fps": 0,
+            "codec": "",
+            "audio_codec": "",
+            "file_size": os.path.getsize(file_path),
+            "is_video": False,
+            "is_audio": False,
+            "is_image": False,
+            "metadata_verified": True,
+            "metadata_error": None
+        }
+
+        if "format" in data:
+            fmt = data["format"]
+            metadata["format"] = fmt.get("format_name", "Unknown")
+            metadata["duration"] = float(fmt.get("duration", 0))
+            metadata["bitrate"] = int(fmt.get("bitrate", 0))
+
+            format_tags = fmt.get("tags", {})
+            metadata["creation_date"] = self._first_tag(format_tags, _DATE_KEYS)
+            self._apply_camera_tags(metadata, format_tags)
+            metadata["serial"] = self._first_tag(format_tags, _SERIAL_KEYS)
+
+        for stream in data.get("streams", []):
+            codec_type = stream.get("codec_type", "")
+
+            if codec_type == "video":
+                metadata["is_video"] = True
+                metadata["width"] = int(stream.get("width", 0))
+                metadata["height"] = int(stream.get("height", 0))
+                metadata["codec"] = stream.get("codec_name", "")
+
+                fps_str = stream.get("r_frame_rate", "0/1")
+                if "/" in fps_str:
+                    num, den = fps_str.split("/")
+                    if int(den) > 0:
+                        metadata["fps"] = round(int(num) / int(den), 2)
+
+                tags = stream.get("tags", {})
+                self._apply_camera_tags(metadata, tags)
+                if not metadata["creation_date"]:
+                    metadata["creation_date"] = self._first_tag(tags, _DATE_KEYS)
+                if not metadata["serial"]:
+                    metadata["serial"] = self._first_tag(tags, _SERIAL_KEYS)
+
+            elif codec_type == "audio":
+                metadata["is_audio"] = True
+                metadata["audio_codec"] = stream.get("codec_name", "")
+
+        ext = os.path.splitext(file_path)[1].lower()
+        image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
+        raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
+
+        if ext in image_extensions or ext in raw_extensions:
+            metadata["is_image"] = True
+            metadata["is_video"] = False
+            camera_from_ext = self._camera_from_extension(ext)
+            if metadata["camera_model"] == "Unknown" and camera_from_ext:
+                metadata["camera_model"] = camera_from_ext
+
+        self._finalize_dates(metadata, file_path)
+
+        with self._cache_lock:
+            self._cache[file_path] = (mtime, metadata.copy())
+            if len(self._cache) > self._MAX_CACHE:
+                for k in list(self._cache)[: self._MAX_CACHE // 2]:
+                    self._cache.pop(k, None)
+
+        return metadata
+
+    def _fallback_metadata(self, file_path: str, error: str) -> dict:
+        """Devuelve el dict de metadata de fallo, idéntico en forma al de éxito.
+
+        Marca la metadata como no verificada (`metadata_verified=False`) y
+        guarda el motivo (`metadata_error`) para que la UI pueda avisar al
+        operador. Conserva el `file_size` real vía `os.path.getsize` cuando es
+        legible, y el fallback por extensión (imagen/RAW → cámara) igual que en
+        el flujo de éxito, de modo que el dict nunca pierde información útil."""
+        metadata = {
+            "camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
+            "creation_date": None, "creation_dt": None, "date_source": None,
+            "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
+            "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
+            "is_video": False, "is_audio": False, "is_image": False,
+            "metadata_verified": False, "metadata_error": str(error)
+        }
+        try:
+            metadata["file_size"] = os.path.getsize(file_path)
+        except OSError:
+            pass
+        ext = os.path.splitext(file_path)[1].lower()
+        image_extensions = ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.gif', '.webp']
+        raw_extensions = ['.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pef', '.srw']
+        if ext in image_extensions or ext in raw_extensions:
+            metadata["is_image"] = True
+            camera_from_ext = self._camera_from_extension(ext)
+            if camera_from_ext and camera_from_ext != "Unknown":
+                metadata["camera_model"] = camera_from_ext
+                metadata["camera_make"] = camera_from_ext
+        self._finalize_dates(metadata, file_path)
+        return metadata
 
     def _camera_from_extension(self, ext: str) -> str:
         raw_ext_to_brand = {
@@ -312,7 +332,7 @@ class MetadataEngine:
             metadata = self.get_video_metadata(file_path)
             if metadata:
                 camera = metadata.get("camera_model", "Unknown")
-                if camera != "Unknown":
+                if metadata.get("metadata_verified") is not False and camera not in ("Unknown", "Unknown_Camera"):
                     camera_counts[camera] = camera_counts.get(camera, 0) + 1
         
         if camera_counts:

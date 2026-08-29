@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from datetime import datetime, timezone, timedelta
@@ -178,6 +179,56 @@ class TestGetVideoMetadata(unittest.TestCase):
             meta = self.engine.get_video_metadata(self.file)
         self.assertEqual(meta["camera_make"], "samsung")
         self.assertEqual(meta["camera_model"], "SM-S928U")
+
+    def test_retry_degraded_on_timeout(self):
+        """Timeout inicial (10 s) reintenta una vez con probe format-only
+        (sin -show_streams) y timeout ampliado (30 s); si responde, la
+        metadata se marca como verificada."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                subprocess.TimeoutExpired("ffprobe", 10),
+                type("R", (), {"stdout": self._payload(), "returncode": 0})(),
+            ]
+            meta = self.engine.get_video_metadata(self.file)
+        self.assertEqual(mock_run.call_count, 2)
+        retry_call = mock_run.call_args_list[1]
+        retry_cmd = retry_call[0][0] if retry_call[0] else retry_call[1]["args"]
+        self.assertNotIn("-show_streams", retry_cmd)
+        self.assertEqual(retry_call[1]["timeout"], 30)
+        self.assertTrue(meta["metadata_verified"])
+
+    def test_second_timeout_returns_fallback_without_raise(self):
+        """Si el reintento degradado también agota el timeout, se devuelve el
+        dict de fallback (metadata_verified=False + metadata_error) sin
+        lanzar, y file_size es el tamaño real del archivo."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = [
+                subprocess.TimeoutExpired("ffprobe", 10),
+                subprocess.TimeoutExpired("ffprobe", 30),
+            ]
+            meta = self.engine.get_video_metadata(self.file)
+        self.assertIs(meta["metadata_verified"], False)
+        self.assertIn("metadata_error", meta)
+        self.assertEqual(meta["file_size"], os.path.getsize(self.file))
+
+    def test_generic_exception_does_not_retry(self):
+        """Una excepción genérica (p. ej. CalledProcessError) NO reintenta
+        (Pitfall 6): se devuelve el fallback con flag en una sola llamada."""
+        with patch("subprocess.run") as mock_run:
+            mock_run.side_effect = subprocess.CalledProcessError(1, "ffprobe")
+            meta = self.engine.get_video_metadata(self.file)
+        self.assertEqual(mock_run.call_count, 1)
+        self.assertIs(meta["metadata_verified"], False)
+
+    def test_detect_camera_batch_does_not_count_failures(self):
+        """detect_camera_batch no cuenta como cámara los fallos
+        (metadata_verified=False o Unknown_Camera)."""
+        with patch.object(self.engine, "get_video_metadata",
+                          return_value={"camera_model": "Unknown_Camera",
+                                        "metadata_verified": False}):
+            result = self.engine.detect_camera_batch([self.file])
+        self.assertEqual(result["primary_camera"], "Unknown")
+        self.assertEqual(result["camera_counts"], {})
 
 
 class TestBatchScan(unittest.TestCase):
