@@ -4,11 +4,11 @@ milestone: v1.5
 current_phase: 01.5.0
 current_phase_name: Consolidación y bugs del flujo
 status: executing
-stopped_at: Completed 01.5.0-02-PLAN.md
-last_updated: "2026-08-29T12:31:01.770Z"
+stopped_at: Completed 01.5.0-03-PLAN.md
+last_updated: "2026-08-29T14:00:00.000Z"
 last_activity: 2026-08-29
-last_activity_desc: Plan 01.5.0-02 (D-03 hash MD5 único stream-through en copy_verified) completed
-state_head: ff3b75b
+last_activity_desc: Plan 01.5.0-03 (watcher inventory persistence + should_skip predicate) completed
+state_head: cc63871
 progress:
   total_phases: 4
   completed_phases: 0
@@ -96,6 +96,7 @@ Last activity: 2026-08-29 — Phase 01.5.0 execution started
 | 01.5.0-01 (D-01/D-02 ffprobe retry + marker) | 22m | 3 tasks | 4 files |
 | Phase 260816-k7i-corregir-hallazgos-pendientes-del-ui-rev P1 | 0h | 3 tasks | 4 files |
 | Phase 01.5.0 P02 | 12min | 3 tasks | 2 files |
+| 01.5.0-03 (watcher inventory + should_skip) | 45min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
