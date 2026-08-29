@@ -4,16 +4,16 @@ milestone: v1.5
 current_phase: 01.5.0
 current_phase_name: Consolidación y bugs del flujo
 status: executing
-stopped_at: Phase 1.5.0 context gathered
-last_updated: "2026-08-29T14:22:00.000Z"
+stopped_at: Completed 01.5.0-02-PLAN.md
+last_updated: "2026-08-29T12:31:01.770Z"
 last_activity: 2026-08-29
-last_activity_desc: Plan 01.5.0-01 (D-01/D-02 ffprobe retry + marker) completed
-state_head: db15ccb
+last_activity_desc: Plan 01.5.0-02 (D-03 hash MD5 único stream-through en copy_verified) completed
+state_head: 9a8e372da406a1148c2f3a9d9922ff5df4b2a421
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 9
-  completed_plans: 5
+  completed_plans: 6
 milestone_name: Consolidación y bugs
 ---
 
@@ -95,6 +95,7 @@ Last activity: 2026-08-29 — Phase 01.5.0 execution started
 |------|----------|-------|-------|
 | 01.5.0-01 (D-01/D-02 ffprobe retry + marker) | 22m | 3 tasks | 4 files |
 | Phase 260816-k7i-corregir-hallazgos-pendientes-del-ui-rev P1 | 0h | 3 tasks | 4 files |
+| Phase 01.5.0 P02 | 12min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,8 @@ Recent decisions affecting current work:
 - [Plan 01.5.0-01]: Dict de metadata de fallo idéntico en forma al de éxito con metadata_verified=False + metadata_error y file_size real vía getsize (nunca lanza)
 - [Plan 01.5.0-01]: detect_camera_batch no cuenta como cámara real los fallos (metadata_verified is False) ni Unknown/Unknown_Camera
 - [Plan 01.5.0-01]: Marker "Metadatos no verificados" SOLO en la celda de cámara (columna 1) + tooltip; la columna de estado mantiene el texto exacto "Completado" (Pitfall 3 — _clear_completed_rows intacto)
+- [Plan 01.5.0-02]: copy_verified calcula el hash MD5 del origen una sola vez (pase stream-through) y lo devuelve; se elimina la relectura del destino con calculate_md5 (ingestor.py:61-68) — R4 / D-03
+- [Plan 01.5.0-02]: Se conserva la semántica de borrado de destino corrupto/parcial (excepción de lectura/escritura → os.remove(dest_path) + None); calculate_md5 se mantiene para _handle_reference_file y tests
 - [Iniciativa]: Auditoría primero, implementación después — el roadmap v1 es 100% diagnóstico (sin cambios de código)
 - [Iniciativa]: Alcance = diagnóstico + plan por zona; la implementación (UI-04/UI-05) se difiere a v2 por decisión explícita del usuario
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
@@ -158,6 +161,6 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-08-29T10:33:19.342Z
-Stopped at: Phase 1.5.0 context gathered
-Resume file: .planning/phases/01.5.0-consolidaci-n-y-bugs-del-flujo/01.5.0-CONTEXT.md
+Last session: 2026-08-29T12:31:01.662Z
+Stopped at: Completed 01.5.0-02-PLAN.md
+Resume file: None
