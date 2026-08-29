@@ -54,7 +54,7 @@ Diferidos a una fase futura. Registrados pero fuera del roadmap actual.
 Sesión `/gsd-explore` — definiciones acordadas con el operador. Contexto y
 hallazgos con disposición en `.planning/notes/exploracion-reordenar-notificaciones-wifi-ssid.md`.
 
-### REQ-06 · Reorganizar footage (reparador de volcados a mano)
+### REQ-06 · Reorganizar footage (reparador de volcados a mano) — Fase 1.6.0
 
 - [ ] El reordenador es una **acción integrada de la app** (no un runner de scripts externos): botón "Reorganizar footage..." con su diálogo
 - [ ] El diálogo pide la **carpeta del volcado a mano** (dondequiera que esté); el reordenador solo actúa sobre esa carpeta y nunca toca el árbol ya organizado (`Footage/<Cámara>/<Fecha>` de ingestas previas)
@@ -80,4 +80,4 @@ hallazgos con disposición en `.planning/notes/exploracion-reordenar-notificacio
 - [ ] Las credenciales de red se avisan como dato sensible (persistencia del SO: perfil cifrado Win, keychain macOS, plaintext root-only Linux)
 
 ---
-*Requirements definidos: 2026-08-29 — sesión /gsd-explore. REQ-06/07/08 aún sin ruta a fase (v2 candidatas); REQ-08 bloqueado por spike de viabilidad.*
+*Requirements definidos: 2026-08-29 — sesión /gsd-explore. Asignaciones por versión (roadmap reordenado 2026-08-29): REQ-06 → Fase 1.6.0 (junto a verificación avanzada XXH64+ASC MHL); REQ-07/08 candidatas a Fase 2.0 (REQ-08 bloqueado por spike de viabilidad).*

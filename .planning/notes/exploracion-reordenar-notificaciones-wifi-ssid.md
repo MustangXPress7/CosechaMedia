@@ -110,7 +110,8 @@ servidores FTP del móvil). HTTP en cámaras solo aparece como pull/control
 
 ## Rutas
 
-- REQ-06/07 → candidatas a fase v2 (no bloqueadas).
+- REQ-06 (reorganizador) → **Fase 1.6.0** (junto a verificación avanzada XXH64 + ASC MHL).
+- REQ-07 (notificadores) → candidata a Fase 2.0 (no bloqueada).
 - REQ-08 → **depende de spike/viabilidad**: servidor FTP embebido + unirse a
   red por OS + cámaras reales del operador (ver research questions 2026-08-29).
 - Review de awesome-python completa → todo `revisar-awesome-python.md`.

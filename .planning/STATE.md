@@ -48,7 +48,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 - I-15: Interruptor de contenido en volcado selectivo ✅ — quick 260821-f2k
 - I-18: Filtrado de volcado por sesión ✅ — quick 260821-f2k
 - I-19: Revisar temas claro/oscuro ✅
-- Fase 2: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
+- Fase 1.5.0: Volcado selectivo multi-origen, escaneo MTP vía caché, opción "todo"
 
 ### Estética (BACKLOG_UI_V2 → v1.5)
 
@@ -106,12 +106,12 @@ Recent decisions affecting current work:
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
 - [Phase ?]: Quick k7i: ProjectWizard reactivado como única vía de creación de proyecto (600x520, callbacks on_finished/on_cancel)
 - [Phase ?]: Quick k7i: gestión de dispositivos guardados migrada a Añadir origen — rol ('device', id) + menú contextual Eliminar guardado; menú Ingesta depurado sin código zombie
-- [Fase 2]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección
+- [Fase 1.5.0]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección
 - [Priorización]: Convención de prioridades de uso — cambios críticos de usabilidad = "uso"; funcionalidad nueva = "nuevo feature" (no feature-request genérico)
 
 ### Roadmap Evolution
 
-- Phase 2 added: Mejoras al volcado selectivo: multi-origen, escaneo MTP completo y opción todo
+- Roadmap renumerado por versión (2026-08-29): fases 1.5.0 / 1.6.0 / 2.0. La antigua Fase 2 (volcado selectivo multi-origen) queda dentro de 1.5.0; la antigua Fase 3 (verificación avanzada XXH64+ASC MHL) pasa a 1.6.0 junto a REQ-06 (Reorganizar footage); modo guiado (I-01) y pantalla de bienvenida (I-13) quedan en 2.0
 
 ### Pending Todos
 

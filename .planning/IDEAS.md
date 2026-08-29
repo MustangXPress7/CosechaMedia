@@ -22,9 +22,9 @@ CosechaMedia es la aplicación para **agilizar el proceso de volcar una SD o dis
 
 **Adaptar al uso de cada usuario, sin que se vaya de madre.** El programa se amolda a cómo trabaja cada uno (destinos, estructura, flujos), pero sin sobre-ingeniería.
 
-## En Fase 2 (planeado — ROADMAP.md)
+## En Fase 1.5.0 (planeado — ROADMAP.md)
 
-Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo y opción todo** (depende de Fase 1)
+Fase: **1.5.0 — Consolidación y bugs del flujo** (incluye las mejoras al volcado selectivo de la antigua Fase 2: multi-origen, escaneo MTP completo y opción todo; depende de Fase 1)
 
 | ID | Idea | Prioridad | Justificación |
 |----|------|-----------|---------------|
@@ -33,19 +33,21 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 | ID-02 | MTP: **escaneo completo de archivos** vía caché (device_cache) para poder ordenar/filtrar por fecha sin volcar todo | nuevo feature | El rango por fecha hoy depende del escaneo; con la caché se puede listar sin volcar. Pendiente de validar el método (ffprobe remoto vs. mtime del dispositivo) |
 | ID-03 | Opción **"todo"** dentro del volcado selectivo para revertir la selección y volver a "volcar todo" | uso | Sin salida del filtro, el operador queda encerrado en el rango; es una fricción diaria |
 
+**Verificación (2026-08-28):** ID-03 quedó cubierta por el modo "Todo" de I-15 (quick 260821-f2k). ID-04 está cubierta a medias: el origen de las sesiones MTP apunta a la caché local `data/device_cache/`, por lo que es usable para filtrar/volcar sin el dispositivo conectado si ya se escenificó, pero no hay navegación por alias ni opción explícita de "eliminar caché". ID-01 (volcado selectivo global multi-origen) y ID-02 (escaneo completo vía caché) siguen sin implementar.
+
 ## Ideas abiertas
 
 | ID | Idea | Área | Prioridad | Estado |
 |----|------|------|-----------|--------|
 | I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | **v2.0** — reserva bandera |
 | I-02 | **Destinos de envío del volcado**: un único volcado puede enviarse a infinidad de destinos (ya funciona hoy). A futuro: destinos de **"fallback"/servidor** — copia local + copia en nube, por si el proyecto se reasigna a otra persona | Sesiones/Archivo | nuevo feature | Abierta — base ya resuelta |
-| I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | **v1.5** |
+| I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | ✅ Implementado — persistencia en `sd_cards` (serial) y `device_settings` (device_id) vía `_persist_camera_mapping` |
 | I-04 | **Contenedores/carpetas por tipo de archivo extraído** — dar cabida a datos giroscópicos, RAW, etc. | Archivo | nuevo feature | Abierta |
 | I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta |
 | I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | ✅ Implementado — `generate_card_content_report()` pre-dump + `generate_integrity_report()` post-dump cableado al UI |
-| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | **Por revisar** — v1.5 pendiente de verificación |
+| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | ⚠️ Parcial — solo escritura atómica `.part` sin reanudación (Range) ni MD5 en el móvil; por revisar |
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
-| I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | **v1.5** (B-09/B-10/B-11) |
+| I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | ⚠️ Parcial — B-11 hecho (io6 C9); B-09/B-10 pendientes |
 | I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar | Core | uso | **v1.5** — PRIMERO |
 | I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | ✅ Implementado — wizard ampliado con detección cámara, proxies, modo delicado |
 | I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | ✅ Hecho |
@@ -61,10 +63,12 @@ Fase: **02 — Mejoras al volcado selectivo: multi-origen, escaneo MTP completo 
 
 | Ruta | Prioridad | Origen | Notas |
 |------|-----------|--------|-------|
-| R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto. Alcance apuntado abajo |
-| R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración) |
+| R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto. Alcance apuntado abajo. **Fase 1.5.0** |
+| R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración). **Fase 2.0** |
 | R-03 | **Destinos "fallback"/servidor para el volcado** (copia local + nube, p. ej. si el proyecto se reasigna) | nuevo feature | I-02 — la base (enviar un volcado a múltiples destinos) ya funciona hoy |
-| R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | Ya planeado en Fase 2 |
+| R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | **Fase 1.5.0** (antigua Fase 2) |
+| R-05 | **Verificación avanzada: XXH64 + ASC MHL** | nuevo feature | Diseño D1-D5 en `.planning/notes/diseno-xxh64-asc-mhl.md`. **Fase 1.6.0** |
+| R-06 | **Reorganizar footage** (reconstrucción de volcados a mano) | uso | REQ-06 — definido en require. Integrado como acción de la app con diálogo propio. **Fase 1.6.0** |
 
 ### R-01 · Estabilización del core — alcance apuntado (solo notas, aún sin planificar)
 
