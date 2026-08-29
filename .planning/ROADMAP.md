@@ -69,12 +69,12 @@ la Fase 1.6.0; I-07 (WiFi resume) se decide por dashboard, fuera de esta fase
 
   2. La suite completa de tests (`tests/`, Qt offscreen) pasa; cada fix lleva su test de regresión
 
-**Plans:** 4 plans (bugs en waves de implementación; la investigación 2026-08-29 reveló que 3 de los 5 bloques no estaban aplicados)
+**Plans:** 1/4 plans executed (bugs en waves de implementación; la investigación 2026-08-29 reveló que 3 de los 5 bloques no estaban aplicados)
 
 Plans:
 **Wave 1**
 
-- [ ] 01.5.0-01-PLAN.md — Metadata fiable (D-01/D-02): retry degradado de ffprobe + estado visible "no verificados" (R1)
+- [x] 01.5.0-01-PLAN.md — Metadata fiable (D-01/D-02): retry degradado de ffprobe + estado visible "no verificados" (R1)
 - [ ] 01.5.0-02-PLAN.md — Hash único MD5 stream-through en copy_verified (D-03) + reescritura de tests (R4)
 
 **Wave 2** *(blocked on Wave 1 completion)*
@@ -146,6 +146,6 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 2.0
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | In Progress|  |
-| 1.5.0. Consolidación y bugs del flujo | 0/0 | Starting |  |
+| 1.5.0. Consolidación y bugs del flujo | 1/4 | In Progress|  |
 | 1.6.0. Verificación avanzada + Reorganizador de footage | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |

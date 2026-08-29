@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.5
-current_phase: 1.5.0
+current_phase: 01.5.0
 current_phase_name: Consolidación y bugs del flujo
-status: active
+status: executing
 stopped_at: Phase 1.5.0 context gathered
-last_updated: "2026-08-29T12:02:53.037Z"
-last_activity: 2026-08-22
-last_activity_desc: "Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)"
-state_head: 896b415e6da72c9346021efaf1f9ba8613a5db60
+last_updated: "2026-08-29T14:22:00.000Z"
+last_activity: 2026-08-29
+last_activity_desc: Plan 01.5.0-01 (D-01/D-02 ffprobe retry + marker) completed
+state_head: ec76ddb3fa1c62e60d25058a5145807317ebb6e3
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 9
-  completed_plans: 4
+  completed_plans: 5
 milestone_name: Consolidación y bugs
 ---
 
@@ -24,7 +24,7 @@ milestone_name: Consolidación y bugs
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo del proyecto de forma fiable y sin perder datos — cada archivo copiado con verificación de integridad y organizado correctamente.
-**Current focus:** v1.5 — Consolidación de bugs del flujo (1.5.0 ligera por quicks; features multi-origen/escaneo MTP pasan a 1.6.0)
+**Current focus:** Phase 01.5.0 — Consolidación y bugs del flujo
 
 ## Objective: v1.5
 
@@ -65,9 +65,9 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: 1.5.0 (Consolidación y bugs del flujo) — READY TO EXECUTE
-Status: Investigando bugs conocidos de CONCERNS.md
-Last activity: 2026-08-22 - Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)
+Phase: 01.5.0 (Consolidación y bugs del flujo) — EXECUTING
+Status: Executing Phase 01.5.0
+Last activity: 2026-08-29 — Phase 01.5.0 execution started
 
 ## Performance Metrics
 
@@ -93,6 +93,7 @@ Last activity: 2026-08-22 - Completed quick task 260822-ml7: Cask de Homebrew pa
 
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
+| 01.5.0-01 (D-01/D-02 ffprobe retry + marker) | 22m | 3 tasks | 4 files |
 | Phase 260816-k7i-corregir-hallazgos-pendientes-del-ui-rev P1 | 0h | 3 tasks | 4 files |
 
 ## Accumulated Context
@@ -102,6 +103,10 @@ Last activity: 2026-08-22 - Completed quick task 260822-ml7: Cask de Homebrew pa
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Plan 01.5.0-01]: Retry de ffprobe ÚNICO en TimeoutExpired (Pitfall 6) — reintento con probe format-only (sin -show_streams) y timeout 30 s; rama genérica sin retry
+- [Plan 01.5.0-01]: Dict de metadata de fallo idéntico en forma al de éxito con metadata_verified=False + metadata_error y file_size real vía getsize (nunca lanza)
+- [Plan 01.5.0-01]: detect_camera_batch no cuenta como cámara real los fallos (metadata_verified is False) ni Unknown/Unknown_Camera
+- [Plan 01.5.0-01]: Marker "Metadatos no verificados" SOLO en la celda de cámara (columna 1) + tooltip; la columna de estado mantiene el texto exacto "Completado" (Pitfall 3 — _clear_completed_rows intacto)
 - [Iniciativa]: Auditoría primero, implementación después — el roadmap v1 es 100% diagnóstico (sin cambios de código)
 - [Iniciativa]: Alcance = diagnóstico + plan por zona; la implementación (UI-04/UI-05) se difiere a v2 por decisión explícita del usuario
 - [Iniciativa]: Todas las zonas de la UI con igual prioridad — el operador usa la app de extremo a extremo
