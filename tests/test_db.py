@@ -247,5 +247,102 @@ class TestDatabaseManager(unittest.TestCase):
         self.assertEqual(wifi[0]["device_folder"], "Alice")
 
 
+class TestWatcherSeen(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_watcher_db_")
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "watcher.db"))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_watcher_seen_table_additive_and_idempotent(self):
+        # La migración aditiva crea la tabla con last_verdict y filter_key.
+        conn = self.db.get_connection()
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='watcher_seen'"
+        ).fetchone()
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(watcher_seen)").fetchall()]
+        conn.close()
+        self.assertIsNotNone(row)
+        self.assertIn("last_verdict", cols)
+        self.assertIn("filter_key", cols)
+
+        # Re-abrir sobre la misma DB: sigue existiendo y las tablas previas intactas.
+        db2 = DatabaseManager(db_path=os.path.join(self.tmp, "watcher.db"))
+        conn = db2.get_connection()
+        row2 = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='watcher_seen'"
+        ).fetchone()
+        projects = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='projects'"
+        ).fetchone()
+        conn.close()
+        self.assertIsNotNone(row2, "La tabla debe ser idempotente al re-abrir")
+        self.assertIsNotNone(projects, "Las tablas previas deben quedar intactas")
+
+    def test_save_load_prune_roundtrip(self):
+        self.db.save_seen(
+            "E:/src",
+            {"E:/x/a.mp4": "copied", "E:/x/b.mp4": "filtered"},
+            {"E:/x/b.mp4": "mode:X:2026-01-01"},
+        )
+        seen = self.db.load_seen("E:/src")
+        self.assertEqual(
+            seen,
+            {os.path.normpath("E:/x/a.mp4"): "copied",
+             os.path.normpath("E:/x/b.mp4"): "filtered"},
+        )
+        # El filter_key de la fila 'filtered' se recupera aparte.
+        self.assertEqual(
+            self.db.load_seen_filter_key("E:/src", "E:/x/b.mp4"),
+            "mode:X:2026-01-01",
+        )
+        self.assertIsNone(self.db.load_seen_filter_key("E:/src", "E:/x/a.mp4"))
+
+        # save_seen repetido no duplica (INSERT OR IGNORE).
+        self.db.save_seen("E:/src", {"E:/x/a.mp4": "copied"})
+        conn = self.db.get_connection()
+        n = conn.execute(
+            "SELECT COUNT(*) FROM watcher_seen WHERE source_path = ?",
+            (os.path.normpath("E:/src"),)
+        ).fetchone()[0]
+        conn.close()
+        self.assertEqual(n, 2)
+
+        # Podar por antigüedad: fila con first_seen antiguo se elimina, la reciente no.
+        conn = self.db.get_connection()
+        conn.execute(
+            "UPDATE watcher_seen SET first_seen = '2026-01-01' "
+            "WHERE file_path = ?",
+            (os.path.normpath("E:/x/a.mp4"),)
+        )
+        conn.commit()
+        conn.close()
+        self.db.prune_seen("E:/src", days=30)
+        remaining = self.db.load_seen("E:/src")
+        self.assertNotIn(os.path.normpath("E:/x/a.mp4"), remaining,
+                         "La fila antigua debe podarse")
+        self.assertEqual(remaining.get(os.path.normpath("E:/x/b.mp4")), "filtered")
+
+    def test_filter_key_persisted_for_filtered(self):
+        self.db.save_seen(
+            "E:/src",
+            {"E:/x/c.mp4": "filtered"},
+            {"E:/x/c.mp4": "mode:X:2026-01-01"},
+        )
+        seen = self.db.load_seen("E:/src")
+        self.assertEqual(seen.get(os.path.normpath("E:/x/c.mp4")), "filtered")
+        self.assertEqual(
+            self.db.load_seen_filter_key("E:/src", "E:/x/c.mp4"),
+            "mode:X:2026-01-01",
+        )
+
+    def test_normalization_backslash(self):
+        self.db.save_seen("E:/src", {"E:/x/a.mp4": "copied"})
+        # Consultar con variante backslash Windows resuelve la misma entrada.
+        seen = self.db.load_seen("E:\\src")
+        self.assertEqual(seen.get(os.path.normpath("E:/x/a.mp4")), "copied")
+
+
 if __name__ == "__main__":
     unittest.main()

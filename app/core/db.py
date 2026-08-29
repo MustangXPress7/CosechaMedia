@@ -299,6 +299,21 @@ class DatabaseManager:
         for f in default_footage_folders:
             cursor.execute('INSERT OR IGNORE INTO footage_folders (name) VALUES (?)', (f,))
 
+        # Inventario de archivos vistos por el watcher (D-04). Migración
+        # aditiva — no toca tablas existentes. `filter_key` guarda la firma
+        # estable del content-filter activo para filas con veredicto
+        # 'filtered' (re-evaluar si la ventana cambia) y es NULL en el resto.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS watcher_seen (
+                source_path  TEXT NOT NULL,
+                file_path    TEXT NOT NULL,
+                first_seen   TEXT DEFAULT CURRENT_TIMESTAMP,
+                last_verdict TEXT CHECK (last_verdict IN ('copied','filtered','errored')),
+                filter_key   TEXT,
+                PRIMARY KEY (source_path, file_path)
+            )
+        ''')
+
         cursor.execute('SELECT COUNT(*) FROM projects')
         if cursor.fetchone()[0] == 0:
             default_dest = os.path.join(
@@ -1096,6 +1111,101 @@ class DatabaseManager:
         )
         conn.commit()
         conn.close()
+
+    def load_seen(self, source_path: str) -> dict:
+        """Inventario de archivos vistos por el watcher para una fuente.
+
+        Devuelve ``dict[file_path_normalizado, verdict]`` donde el valor es
+        el último veredicto ('copied'/'filtered'/'errored'). Las rutas se
+        normalizan con ``os.path.normpath`` para que variantes (p. ej.
+        separadores Windows/Linux) dedupliquen correctamente.
+        """
+        seen = {}
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT file_path, last_verdict, filter_key FROM watcher_seen "
+                "WHERE source_path = ?",
+                (os.path.normpath(source_path),)
+            )
+            for row in cursor.fetchall():
+                seen[os.path.normpath(row["file_path"])] = row["last_verdict"]
+        finally:
+            conn.close()
+        return seen
+
+    def load_seen_filter_key(self, source_path: str, file_path: str) -> Optional[str]:
+        """Firma del content-filter guardada para un archivo 'filtered'.
+
+        Devuelve el ``filter_key`` de la fila del inventario, o ``None`` si la
+        fila no existe o no tiene filtro asociado (no-'filtered'). Se usa en
+        ``should_skip`` para re-evaluar cuando la ventana cambia (Open
+        Question 4).
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT filter_key FROM watcher_seen "
+                "WHERE source_path = ? AND file_path = ?",
+                (os.path.normpath(source_path), os.path.normpath(file_path))
+            )
+            row = cursor.fetchone()
+            return row["filter_key"] if row else None
+        finally:
+            conn.close()
+
+    def save_seen(self, source_path: str, verdicts: dict, filter_keys: dict = None) -> None:
+        """Graba el inventario de la pasada del watcher en una transacción.
+
+        ``verdicts`` es un dict ``{file_path: verdict}`` (uno por archivo);
+        ``filter_keys`` opcional ``{file_path: firma}`` para las filas
+        'filtered'. ``INSERT OR IGNORE`` evita duplicar entradas ya vistas.
+        Las rutas se normalizan en ambas direcciones.
+        """
+        if not verdicts:
+            return
+        filter_keys = filter_keys or {}
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            norm_source = os.path.normpath(source_path)
+            for file_path, verdict in verdicts.items():
+                cursor.execute(
+                    "INSERT OR IGNORE INTO watcher_seen "
+                    "(source_path, file_path, last_verdict, filter_key) "
+                    "VALUES (?, ?, ?, ?)",
+                    (norm_source, os.path.normpath(file_path), verdict,
+                     filter_keys.get(file_path))
+                )
+            conn.commit()
+        except Exception as e:
+            print(f"Error saving watcher inventory for {source_path}: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    def prune_seen(self, source_path: str, days: int = 30) -> None:
+        """Poda por antigüedad del inventario de una fuente.
+
+        Elimina filas vistas hace más de ``days`` días (por defecto 30). El
+        número de días se pasa parametrizado a SQLite (jamás interpolado).
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM watcher_seen WHERE source_path = ? "
+                "AND first_seen < datetime('now', ?)",
+                (os.path.normpath(source_path), f'-{days} days')
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Error pruning watcher inventory for {source_path}: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
 
 
 db = DatabaseManager()
