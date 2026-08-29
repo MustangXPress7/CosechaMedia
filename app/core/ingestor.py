@@ -186,6 +186,15 @@ class Ingestor(QObject):
             except Exception:
                 self._content_filter = {"window_days": self._window_days_default, "include_nodate": False}
 
+        # Directorio origen del watcher que este ingestor sirve (un ingestor
+        # por fuente en la app). Se usa para consultar/registrar el inventario
+        # persistente de archivos vistos (tabla watcher_seen, D-04). Es None
+        # cuando no hay watcher asociado (p. ej. llamadas directas en tests).
+        self.source_dir = None
+        self._pass_verdicts = {}
+        self._pass_filter_keys = {}
+        self._verdict_lock = threading.Lock()
+
         self._stats = {
             "processed": 0,
             "errors": 0,
@@ -329,6 +338,80 @@ class Ingestor(QObject):
         with self._inflight_lock:
             return self._inflight == 0
 
+    def _content_filter_signature(self) -> str:
+        """Firma estable del content-filter activo (identidad de la ventana).
+
+        Se usa como ``filter_key`` en el inventario para las filas 'filtered':
+        si esta firma cambia entre re-ingestas, el archivo se re-evalúa en vez
+        de saltarse por un filtro ya obsoleto (Open Question 4).
+        """
+        mode = self._content_mode or self.CONTENT_MODE_ALL
+        filt = self._content_filter
+        if filt is None:
+            return f"{mode}:all"
+        keys = sorted(filt.keys())
+        parts = [f"{k}={filt[k]}" for k in keys]
+        return f"{mode}:{':'.join(parts)}"
+
+    def _register_verdict(self, source_path: str, verdict: str, filter_key: str = None) -> None:
+        """Registra el veredicto del archivo en el inventario persistente.
+
+        Sin efecto si el ingestor no tiene ``source_dir`` (sin watcher). Se
+        usa para que una re-ingesta evite re-sondear ffprobe preservando F-02.
+        El veredicto también se acumula en memoria para que el watcher lo
+        persista en lote al final de la pasada (``pass_verdicts``).
+        """
+        if self.source_dir is None:
+            return
+        with self._verdict_lock:
+            self._pass_verdicts[source_path] = verdict
+            if filter_key is not None:
+                self._pass_filter_keys[source_path] = filter_key
+            else:
+                self._pass_filter_keys.pop(source_path, None)
+        try:
+            fk = {source_path: filter_key} if filter_key is not None else None
+            db.save_seen(self.source_dir, {source_path: verdict}, fk)
+        except Exception as e:
+            print(f"Error registering verdict for {source_path}: {e}")
+
+    def pass_verdicts(self):
+        """Copia de los veredictos registrados en la pasada actual."""
+        with self._verdict_lock:
+            return (dict(self._pass_verdicts), dict(self._pass_filter_keys))
+
+    def should_skip(self, source_path: str) -> bool:
+        """Predicado compartido: decide si un archivo se omite en la ingesta.
+
+        Conserva la semántica F-02: un volcado previo solo exime de re-copiar
+        si la copia sigue en disco (destino borrado ⇒ re-volcar). Cuando no
+        hay destino presente consulta el veredicto persistido en el inventario:
+        'errored' siempre se re-maneja; 'copied' con destino borrado se re-vuelca;
+        'filtered' se salta solo si la firma del filtro coincide (la ventana no
+        cambió).
+        """
+        source_path = os.path.normpath(source_path)
+        known_dest = self._completed_dest_path(source_path)
+        if known_dest is not None and os.path.isfile(known_dest):
+            return True
+
+        if self.source_dir is not None:
+            seen = db.load_seen(self.source_dir)
+            verdict = seen.get(source_path)
+            if verdict is not None:
+                if verdict == "errored":
+                    return False
+                if verdict == "copied":
+                    # Copiado antes pero destino borrado → re-volcar (F-02).
+                    return False
+                if verdict == "filtered":
+                    saved_key = db.load_seen_filter_key(self.source_dir, source_path)
+                    return saved_key == self._content_filter_signature()
+
+        if known_dest is None and self._content_filter and not self._matches_filter(source_path):
+            return True
+        return False
+
     def handle_new_file(self, source_path: str):
         with self._processed_lock:
             if source_path in self.processed_files:
@@ -336,24 +419,18 @@ class Ingestor(QObject):
             if self._stop_event.is_set():
                 return
 
-        # Dedupe con verificación real del destino: un volcado previo solo
-        # exime de re-copiar si la copia sigue en disco. Si se borró del
-        # archivo, la ingesta la vuelve a volcar desde el origen.
-        known_dest = self._completed_dest_path(source_path)
-        if known_dest is not None and os.path.isfile(known_dest):
-            with self._processed_lock:
-                self._copied_files.add(source_path)
-            with self._stats_lock:
-                self._stats["skipped"] += 1
-            return
-
-        # Reparación de copia borrada: un archivo con volcado previo (fila
-        # completed/reference) cuya copia falta en el archivo se re-vuelca
-        # SIEMPRE, aunque haya quedado fuera de la ventana actual («últimos
-        # x días»). El filtro de contenido decide solo sobre contenido nuevo;
-        # la ventana se recalcula desde el último volcado y esos archivos de
-        # tandas anteriores quedarían excluidos sin esta salvedad.
-        if known_dest is None and self._content_filter and not self._matches_filter(source_path):
+        if self.should_skip(source_path):
+            known_dest = self._completed_dest_path(source_path)
+            if known_dest is not None and os.path.isfile(known_dest):
+                # Dedupe: volcado previo con copia en disco.
+                with self._processed_lock:
+                    self._copied_files.add(source_path)
+                self._register_verdict(source_path, "copied")
+            else:
+                # Fuera de ventana (sin destino previo): registra 'filtered'
+                # con la firma del filtro para re-evaluar si la ventana cambia.
+                self._register_verdict(
+                    source_path, "filtered", self._content_filter_signature())
             with self._stats_lock:
                 self._stats["skipped"] += 1
             return
@@ -511,6 +588,7 @@ class Ingestor(QObject):
             if dest_dir is None:
                 with self._stats_lock:
                     self._stats["errors"] += 1
+                self._register_verdict(source_path, "errored")
                 self.file_finished.emit(source_path, "", False, metadata)
                 return
 
@@ -521,6 +599,7 @@ class Ingestor(QObject):
             if file_hash is None:
                 with self._stats_lock:
                     self._stats["errors"] += 1
+                self._register_verdict(source_path, "errored")
                 self.file_finished.emit(source_path, "", False, metadata)
                 return
 
@@ -544,6 +623,7 @@ class Ingestor(QObject):
             with self._processed_lock:
                 self._copied_files.add(source_path)
             self._save_copied_files()
+            self._register_verdict(source_path, "copied")
 
             with self._stats_lock:
                 self._stats["processed"] += 1
@@ -554,6 +634,7 @@ class Ingestor(QObject):
             print(f"Error processing {source_path}: {e}")
             with self._stats_lock:
                 self._stats["errors"] += 1
+            self._register_verdict(source_path, "errored")
             self.file_finished.emit(source_path, "", False, {})
 
     def _copy_verified(self, source_path: str, dest_path: str) -> bool:

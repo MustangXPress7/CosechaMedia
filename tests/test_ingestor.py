@@ -276,6 +276,37 @@ class TestIngestor(unittest.TestCase):
         finally:
             ing2.stop()
 
+    def test_should_skip_resolves_verdict(self):
+        """Verificación in-task del predicado compartido `should_skip` (W#3):
+        un veredicto 'copied' con destino presente en disco ⇒ skip True; con el
+        mismo veredicto pero destino borrado ⇒ skip False (F-02: re-volcar)."""
+        src = self._make_source()
+        dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
+
+        # Veredicto persistido 'copied' en el inventario (pasada previa).
+        ingestor_module.db.save_seen(self.src_dir, {src: "copied"})
+        ing = self.ing
+        ing.source_dir = self.src_dir
+
+        # Fila completed + destino presente en disco ⇒ skip.
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO files (session_id, source_path, dest_path, file_size,"
+            " md5_hash, status) VALUES (?, ?, ?, 1, 'x', 'completed')",
+            (str(ing.session_id), src, dest))
+        conn.commit()
+        conn.close()
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "wb") as f:
+            f.write(b"x")
+        self.assertTrue(ing.should_skip(src),
+                        "Con destino presente el volcado previo exime de re-copiar")
+
+        # Borrar el destino ⇒ skip False (re-volcar, F-02).
+        os.remove(dest)
+        self.assertFalse(ing.should_skip(src),
+                         "Destino borrado ⇒ el inventario 'copied' no debe saltar (F-02)")
+
     def test_reference_file_missing_dest_recopied(self):
         src = os.path.join(self.src_dir, "notes.txt")
         with open(src, "w") as f:
