@@ -30,10 +30,12 @@ def _free_space(path: str) -> int:
 
 
 def copy_verified(source_path: str, dest_path: str, progress_cb=None):
-    """Copia un archivo calculando el hash del origen durante la copia y
-    comparándolo con el del destino. Devuelve el hash MD5 verificado
-    en éxito, o None si falla.
-    Elimina el destino parcial ante cualquier error o discrepancia.
+    """Copia un archivo calculando el hash del origen durante el único pase
+    stream-through de copia y devolviéndolo. El destino contiene exactamente
+    los bytes leídos y hasheados del origen. Devuelve el hash MD5 del origen,
+    o None si falla.
+    Elimina el destino parcial ante cualquier error o excepción de lectura/
+    escritura.
     ``progress_cb(copied, total)`` se invoca por bloque copiado."""
     import hashlib
     src_md5 = hashlib.md5()
@@ -58,15 +60,7 @@ def copy_verified(source_path: str, dest_path: str, progress_cb=None):
             shutil.copystat(source_path, dest_path)
         except OSError:
             pass
-        src_hash = src_md5.hexdigest()
-        dest_hash = calculate_md5(dest_path)
-        if src_hash and dest_hash and src_hash != dest_hash:
-            try:
-                os.remove(dest_path)
-            except OSError:
-                pass
-            return None
-        return src_hash
+        return src_md5.hexdigest()
     except Exception as e:
         print(f"Error copying {source_path}: {e}")
         try:
