@@ -41,6 +41,7 @@ class TestWatcherInventory(unittest.TestCase):
         ingestor_module.metadata_engine = FakeMeta()
 
         self.ing = Ingestor(1, self.dst_dir, session_id=1)
+        self.ing.source_dir = self.src_dir
 
     def tearDown(self):
         self.ing.stop()
@@ -156,12 +157,16 @@ class TestWatcherInventory(unittest.TestCase):
     def test_normalization_backslash(self):
         """Grabar con / y consultar con \\ debe deduplicar."""
         src_forward = os.path.join(self.src_dir, "x", "y.mp4")
-        self.db.save_seen(self.src_dir, {src_forward: "copied"})
-        # Ruta con backslash Windows
+        # Usar 'filtered' para no requerir destino en disco (F-02)
+        current_sig = self.ing._content_filter_signature()
+        self.db.save_seen(self.src_dir, {src_forward: "filtered"}, filter_keys={src_forward: current_sig})
+        # Ruta con backslash Windows (en Windows os.path.join ya usa backslash,
+        # pero probamos que la normalización funcione)
         src_back = os.path.normpath(src_forward).replace("/", "\\")
         loaded = self.db.load_seen(self.src_dir)
         # load_seen normaliza internamente la source_path; comprobamos coincidencia
         self.assertIn(os.path.normpath(src_forward), loaded)
+        # should_skip con 'filtered' y filter_key coincidente debe retornar True
         self.assertTrue(self.ing.should_skip(src_forward))
 
     def test_shared_predicate_and_verdict_registration(self):
