@@ -764,5 +764,100 @@ class TestAccentSwitch(unittest.TestCase):
             self.assertTrue(self.window.app_label.styleSheet())
 
 
+class TestAutoSyncOffThread(unittest.TestCase):
+    """R5: _auto_sync_check despacha off-thread vía _run_background con guards."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_autosync_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "autosync.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute("INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,))
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        src = os.path.join(self.tmp, "src")
+        os.makedirs(src, exist_ok=True)
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        self.db.update_session_config(sid, device_id="mtp:testdev", device_folder="DCIM")
+        self.sid = sid
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window._poll_in_progress = False
+        self.window._stage_thread = None
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_auto_sync_dispatches_via_run_background(self):
+        with mock.patch.object(self.window, "_run_background") as mock_run_bg, \
+             mock.patch.object(self.window, "_process_device_poll") as mock_process:
+            self.window._poll_in_progress = False
+            self.window._stage_thread = None
+            self.window._auto_sync_check()
+            self.assertTrue(mock_run_bg.called, "_run_background should be called")
+            mock_process.assert_not_called()
+            args, _ = mock_run_bg.call_args
+            fn = args[0]
+            callback = args[1]
+            self.assertTrue(callable(fn))
+            self.assertTrue(callable(callback))
+
+    def test_auto_sync_guarded_by_poll_in_progress(self):
+        with mock.patch.object(self.window, "_run_background") as mock_run_bg:
+            self.window._poll_in_progress = True
+            self.window._auto_sync_check()
+            mock_run_bg.assert_not_called()
+
+    def test_auto_sync_runs_probe_off_thread(self):
+        import threading
+        from app.core.mtp import WpdBackend
+        from app.core.ftp import FtpBackend
+        with mock.patch.object(WpdBackend, "list_devices", return_value=[]):
+            with mock.patch.object(FtpBackend, "is_reachable", return_value=False):
+                captured_ident = {}
+                def fake_run_background(fn, on_finished, *a, **k):
+                    # Execute fn in a separate thread to simulate _run_background
+                    def runner():
+                        captured_ident['worker'] = threading.get_ident()
+                        class DummySignal:
+                            def emit(self, *args): pass
+                        try:
+                            fn(DummySignal())
+                        except Exception:
+                            pass
+                        on_finished(True, None)
+                    t = threading.Thread(target=runner)
+                    t.start()
+                    t.join()
+                with mock.patch.object(self.window, "_run_background", side_effect=fake_run_background):
+                    self.window._poll_in_progress = False
+                    self.window._stage_thread = None
+                    self.window._auto_sync_check()
+                    main_ident = threading.get_ident()
+                    self.assertIn('worker', captured_ident)
+                    self.assertNotEqual(captured_ident['worker'], main_ident)
+
+
 if __name__ == "__main__":
     unittest.main()
