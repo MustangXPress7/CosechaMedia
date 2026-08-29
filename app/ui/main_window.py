@@ -2958,19 +2958,13 @@ class MainWindow(QMainWindow):
         self.sessions_combo.clear()
         if self.current_project_id is None:
             self.sessions_combo.blockSignals(False)
-            self.btn_delete_session.setEnabled(False)
-            self.session_src_label.setText("")
-            self._btn_browse_sess_src.setVisible(False)
-            self.session_dest_label.setText(self.tr("Por defecto"))
-            self._btn_browse_sess_dest.setVisible(False)
-            self._update_session_dump_switch()
+            self._reset_session_selection_ui()
             return
         sessions = db.get_sessions(self.current_project_id)
         if not sessions:
             self.sessions_combo.addItem(self.tr("(Sin sesiones)"), None)
             self.sessions_combo.blockSignals(False)
-            self.btn_delete_session.setEnabled(False)
-            self._update_session_dump_switch()
+            self._reset_session_selection_ui()
             return
         for idx, s in enumerate(sessions, start=1):
             status_fmt = "●" if s["status"] == "active" else "○"
@@ -2983,11 +2977,30 @@ class MainWindow(QMainWindow):
             idx = self.sessions_combo.findData(prev_id)
             if idx >= 0:
                 self.sessions_combo.setCurrentIndex(idx)
-        elif len(sessions) > 0:
+            else:
+                # La sesión previa fue eliminada: quedarse con la primera
+                # restante y refrescar sus datos. Sin esto, la sesión que
+                # queda sigue mostrando los datos de la borrada hasta
+                # reiniciar la aplicación.
+                self.sessions_combo.setCurrentIndex(0)
+                self._on_session_selected(0)
+        else:
             self.sessions_combo.setCurrentIndex(0)
             self._on_session_selected(0)
         self.sessions_combo.blockSignals(False)
-        self.btn_delete_session.setEnabled(True)
+        self.btn_delete_session.setEnabled(self.current_session_id is not None)
+        self._update_session_dump_switch()
+
+    def _reset_session_selection_ui(self):
+        """Deja el panel de sesión sin selección y con etiquetas neutras."""
+        self.current_session_id = None
+        self.btn_delete_session.setEnabled(False)
+        self.session_src_label.setText("")
+        self.session_src_label.setToolTip("")
+        self._btn_browse_sess_src.setVisible(False)
+        self.session_dest_label.setText(self.tr("Por defecto"))
+        self.session_dest_label.setToolTip("")
+        self._btn_browse_sess_dest.setVisible(False)
         self._update_session_dump_switch()
 
     def _on_session_selected(self, index):

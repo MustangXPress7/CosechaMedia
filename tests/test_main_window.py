@@ -14,7 +14,7 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import QTimer
 
 import app.ui.main_window as mw
@@ -528,6 +528,28 @@ class TestSessionCRUD(unittest.TestCase):
         sessions = self.db.get_sessions(self.pid)
         self.assertEqual(len(sessions), 0)
 
+    def test_delete_session_reselects_remaining_with_own_data(self):
+        """Al borrar una de dos sesiones, la que queda muestra sus propios
+        datos (no los de la borrada) sin necesidad de reiniciar la app."""
+        sid1 = self.db.create_session(self.pid, "S1", "2024-01-01", "active", "/src1")
+        sid2 = self.db.create_session(self.pid, "S2", "2024-01-02", "active", "/src2")
+        self.db.update_session_config(sid2, destination_override="X:\\customdest")
+
+        self.window._refresh_sessions_combo()
+        self.window.sessions_combo.setCurrentIndex(
+            self.window.sessions_combo.findData(sid2))
+        self.assertEqual(self.window.current_session_id, sid2)
+        self.assertIn("/src2", self.window.session_src_label.text())
+
+        with mock.patch("PySide6.QtWidgets.QMessageBox.question",
+                        return_value=QMessageBox.Yes):
+            self.window._delete_current_session()
+
+        self.assertEqual(self.window.sessions_combo.currentData(), sid1)
+        self.assertEqual(self.window.current_session_id, sid1)
+        self.assertIn("/src1", self.window.session_src_label.text())
+        self.assertNotIn("customdest", self.window.session_dest_label.text())
+
     def test_ingestor_creation_with_params(self):
         from app.core.ingestor import Ingestor
         ing = Ingestor(
@@ -589,7 +611,7 @@ class TestProjectWizard(unittest.TestCase):
             wizard.name_input.setText("Test Project")
             wizard.desc_input.setText("A test")
             wizard.dest_input.setText(self.tmp)
-            wizard.detect_combo.setCurrentIndex(1)  # Manual
+            wizard.detect_combo.setCurrentIndex(0)  # Manual
             wizard.spin_detect_timeout.setValue(10)
             wizard.chk_generate_proxies.setChecked(True)
             wizard.proxy_combo.setCurrentText("1080p")
