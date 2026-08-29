@@ -306,6 +306,55 @@ class TestIngestor(unittest.TestCase):
         finally:
             ing.stop()
 
+    def test_window_known_dump_missing_dest_is_recopied(self):
+        """«Últimos x días»: un archivo con volcado previo en la sesión cuya
+        copia falta en el archivo se re-vuelca AUNQUE su fecha haya quedado
+        fuera de la ventana recalculada (la ventana se ancla al último
+        volcado y deriva hacia adelante). El filtro solo decide contenido
+        nuevo, no reparar copias borradas."""
+        src = self._make_source()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO files (session_id, source_path, dest_path, file_size,"
+            " md5_hash, status, verified_at) VALUES (?, ?, ?, 1, 'x',"
+            " 'completed', '2026-08-10 12:00:00')",
+            (str(21), src, os.path.join(self.dst_dir, "perdido.mp4")))
+        conn.commit()
+        conn.close()
+
+        ing = Ingestor(1, self.dst_dir, session_id=21,
+                       content_mode="window",
+                       content_filter={"window_days": 1})
+        try:
+            # cutoff = 2026-08-09: el date_key 2024-01-02 quedaría fuera
+            self.assertLess("2024-01-02", ing._content_filter["cutoff_date"])
+            ing.handle_new_file(src)
+            ing.executor.shutdown(wait=True)
+            stats = ing.get_stats()
+            self.assertEqual(stats["processed"], 1,
+                             "El volcado previo sin copia debe re-volearse aunque quede fuera de la ventana")
+            self.assertEqual(stats["skipped"], 0)
+            dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
+            self.assertTrue(os.path.exists(dest))
+        finally:
+            ing.stop()
+
+    def test_window_new_content_below_cutoff_is_skipped(self):
+        """Contenido NUEVO sin volcado previo fuera de la ventana sí se
+        descarta (el filtro de contenido sigue decidiendo sobre lo nuevo)."""
+        ing = Ingestor(1, self.dst_dir, session_id=22,
+                       content_mode="window",
+                       content_filter={"window_days": 1})
+        try:
+            ing.handle_new_file(self._make_source())
+            ing.executor.shutdown(wait=True)
+            stats = ing.get_stats()
+            self.assertEqual(stats["processed"], 0)
+            self.assertEqual(stats["skipped"], 1)
+        finally:
+            ing.stop()
+
 
 class TestUtils(unittest.TestCase):
     def test_resource_path_dev(self):

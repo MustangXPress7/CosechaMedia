@@ -342,17 +342,24 @@ class Ingestor(QObject):
             if self._stop_event.is_set():
                 return
 
-        if self._content_filter and not self._matches_filter(source_path):
+        # Dedupe con verificación real del destino: un volcado previo solo
+        # exime de re-copiar si la copia sigue en disco. Si se borró del
+        # archivo, la ingesta la vuelve a volcar desde el origen.
+        known_dest = self._completed_dest_path(source_path)
+        if known_dest is not None and os.path.isfile(known_dest):
+            with self._processed_lock:
+                self._copied_files.add(source_path)
             with self._stats_lock:
                 self._stats["skipped"] += 1
             return
 
-        # Dedupe con verificación real del destino: un volcado previo solo
-        # exime de re-copiar si el archivo sigue en disco. Si se borró de la
-        # carpeta maestra, la ingesta lo vuelve a volcar.
-        if self._is_completed_and_present(source_path):
-            with self._processed_lock:
-                self._copied_files.add(source_path)
+        # Reparación de copia borrada: un archivo con volcado previo (fila
+        # completed/reference) cuya copia falta en el archivo se re-vuelca
+        # SIEMPRE, aunque haya quedado fuera de la ventana actual («últimos
+        # x días»). El filtro de contenido decide solo sobre contenido nuevo;
+        # la ventana se recalcula desde el último volcado y esos archivos de
+        # tandas anteriores quedarían excluidos sin esta salvedad.
+        if known_dest is None and self._content_filter and not self._matches_filter(source_path):
             with self._stats_lock:
                 self._stats["skipped"] += 1
             return
@@ -371,17 +378,6 @@ class Ingestor(QObject):
         with self._inflight_lock:
             self._inflight += 1
         self.executor.submit(self._process_single_file, source_path, file_info)
-
-    def _is_completed_and_present(self, source_path: str) -> bool:
-        """¿El archivo ya está volcado y su copia destino sigue en disco?
-
-        El disco es la única fuente de verdad: se consulta la última fila
-        volcada (completed/reference) y se verifica que el destino exista.
-        Si no hay fila o el destino fue borrado de la carpeta maestra, la
-        ingesta vuelve a volcar (copia verificada e idempotente). El resume
-        JSON no exime de la verificación de disco."""
-        dest = self._completed_dest_path(source_path)
-        return bool(dest) and os.path.isfile(dest)
 
     def _completed_dest_path(self, source_path: str) -> Optional[str]:
         """Última ruta destino registrada como volcada para un origen."""

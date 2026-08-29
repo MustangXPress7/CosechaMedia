@@ -7,6 +7,7 @@ import time
 import tempfile
 import shutil
 import unittest
+from datetime import datetime, timedelta
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -167,6 +168,59 @@ class TestEndToEndIngest(unittest.TestCase):
         residue = [f for f in os.listdir(self.dest)
                    if f.startswith(".sdimport_session")]
         self.assertEqual(residue, [])
+
+    def test_redump_in_window_mode_when_older_than_window(self):
+        """«Últimos x días»: un clip con volcado previo cuya copia se borra
+        del archivo debe re-volearse aunque su fecha haya quedado fuera de la
+        ventana recalculada (la ventana se ancla al último volcado y deriva
+        hacia delante). El filtro solo decide sobre contenido NUEVO."""
+        today = datetime.now().date()
+        housed = today - timedelta(days=14)
+        for name in ("clip1.mp4", "clip2.MOV"):
+            t = time.mktime(housed.timetuple())
+            os.utime(os.path.join(self.src, name), (t, t))
+
+        mw.db.update_session_config(
+            self.sid, content_mode="window",
+            content_filter='{"window_days": 1}')
+
+        # Volcado previo de la sesión hace 16 días: ancla la 1.ª ventana para
+        # que los clips de hace 14 días sí se vuelquen en la primera pasada.
+        conn = mw.db.get_connection()
+        conn.execute(
+            "INSERT INTO files (session_id, source_path, dest_path, file_size,"
+            " md5_hash, status, verified_at) VALUES (?, 'prev.mp4', 'prev.mp4',"
+            " 1, 'x', 'completed', ?)",
+            (str(self.sid), (today - timedelta(days=16)).strftime("%Y-%m-%d 12:00:00")))
+        conn.commit()
+        conn.close()
+
+        def clips():
+            found = []
+            for disk in (self.disk_a, self.disk_b):
+                base = os.path.join(disk, "Footage", "Unknown_Camera")
+                if os.path.isdir(base):
+                    for root, _dirs, files in os.walk(base):
+                        found.extend(files)
+            return sorted(found)
+
+        self.window.start_ingest()
+        self.assertTrue(self._wait_done(), "La primera ingesta no terminó a tiempo")
+        self.assertEqual(clips(), ["clip1.mp4", "clip2.MOV"],
+                         "Los clips dentro de la ventana anclada deben volcarse")
+
+        for disk in (self.disk_a, self.disk_b):
+            base = os.path.join(disk, "Footage", "Unknown_Camera")
+            if os.path.isdir(base):
+                for root, _dirs, files in os.walk(base):
+                    for f in files:
+                        os.remove(os.path.join(root, f))
+
+        self.window.start_ingest()
+        self.assertTrue(self._wait_done(), "La segunda ingesta no terminó a tiempo")
+        self.assertEqual(clips(), ["clip1.mp4", "clip2.MOV"],
+                         "Los clips con volcado previo deben re-volearse aunque "
+                         "queden fuera de la ventana recalculada")
 
 
 if __name__ == "__main__":
