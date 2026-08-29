@@ -100,6 +100,92 @@ class TestCameraDetectionToken(unittest.TestCase):
         self.assertNotEqual(self.window._cam_detection_id, "stale_token")
 
 
+class TestMetadataUnverifiedMarker(unittest.TestCase):
+    """D-02: el marker 'Metadatos no verificados' se muestra en la celda de
+    cámara (columna 1) + tooltip, NUNCA en la columna de estado (2); así
+    _clear_completed_rows sigue limpiando las filas 'Completado'."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_marker_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "marker.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "auto"
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_marker_in_camera_cell_keeps_status_completado(self):
+        """El marker de metadata no verificada va a la celda de cámara (1) y
+        la columna de estado (2) mantiene 'Completado', de modo que
+        _clear_completed_rows sigue eliminando la fila (Pitfall 3)."""
+        src = os.path.join(self.tmp, "src")
+        os.makedirs(src)
+        source_file = os.path.join(src, "clip.mp4")
+        with open(source_file, "wb") as f:
+            f.write(b"data")
+        self.window.on_file_started(source_file)
+        row = self.window.table.rowCount() - 1
+
+        self.window.on_file_finished(
+            source_file, os.path.join(self.tmp, "dest", "clip.mp4"), True,
+            {"camera_model": "Unknown_Camera", "metadata_verified": False})
+
+        camera_text = self.window.table.item(row, 1).text()
+        self.assertIn("no verificados", camera_text)
+        self.assertEqual(self.window.table.item(row, 2).text(),
+                         self.window.tr("Completado"))
+
+        self.window._clear_completed_rows()
+        self.assertEqual(self.window.table.rowCount(), 0)
+
+    def test_verified_camera_still_shows_model(self):
+        """Cuando los metadatos están verificados, la celda de cámara muestra
+        el modelo y el estado permanece 'Completado'."""
+        src = os.path.join(self.tmp, "src2")
+        os.makedirs(src)
+        source_file = os.path.join(src, "clip.mp4")
+        with open(source_file, "wb") as f:
+            f.write(b"data")
+        self.window.on_file_started(source_file)
+        row = self.window.table.rowCount() - 1
+
+        self.window.on_file_finished(
+            source_file, os.path.join(self.tmp, "dest2", "clip.mp4"), True,
+            {"camera_model": "iPhone 15 Pro", "metadata_verified": True})
+
+        self.assertEqual(self.window.table.item(row, 1).text(), "iPhone 15 Pro")
+        self.assertEqual(self.window.table.item(row, 2).text(),
+                         self.window.tr("Completado"))
+
+
 class TestCameraPersistence(unittest.TestCase):
     """Verifica persistencia de cámara en DB (I-03): sd_cards y device_settings."""
 

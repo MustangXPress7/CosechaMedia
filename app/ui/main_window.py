@@ -1864,8 +1864,13 @@ class MainWindow(QMainWindow):
         item = self._file_row_map.get(self._file_row_key(source_path, ingestor))
         if item is not None:
             row = self.table.indexFromItem(item).row()
-            if self.project_camera_detection_mode != "manual" and metadata and metadata.get("camera_model") != "Unknown":
-                camera_item = QTableWidgetItem(metadata["camera_model"])
+            if self.project_camera_detection_mode != "manual" and metadata:
+                if metadata.get("metadata_verified") is False:
+                    camera_item = QTableWidgetItem(self.tr("⛔ Metadatos no verificados"))
+                elif metadata.get("camera_model") != "Unknown":
+                    camera_item = QTableWidgetItem(metadata["camera_model"])
+                if metadata.get("metadata_verified") is False:
+                    camera_item.setToolTip(self.tr("ffprobe no respondió; metadatos no verificados"))
                 self.table.setItem(row, 1, camera_item)
 
             if success:
