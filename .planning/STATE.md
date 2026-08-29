@@ -1,18 +1,18 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.5
-current_phase: 00
-current_phase_name: Bugs conocidos + features v1.5
+current_phase: 1.5.0
+current_phase_name: Consolidación y bugs del flujo
 status: active
 stopped_at: Phase 1.5.0 context gathered
-last_updated: "2026-08-29T10:33:19.436Z"
+last_updated: "2026-08-29T12:02:53.037Z"
 last_activity: 2026-08-22
 last_activity_desc: "Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)"
-state_head: 98a0dc675895a78322405b121386a80b8550c60e
+state_head: 896b415e6da72c9346021efaf1f9ba8613a5db60
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 5
+  total_plans: 9
   completed_plans: 4
 milestone_name: Consolidación y bugs
 ---
@@ -65,7 +65,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: 00 (Bugs + features v1.5) — STARTING
+Phase: 1.5.0 (Consolidación y bugs del flujo) — READY TO EXECUTE
 Status: Investigando bugs conocidos de CONCERNS.md
 Last activity: 2026-08-22 - Completed quick task 260822-ml7: Cask de Homebrew para distribución macOS (ffd2957, cd1feb2, a314038)
 
