@@ -68,13 +68,14 @@ la Fase 1.6.0; I-07 (WiFi resume) se decide por dashboard, fuera de esta fase
      CWD en desarrollo, doble hash MD5 por copia, device polling en UI thread
   2. La suite completa de tests (`tests/`, Qt offscreen) pasa; cada fix lleva su test de regresión
 
-**Plans:** 3 plans (bugs en waves de implementación; la investigación 2026-08-29 reveló que 3 de los 5 bloques no estaban aplicados)
+**Plans:** 4 plans (bugs en waves de implementación; la investigación 2026-08-29 reveló que 3 de los 5 bloques no estaban aplicados)
 
 Plans:
 
 - [ ] 01.5.0-01-PLAN.md — Metadata fiable (D-01/D-02): retry degradado de ffprobe + estado visible "no verificados" (R1)
 - [ ] 01.5.0-02-PLAN.md — Hash único MD5 stream-through en copy_verified (D-03) + reescritura de tests (R4)
-- [ ] 01.5.0-03-PLAN.md — Inventario watcher persistente + poda por antigüedad (D-04) + regresión DB path/R5 (R2, R3, R5)
+- [ ] 01.5.0-03-PLAN.md — Inventario watcher persistente con veredicto + filter_key + poda por antigüedad (D-04, R2)
+- [ ] 01.5.0-04-PLAN.md — Regresiones R3 (DB path CWD) y R5 (auto-sync off-thread) + gate de suite completa
 
 ### Phase 1.6.0: Verificación avanzada + Reorganizador de footage
 
