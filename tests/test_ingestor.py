@@ -211,6 +211,45 @@ class TestIngestor(unittest.TestCase):
         self.assertEqual(stats["processed"], 0)
         self.assertEqual(stats["skipped"], 1)
 
+    def test_completed_file_with_present_dest_is_skipped(self):
+        src = self._make_source()
+        self.ing.handle_new_file(src)
+        self.ing.executor.shutdown(wait=True)
+        self.assertEqual(self.ing.get_stats()["processed"], 1)
+        dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
+        self.assertTrue(os.path.exists(dest))
+
+        ing2 = Ingestor(1, self.dst_dir, session_id=1)
+        try:
+            ing2.handle_new_file(src)
+            ing2.executor.shutdown(wait=True)
+            stats = ing2.get_stats()
+            self.assertEqual(stats["processed"], 0)
+            self.assertEqual(stats["skipped"], 1)
+        finally:
+            ing2.stop()
+
+    def test_completed_file_with_missing_dest_is_recopied(self):
+        src = self._make_source()
+        self.ing.handle_new_file(src)
+        self.ing.executor.shutdown(wait=True)
+        self.assertEqual(self.ing.get_stats()["processed"], 1)
+        dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
+        self.assertTrue(os.path.exists(dest))
+        os.remove(dest)
+
+        ing2 = Ingestor(1, self.dst_dir, session_id=1)
+        try:
+            ing2.handle_new_file(src)
+            ing2.executor.shutdown(wait=True)
+            stats = ing2.get_stats()
+            self.assertEqual(stats["processed"], 1)
+            self.assertEqual(stats["skipped"], 0)
+            self.assertTrue(os.path.exists(dest),
+                            "El archivo debe re-volcarse al faltar el destino")
+        finally:
+            ing2.stop()
+
 
 class TestUtils(unittest.TestCase):
     def test_resource_path_dev(self):

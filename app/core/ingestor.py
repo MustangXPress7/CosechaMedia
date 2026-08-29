@@ -321,10 +321,6 @@ class Ingestor(QObject):
         with self._processed_lock:
             if source_path in self.processed_files:
                 return
-            if source_path in self._copied_files:
-                with self._stats_lock:
-                    self._stats["skipped"] += 1
-                return
             if self._stop_event.is_set():
                 return
 
@@ -333,25 +329,15 @@ class Ingestor(QObject):
                 self._stats["skipped"] += 1
             return
 
-        # Cross-session dedup gate: check DB for previously ingested file
-        with self._db_lock:
-            try:
-                conn = db.get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    "SELECT 1 FROM files WHERE source_path = ? AND status = 'completed' LIMIT 1",
-                    (source_path,)
-                )
-                if cursor.fetchone() is not None:
-                    with self._processed_lock:
-                        self._copied_files.add(source_path)
-                    with self._stats_lock:
-                        self._stats["skipped"] += 1
-                    conn.close()
-                    return
-                conn.close()
-            except Exception:
-                pass
+        # Dedupe con verificación real del destino: un volcado previo solo
+        # exime de re-copiar si el archivo sigue en disco. Si se borró de la
+        # carpeta maestra, la ingesta lo vuelve a volcar.
+        if self._is_completed_and_present(source_path):
+            with self._processed_lock:
+                self._copied_files.add(source_path)
+            with self._stats_lock:
+                self._stats["skipped"] += 1
+            return
 
         with self._processed_lock:
             self.processed_files.add(source_path)
@@ -367,6 +353,38 @@ class Ingestor(QObject):
         with self._inflight_lock:
             self._inflight += 1
         self.executor.submit(self._process_single_file, source_path, file_info)
+
+    def _is_completed_and_present(self, source_path: str) -> bool:
+        """¿El archivo ya está volcado y su copia destino sigue en disco?
+
+        Consulta la última fila 'completed' de la DB y verifica que el destino
+        exista realmente. Si el archivo de la carpeta maestra fue borrado, la
+        ingesta vuelve a volcarlo en vez de darlo por completado. Sin fila en
+        DB (estado de reanudación legacy del resume JSON) conserva el skip."""
+        dest = self._completed_dest_path(source_path)
+        if dest:
+            return os.path.isfile(dest)
+        with self._processed_lock:
+            return source_path in self._copied_files
+
+    def _completed_dest_path(self, source_path: str) -> Optional[str]:
+        """Última ruta destino registrada como 'completed' para un origen."""
+        with self._db_lock:
+            try:
+                conn = db.get_connection()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT dest_path FROM files WHERE source_path = ? "
+                        "AND status = 'completed' ORDER BY id DESC LIMIT 1",
+                        (source_path,)
+                    )
+                    row = cursor.fetchone()
+                finally:
+                    conn.close()
+                return row[0] if row else None
+            except Exception:
+                return None
 
     def _matches_filter(self, source_path: str) -> bool:
         # Filtro None = volcar todo (p. ej. «intervalo - todo» normalizado).
