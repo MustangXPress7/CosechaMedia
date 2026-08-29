@@ -842,11 +842,12 @@ class TestAutoSyncOffThread(unittest.TestCase):
                         captured_ident['worker'] = threading.get_ident()
                         class DummySignal:
                             def emit(self, *args): pass
+                        result = None
                         try:
-                            fn(DummySignal())
+                            result = fn(DummySignal())
                         except Exception:
                             pass
-                        on_finished(True, None)
+                        on_finished(True, result)
                     t = threading.Thread(target=runner)
                     t.start()
                     t.join()
