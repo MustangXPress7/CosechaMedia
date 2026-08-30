@@ -1,3 +1,37 @@
+# Changelog — CosechaMedia v1.5.1
+
+**Fecha:** 2026-08-30  
+**Tipo:** Bug fix (updater hang on Windows)
+
+---
+
+## Resumen
+
+Versión 1.5.1 corrige el problema crítico del actualizador: la aplicación se quedaba colgada al intentar actualizar desde versiones legacy, dejando dos ejecutables en disco y requiriendo reinicio manual.
+
+---
+
+## Bugs resueltos
+
+| Bug | Descripción | Fix |
+|-----|-------------|-----|
+| **Updater-Hang** | Al actualizar, la app se detenía sin respuesta; al forzar cierre, quedaban 2 ejecutables y el antiguo debía borrarse manualmente | Script helper con timeout 30s + taskkill, `prepare_for_update()` antes de spawn, delay de 500ms antes de quit |
+
+---
+
+## Detalles técnicos
+
+### App/core/updater.py
+- Script helper Windows ahora incluye límite máximo de espera (MAX_WAIT=15 iteraciones ≈ 30s)
+- Después del timeout, usa `taskkill /F` para forzar la terminación del proceso huérfano
+- Logging agregado a `update_log.txt` para diagnóstico
+
+### App/ui/about_dialog.py
+- Llamada explícita a `parent.prepare_for_update()` antes de `install_update()` para detener workers/ingestors/watchers
+- Delay de 500ms via `QTimer.singleShot` antes de `QCoreApplication.quit()` para permitir que el helper se inicie y el event loop procese
+
+---
+
 # Changelog — CosechaMedia v1.5.0
 
 **Fecha:** 2026-08-29  

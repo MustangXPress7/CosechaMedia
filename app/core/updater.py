@@ -215,12 +215,22 @@ _WINDOWS_HELPER = """@echo off
 set "APP=%~dp0CosechaMedia.exe"
 set "NEW=%~dp0CosechaMedia.new.exe"
 set "LOG=%~dp0update_log.txt"
+set "MAX_WAIT=15"
+set "COUNT=0"
 :loop
 tasklist /FI "IMAGENAME eq CosechaMedia.exe" 2>nul | find /I "CosechaMedia.exe" >nul
 if not errorlevel 1 (
+    set /a COUNT+=1
+    if %COUNT% GTR %MAX_WAIT% (
+        echo [%date% %time%] Timeout reached (%MAX_WAIT% attempts). Force-killing CosechaMedia.exe >>"%LOG%" 2>&1
+        taskkill /F /IM CosechaMedia.exe >>"%LOG%" 2>&1
+        ping 127.0.0.1 -n 2 >nul 2>&1
+        goto replace
+    )
     ping 127.0.0.1 -n 2 >nul 2>&1
     goto loop
 )
+:replace
 echo [%date% %time%] Replacing %NEW% by %APP% >>"%LOG%" 2>&1
 move /Y "%NEW%" "%APP%" >>"%LOG%" 2>&1
 if exist "%APP%" start "" "%APP%"

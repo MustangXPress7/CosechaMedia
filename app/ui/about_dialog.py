@@ -288,6 +288,10 @@ class AboutDialog(QDialog):
         )
         if reply != QMessageBox.Yes:
             return
+        # Stop all background workers in the main window before spawning the update helper
+        parent = self.parent()
+        if parent and hasattr(parent, 'prepare_for_update'):
+            parent.prepare_for_update()
         try:
             updater.install_update(self._info["asset"], self._download_path)
         except Exception as e:
@@ -296,7 +300,8 @@ class AboutDialog(QDialog):
                 self.tr("No se pudo instalar la actualización: %1").arg(str(e)),
             )
             return
-        QApplication.quit()
+        # Give the helper script time to start and the Qt event loop to process pending events
+        QTimer.singleShot(500, QCoreApplication.quit)
 
     def _start_worker(self, worker):
         thread = QThread(self)

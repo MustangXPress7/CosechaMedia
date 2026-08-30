@@ -1797,6 +1797,21 @@ class MainWindow(QMainWindow):
 
         self.notification_manager.notify_ingest_stopped()
 
+    def prepare_for_update(self):
+        """Stop all background work (ingest, watchers, wifi, polling) before an update.
+        Called from AboutDialog before spawning the update helper."""
+        # Stop any active ingestion
+        self.stop_ingest()
+        # Stop WiFi reception
+        self._stop_wifi_reception()
+        # Stop device polling timer
+        if hasattr(self, '_sync_timer') and self._sync_timer.isActive():
+            self._sync_timer.stop()
+        # Cancel any background staging threads
+        if hasattr(self, '_stage_thread') and self._stage_thread and self._stage_thread.isRunning():
+            self._stage_thread.quit()
+            self._stage_thread.wait(2000)
+
     def on_file_started(self, source_path, ingestor=None):
         was_sorted = self.table.isSortingEnabled()
         if was_sorted:
