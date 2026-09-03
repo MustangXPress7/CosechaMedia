@@ -620,8 +620,8 @@ class MainWindow(QMainWindow):
 
         op_row = QHBoxLayout()
         op_row.setSpacing(6)
-        self.btn_reorganize = QPushButton(self.tr("Reorganizar por metadatos"))
-        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'SinClasificar' detectando su cámara por metadatos"))
+        self.btn_reorganize = QPushButton(self.tr("Reorganizar footage…"))
+        self.btn_reorganize.setToolTip(self.tr("Abre el reorganizador para mover archivos de SinClasificar/ a cámara/fecha con verificación MD5"))
         self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
         op_row.addWidget(self.btn_reorganize)
 
@@ -3327,6 +3327,12 @@ class MainWindow(QMainWindow):
         act_dump_targets.triggered.connect(self._manage_dump_locations)
         m_ingest.addAction(act_dump_targets)
 
+        m_ingest.addSeparator()
+
+        act_reorganize = QAction(self.tr("Reorganizar &footage…"), self)
+        act_reorganize.triggered.connect(self._reorganize_by_metadata)
+        m_ingest.addAction(act_reorganize)
+
         act_open_data = QAction(self.tr("Abrir carpeta &datos…"), self)
         act_open_data.triggered.connect(self.open_data_folder)
         m_ingest.addAction(act_open_data)
@@ -4731,20 +4737,20 @@ class MainWindow(QMainWindow):
             self.ingest_status_label.setText(self.tr("Auto-detect: ninguna unidad nueva."))
 
     def _reorganize_by_metadata(self):
-        if not self._ingestors:
-            QMessageBox.information(self, self.tr("Sin ingesta"), self.tr("Realiza una ingesta primero."))
+        """Abre el diálogo ReorganizeDialog para reorganizar footage de SinClasificar/."""
+        if self.current_project_id is None:
+            QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Seleccione o cree un proyecto primero."))
             return
-        reply = QMessageBox.question(
-            self, self.tr("Reorganizar"),
-            self.tr("¿Reorganizar archivos en 'SinClasificar' detectando su cámara por metadatos?"),
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-        )
-        if reply != QMessageBox.Yes:
+
+        project_root = self.dest_root
+        if not project_root:
+            QMessageBox.information(self, self.tr("Sin destino"), self.tr("Configure un destino de proyecto primero."))
             return
-        ingestors = list(self._ingestors)
-        self.btn_start.setEnabled(False)
-        self.btn_start.setText(self.tr("Reorganizando..."))
-        self._run_background(_reorganize_worker, self._on_reorganize_finished, ingestors)
+
+        # Lazy import para evitar ciclos
+        from app.ui.reorganize_dialog import ReorganizeDialog
+        dialog = ReorganizeDialog(self, project_root=project_root)
+        dialog.exec()  # El diálogo maneja todo el flujo internamente
 
     def _on_reorganize_finished(self, success, payload):
         self.btn_start.setText(self.tr("Iniciar Ingesta"))
