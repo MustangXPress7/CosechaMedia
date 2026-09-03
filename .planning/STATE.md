@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.6.0
-milestone_name: Verificación avanzada + Reorganizador de footage
+milestone_name: Añadir origen + Reorganizador + Bugs
 status: Planning
-stopped_at: Phase 01.6.0 context gathered
-last_updated: "2026-09-03T15:18:40.565Z"
-last_activity: 2026-09-02
-last_activity_desc: Organizing inventory into phases and waves
-state_head: 990cb621a7098d8608b59e3ee175cb321abfc14a
+stopped_at: Phase 01.6.0 tree cleaned, ready for plan-phase
+last_updated: "2026-09-03T16:30:00Z"
+last_activity: 2026-09-03
+last_activity_desc: Post-incidente cleanup (steps A+B), tree stable
+state_head: 857d63d0afaa093f02e7e8407f0b1a26c030f54c
 progress:
   total_phases: 1
   completed_phases: 0
@@ -26,7 +26,7 @@ Total Phases: 13
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo del proyecto de forma fiable y sin perder datos — cada archivo copiado con verificación de integridad y organizado correctamente.
-**Current focus:** Phase 01.5.0 — Consolidación y bugs del flujo
+**Current focus:** Phase 01.6.0 — Añadir origen + Reorganizador + Bugs
 
 ## Objective: v1.5
 
@@ -139,6 +139,8 @@ Recent decisions affecting current work:
 - [Phase ?]: Quick k7i: gestión de dispositivos guardados migrada a Añadir origen — rol ('device', id) + menú contextual Eliminar guardado; menú Ingesta depurado sin código zombie
 - [Fase 1.5.0 → 1.6.0 (2026-08-29)]: Volcado selectivo multi-origen (global = todos los orígenes; per-device = uno a uno), escaneo MTP completo vía caché para ordenar por fecha sin volcar, y opción "todo" para revertir la selección (reasignada: los features pasan a la Fase 1.6.0; la 1.5.0 queda acotada a bugs)
 - [Priorización]: Convención de prioridades de uso — cambios críticos de usabilidad = "uso"; funcionalidad nueva = "nuevo feature" (no feature-request genérico)
+- [Incidente 1.6.0 (2026-09-03)]: La primera ejecución de plan-phase 1.6.0 desmadró `main_window.py` (botón añadir origen hacía desaparecer la ventana) y se revirtió; `test_source_picker.py` quedó colgando. El contexto completo se recapturó (D-01..D-25) en `01.6.0-CONTEXT.md` y el plan de recuperación está en `.planning/todos/pending/plan-accion-post-incidente-1-6-0-recuperacion.md`.
+- [Recuperación 1.6.0 (2026-09-03)]: Limpieza de árbol completada (pasos A): 27 archivos de debug eliminados, 9 dirs de fases fantasma + PROPOSED.md stale eliminados, `main_window.py` con el fix SC4 (thread-local COM + `_reset_ingestors`) commiteado como `fix(mtp)` 46b96a3, ROADMAP.md reestructurado (1.6.0/1.7.0/1.8.0), keep-alive del todo de limpieza.
 
 ### Roadmap Evolution
 
