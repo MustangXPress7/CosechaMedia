@@ -100,35 +100,61 @@ Plans:
 
 - [x] 01.5.0-04-PLAN.md — Regresiones R3 (DB path CWD) y R5 (auto-sync off-thread) + gate de suite completa
 
-### Phase 1.6.0: Verificación avanzada + Reorganizador de footage
+### Phase 1.6.0: Añadir origen + Reorganizador + Bugs
 
-**Goal:** El material volcado lleva custodia verificable estándar: cada volcado completado sella
-una generación ASC MHL nueva en `ascmhl/` de la raíz destino (cadena acumulativa por disco), con
-política de hash configurable por proyecto — Rápida (XXH64), Equilibrada (XXH64 + pasada MD5,
-default) o Máxima (MD5 + sidecars `.sha256` extra) — seleccionable tanto en el ProjectWizard como
-en el menú de configuración. Además, el operador puede reconstruir volcados hechos a mano fuera de
-la app con **"Reorganizar footage..."** (REQ-06): mueve en sitio a `Footage/<Cámara>/<Fecha>` sin
-recopiar, con `_SinClasificar`, colisiones resueltas y reporte de movimientos.
+**Goal:** Mejoras críticas en el flujo de añadir orígenes (menús, eliminación, detección cámara) y el reorganizador footage para mover material sin MD5. También se corrigen bugs de thread-local y timers.
 **Mode:** standard
 **Depends on:** Phase 1.5.0
-**Requirements**: REQ-06 (reorganizador); diseño `.planning/notes/diseno-xxh64-asc-mhl.md`
-(decisiones D1-D5) para verificación avanzada; ID-01 (volcado selectivo global multi-origen)
-e ID-02 (escaneo MTP completo vía caché) — migrados desde la Fase 1.5.0
+**Requirements**: B-13, B-20 (mejoras añadir origen); REQ-06 (reorganizador); bugs de COM threading
 **Success Criteria** (what must be TRUE):
 
-  1. La política de hash es seleccionable en opciones avanzadas del ProjectWizard y en el menú de configuración de proyecto; proyectos existentes/nuevos sin preferencia usan Equilibrada
-  2. `copy_verified` usa el árbitro del nivel elegido y conserva la semántica actual de borrado de destino corrupto; los hashes quedan persistidos en la DB (migración inline de `files`)
-  3. Cada volcado completado añade una generación verificable a la cadena `ascmhl/` del destino usando el paquete oficial `ascmhl` (MIT); volcados sucesivos encadenan generaciones
-  4. Los manifiestos/sidecars reflejan el nivel: Rápida = xxh64; Equilibrada = md5+xxh64 con segunda pasada sobre destino; Máxima = md5 + sidecars `.sha256` propios fuera del MHL
-  5. Los informes CSV incluyen columnas de hashes y la suite de tests valida roundtrip contra la CLI oficial `ascmhl verify`
-  6. "Reorganizar footage..." (REQ-06) existe como acción integrada con su diálogo: mueve en sitio (sin MD5) a `Footage/<Cámara>/<Fecha>` via `metadata_engine`, no clasificables a `Footage/_SinClasificar/` con reporte, colisiones con capa "aplicar a todas", y nunca borra archivos
-  7. El volcado selectivo **global** (ID-01) incluye todos los orígenes añadidos (per-device conserva selección uno a uno) y el escaneo MTP completo vía caché (ID-02) permite listar/filtrar por fecha sin volcar (migrados desde la 1.5.0)
+  1. El menú dispositivo (QR/FTP) aparece en la columna "Ruta de origen", no en "Contenido"
+  2. Eliminar origen inhabilita, no borra; botón borrar dispositivos guardados funciona
+  3. "Reorganizar footage..." existe y funciona con _SinClasificar
+  4. Thread-local COM se limpia correctamente en reset de proyecto
 
 **Plans:** 0 plans
 
 Plans:
 
 - [ ] TBD (run /gsd-plan-phase 1.6.0 to break down)
+
+### Phase 1.7.0: Registro devices + mejoras origen
+
+**Goal:** El operador tiene visibilidad de dispositivos conocidos y los cambios en la ventana de añadir orígenes están implementados. Se incluye registro de dispositivos, mejoras en el flujo de origen y notificadores SMTP/Telegram.
+**Mode:** standard
+**Depends on:** Phase 1.6.0
+**Requirements**: REQ-09 (registro devices), REQ-07 (notificadores), B-13/B-20 (mejoras origen)
+**Success Criteria** (what must be TRUE):
+
+  1. Existe tabla `known_devices` y DeviceRegistry con UI de pre-fill
+  2. Menú dispositivo en "Ruta de origen" (QR/FTP en la columna correcta)
+  3. Botón de eliminar dispositivos guardados funcional correctamente
+  4. Notificadores configurables por proyecto (SMTP + Telegram)
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 1.7.0 to break down)
+
+### Phase 1.8.0: WiFi SSID + verificación XXH64+ASC MHL
+
+**Goal:** El operador conecta cámaras vía WiFi configurando SSID+contraseña, y el material volcado lleva custodia verificable estándar con política de hash configurable.
+**Mode:** standard
+**Depends on:** Phase 1.7.0
+**Requirements**: REQ-08 (WiFi SSID), REQ-06/REQ-05 (verificación)
+**Success Criteria** (what must be TRUE):
+
+  1. Servidor FTP embebido funcional (multi-OS)
+  2. Conexión WiFi automática con SSID/contraseña
+  3. Política de hash selectable (Rápida/Equilibrada/Máxima)
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 1.8.0 to break down)
 
 ### Phase 2.0: Modo guiado + Pantalla de bienvenida
 
@@ -156,11 +182,13 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 2.0
+Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
-| 1.6.0. Verificación avanzada + Reorganizador de footage | 0/0 | Planned |  |
+| 1.6.0. Añadir origen + Reorganizador + Bugs | 0/0 | Planned |  |
+| 1.7.0. Registro devices + mejoras origen | 0/0 | Planned |  |
+| 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
