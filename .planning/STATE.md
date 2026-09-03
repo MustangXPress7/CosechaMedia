@@ -5,16 +5,16 @@ milestone_name: Verificación avanzada + Reorganizador de footage
 current_phase: 01.6.0
 current_phase_name: Añadir origen + Reorganizador + Bugs
 status: executing
-stopped_at: Completed Plan 01.6.0-02 (AddSourceDialog integration)
-last_updated: "2026-09-03T22:15:00Z"
+stopped_at: Completed Plan 01.6.0-03 (ReorganizeDialog integration)
+last_updated: "2026-09-03T22:23:00Z"
 last_activity: 2026-09-03
-last_activity_desc: Plan 01.6.0-02 completed - AddSourceDialog integrated, SourcePickerDialog removed
-state_head: d6501ce
+last_activity_desc: Plan 01.6.0-03 completed - ReorganizeDialog created and integrated with menu entry
+state_head: 4567a3f
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 Total Phases: 13
@@ -68,9 +68,9 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 ## Current Position
 
 Phase: 01.6.0 (Añadir origen + Reorganizador + Bugs) — EXECUTING
-Plan: 2 of 3 completed
-Status: Plan 01.6.0-02 completed (AddSourceDialog integrated, SourcePickerDialog removed)
-Last activity: 2026-09-03 — Plan 01.6.0-02 completed
+Plan: 3 of 3 completed
+Status: Plan 01.6.0-03 completed (ReorganizeDialog created, integrated in main_window + menu)
+Last activity: 2026-09-03 — Plan 01.6.0-03 completed
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -120,6 +120,7 @@ Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 | 01.5.0-04 (R3/R5 regression + full suite gate) | 15m | 2 tasks | 2 files |
 | 01.6.0-01 (COM threading + SinClasificar) | 36m | 2 tasks | 12 files |
 | 01.6.0-02 (AddSourceDialog) | 45m | 3 tasks | 5 files (2 new, 1 mod, 2 del) |
+| 01.6.0-03 (Reorganizador) | 25m | 3 tasks | 4 files (2 new, 1 mod) |
 
 ## Accumulated Context
 
@@ -143,6 +144,10 @@ Recent decisions affecting current work:
 - [Priorización]: Convención de prioridades de uso — cambios críticos de usabilidad = "uso"; funcionalidad nueva = "nuevo feature" (no feature-request genérico)
 - [Incidente 1.6.0 (2026-09-03)]: La primera ejecución de plan-phase 1.6.0 desmadró `main_window.py` (botón añadir origen hacía desaparecer la ventana) y se revirtió; `test_source_picker.py` quedó colgando. El contexto completo se recapturó (D-01..D-25) en `01.6.0-CONTEXT.md` y el plan de recuperación está en `.planning/todos/pending/plan-accion-post-incidente-1-6-0-recuperacion.md`.
 - [Recuperación 1.6.0 (2026-09-03)]: Limpieza de árbol completada (pasos A): 27 archivos de debug eliminados, 9 dirs de fases fantasma + PROPOSED.md stale eliminados, `main_window.py` con el fix SC4 (thread-local COM + `_reset_ingestors`) commiteado como `fix(mtp)` 46b96a3, ROADMAP.md reestructurado (1.6.0/1.7.0/1.8.0), keep-alive del todo de limpieza.
+- [Plan 01.6.0-03]: ReorganizeDialog usa QStackedWidget 3 páginas (selector → resumen → ejecución) con workers off-thread (_ScanWorker, _MoveWorker) para no bloquear UI
+- [Plan 01.6.0-03]: MD5 recalc obligatorio al mover (D-19 override) — dest_path SIEMPRE actualizado tras move, md5_hash=NULL si calculate_md5 falla tras reintento
+- [Plan 01.6.0-03]: Sin reporte CSV (D-21) — resumen en diálogo basta; archivos sin clasificar permanecen en SinClasificar/ y se reportan (D-18)
+- [Plan 01.6.0-03]: "Reorganizar footage…" en botón post-ingesta Y menú &Ingesta (D-22) — disponible sin ingesta activa para volcados manuales
 
 ### Roadmap Evolution
 
@@ -194,8 +199,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-03T15:18:40.552Z
-Stopped at: Phase 01.6.0 context gathered
+Last session: 2026-09-03T21:58:08Z
+Stopped at: Completed Plan 01.6.0-03 (ReorganizeDialog integration)
 Resume file: .planning/phases/01.6.0-registro-known-devices-req-09/01.6.0-CONTEXT.md
 
 ## Operator Next Steps
