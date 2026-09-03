@@ -35,7 +35,7 @@ from app.core.metadata_engine import _is_system_entry
 from app.ui.ftp_picker import FtpPickerDialog
 from app.ui.ftp_status import FtpStatusDialog
 from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
-from app.ui.source_picker import SourcePickerDialog
+from app.ui.add_source_dialog import AddSourceDialog
 from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
 
 ORG_TYPE_MAP = {
@@ -477,11 +477,6 @@ class MainWindow(QMainWindow):
         icons.apply(self.btn_detect_drives, "refresh", size=14)
         self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)
         src_scan_row.addWidget(self.btn_detect_drives)
-        self.btn_scan_cameras = QPushButton(self.tr("Escanear cámaras"))
-        self.btn_scan_cameras.setToolTip(self.tr("Escanear cámaras de todos los orígenes checkeados"))
-        icons.apply(self.btn_scan_cameras, "camera", size=14)
-        self.btn_scan_cameras.clicked.connect(self._scan_all_cameras)
-        src_scan_row.addWidget(self.btn_scan_cameras)
 
         src_scan_row.addStretch()
         left_col.addLayout(src_scan_row)
@@ -1440,7 +1435,6 @@ class MainWindow(QMainWindow):
     def _update_detect_button_state(self):
         is_auto = self.project_camera_detection_mode == "auto"
         self.btn_detect_drives.setEnabled(True)
-        self.btn_scan_cameras.setEnabled(is_auto)
 
     def _style_table_viewports(self):
         """Aplica el fondo semi-transparente a los viewports de las tablas."""
@@ -2445,11 +2439,21 @@ class MainWindow(QMainWindow):
         lay.addWidget(lbl, 1)
         device_id = (session or {}).get("device_id") or ""
         is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
-        is_ftp = bool(session) and device_id.startswith("ftp:")
-        is_mtp = bool(session) and device_id and not is_wifi and not is_ftp
-        if is_wifi or is_ftp or is_mtp:
-            remote_btn = self._build_remote_source_button(row, session, is_wifi, is_mtp)
-            lay.addWidget(remote_btn)
+        if is_wifi:
+            # Solo QR para WiFi (D-06)
+            qr_btn = QPushButton(self.tr("QR"))
+            qr_btn.setToolTip(self.tr("Mostrar el código QR de este dispositivo"))
+            qr_btn.setCursor(Qt.PointingHandCursor)
+            qr_btn.setStyleSheet(
+                "QPushButton { border: none; text-align: left; padding: 2px 6px;"
+                " color: %s; font-size: 11px; }"
+                "QPushButton:hover { color: %s; }"
+                % (theme.color("text_secondary"), theme.color("accent")))
+            sender_name = (session.get("nombre_dispositivo")
+                           or session.get("device_folder") or "")
+            qr_btn.clicked.connect(
+                lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
+            lay.addWidget(qr_btn)
         return widget
 
     def _on_source_widget_check_changed(self, row, path, state):
@@ -2515,40 +2519,6 @@ class MainWindow(QMainWindow):
             # actualizar vistas
         self._refresh_sessions_combo()
         self.update_start_button_state()
-
-    def _build_remote_source_button(self, row, session, is_wifi, is_mtp=False):
-        if is_wifi:
-            text = self.tr("QR")
-            tip = self.tr("Mostrar el código QR de este dispositivo")
-        elif is_mtp:
-            text = self.tr("USB/MTP")
-            tip = self.tr("Cambiar carpeta del dispositivo...")
-        else:
-            text = self.tr("FTP")
-            tip = self.tr("Comprobar estado del origen FTP")
-        btn = QPushButton(text)
-        btn.setToolTip(tip)
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setStyleSheet(
-            "QPushButton { border: none; text-align: left; padding: 2px 6px;"
-            " color: %s; font-size: 11px; }"
-            "QPushButton:hover { color: %s; }"
-            "QPushButton:disabled { color: %s; }"
-            % (theme.color("text_secondary"), theme.color("accent"), theme.color("text_disabled"))
-        )
-        if is_wifi:
-            sender_name = (session.get("nombre_dispositivo")
-                           or session.get("device_folder") or "")
-            btn.clicked.connect(
-                lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
-        elif is_mtp:
-            btn.clicked.connect(
-                lambda _=False, s=session: self._reconfigure_mtp_source(s))
-        else:
-            device_id = (session or {}).get("device_id") or ""
-            btn.clicked.connect(
-                lambda _=False, did=device_id: self._show_ftp_status_for_device(did))
-        return btn
 
     def _build_options_widget(self, row, session):
         """Columna «Opciones»: toggle carpeta/archivo WiFi (si aplica),
@@ -2638,12 +2608,18 @@ class MainWindow(QMainWindow):
         self.table.removeRow(row)
 
     def _show_wifi_qr_for_sender(self, sender_name):
-        """Abre la ventana QR mostrando el dispositivo de un origen WiFi."""
+        """Abre la ventana QR mostrando el dispositivo de un origen WiFi.
+
+        Fix D-07: no llamar a _sync_wifi_sessions() aquí porque refresca la
+        tabla de orígenes y hace que el origen WiFi desaparezca momentáneamente.
+        La sincronización de sesiones WiFi se hace en otros momentos (cambio de
+        proyecto, auto-sync, etc.).
+        """
         if self.current_project_id is None:
             return
         if not self._ensure_wifi_server():
             return
-        self._sync_wifi_sessions()
+        # No llamar a _sync_wifi_sessions() para evitar refresh destructivo (D-07)
         self._show_wifi_panel()
         if self._wifi_panel is not None:
             self._wifi_panel.select_sender(sender_name)
@@ -2835,6 +2811,43 @@ class MainWindow(QMainWindow):
             self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
 
+    def _detect_camera_for_source(self, kind, value):
+        """Detecta la cámara para un origen del AddSourceDialog (D-08/D-09).
+
+        Se ejecuta en un worker off-thread. Devuelve el nombre de cámara detectado
+        o cadena vacía si no se pudo detectar.
+        """
+        # Para carpetas locales y USB, usamos el path directamente
+        source_path = None
+        if kind == "folder":
+            source_path = value
+        elif kind == "usb":
+            source_path = value
+        elif kind == "device":
+            # Para MTP, el value es el device_id; no tenemos path directo aquí
+            # La detección para MTP se hace en el diálogo principal tras registro
+            return ""
+        elif kind == "sender":
+            # WiFi: no hay path local para detectar
+            return ""
+        elif kind == "ftp_profile":
+            return ""
+
+        if not source_path or not os.path.isdir(source_path):
+            return ""
+
+        try:
+            smallest = self._find_smallest_media(source_path)
+            if smallest is None:
+                return ""
+            meta = metadata_engine.get_video_metadata(smallest)
+            cam = meta.get("camera_model", "") or ""
+            if cam and cam.strip() and cam != "Unknown":
+                return cam.strip()
+        except Exception:
+            pass
+        return ""
+
     def _persist_camera_mapping(self, session_id, source_path, nombre_dispositivo):
         """Persiste el mapeo cámara→dispositivo en sd_cards o device_settings (I-03)."""
         if not nombre_dispositivo:
@@ -2849,26 +2862,6 @@ class MainWindow(QMainWindow):
             serial = sd_reader.get_volume_serial(source_path)
             if serial:
                 db.save_dispositivo(serial, nombre_dispositivo)
-
-    def _scan_all_cameras(self):
-        if self.current_project_id is None:
-            return
-        sessions = db.get_sessions(self.current_project_id)
-        count = 0
-        for s in sessions:
-            sp = s.get("source_path")
-            if not sp or not os.path.isdir(sp):
-                continue
-            if self.project_camera_detection_mode == "manual":
-                db.update_session_config(s["id"], nombre_dispositivo=None)
-                count += 1
-            elif not s.get("nombre_dispositivo"):
-                self._detect_camera_for_session(s["id"], sp)
-                count += 1
-        if count:
-            self._refresh_source_list()
-            self._refresh_sessions_combo()
-            self.ingest_status_label.setText(self.tr("Escaneo de cámaras: %1 sesion(es) procesada(s).").arg(count))
 
     def _on_camera_cell_edited(self, item):
         row = item.row()
@@ -3441,12 +3434,16 @@ class MainWindow(QMainWindow):
                 self._source_paths.append(sp)
 
     def _add_source_entry(self):
-        choice = self._pick_source_entry()
-        if choice is not None:
-            self._apply_source_choice(choice)
+        sources = self._pick_source_entry()
+        if sources:
+            for src in sources:
+                self._apply_source_choice(src)
 
-    def _apply_source_choice(self, choice):
-        kind, value = choice
+    def _apply_source_choice(self, src):
+        """Procesa un único origen devuelto por AddSourceDialog."""
+        kind = src.get("kind")
+        value = src.get("value")
+        camera = src.get("camera")
         if kind == "browse":
             start_dir = self.source_input.currentText().strip() or os.path.expanduser("~")
             path = QFileDialog.getExistingDirectory(
@@ -3461,9 +3458,17 @@ class MainWindow(QMainWindow):
         elif kind == "ftp_profile":
             self._pick_ftp_source(preset_profile_id=value)
         elif kind == "device":
-            device_id, device_folder, device_name = value
+            # value es el device_id; necesitamos obtener folder y nombre
+            # Para MTP, el diálogo no selecciona carpeta; usamos la raíz del dispositivo
+            device_id = value
+            # Buscar en devices_connected o usar valores por defecto
+            device_folder = ""
+            device_name = camera or "Dispositivo"
             self._register_device_source_from_picker(
                 device_id, device_folder, device_name, backend=mtp.WpdBackend())
+        elif kind == "usb":
+            # USB masivo: se trata como carpeta local
+            self._assign_folder_source(value)
         elif kind == "ftp_new":
             profile_id, device_id, device_folder, device_name = value
             self._register_device_source_from_picker(
@@ -3472,11 +3477,10 @@ class MainWindow(QMainWindow):
             self._pick_wifi_source()
 
     def _pick_source_entry(self):
-        """Abre el selector unificado de orígenes (guardados y dispositivos).
+        """Abre el nuevo diálogo «Añadir origen» (AddSourceDialog).
 
-        Devuelve una tupla ``(kind, value)`` o ``None`` si se cancela.
-        ``kind`` puede ser ``"folder"``/``"sender"``/``"ftp_profile"``/
-        ``"browse"``/``"device"``/``"ftp_new"``/``"wifi"``.
+        Devuelve una lista de orígenes seleccionados (cada uno es un dict
+        con kind, value, camera, enabled) o ``None`` si se cancela.
         """
         if self.current_project_id is None:
             return None
@@ -3494,14 +3498,23 @@ class MainWindow(QMainWindow):
         senders = [{"name": s["name"],
                     "used": inboxmod.sanitize_alias(s["name"]) in used}
                    for s in db.list_inbox_senders()]
-        dialog = SourcePickerDialog(self, folders=folders, senders=senders,
-                                    devices_missing=self._disconnected_devices(),
-                                    on_delete=self._delete_saved_source)
+        # Dispositivos conectados para la sección física (D-03)
+        devices_connected = []
+        try:
+            devices_connected = mtp.WpdBackend().list_devices()
+        except Exception:
+            devices_connected = []
+        dialog = AddSourceDialog(self, folders=folders, senders=senders,
+                                 devices_missing=self._disconnected_devices(),
+                                 devices_connected=devices_connected,
+                                 on_delete=self._delete_saved_source,
+                                 on_detect=self._detect_camera_for_source)
         if dialog.exec() != QDialog.Accepted:
             return None
-        if dialog.kind is None:
+        sources = dialog.result_sources()
+        if not sources:
             return None
-        return (dialog.kind, dialog.value)
+        return sources
 
     def _delete_saved_source(self, kind, value):
         """Borra un guardado desde el diálogo «Añadir origen» (B-04).
