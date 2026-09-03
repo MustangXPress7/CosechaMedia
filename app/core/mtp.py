@@ -155,6 +155,11 @@ _types_loaded = False
 # El manager COM se crea por hilo: el staging (QThread worker) y el
 # list_devices del hilo principal no comparten objeto entre apartamentos.
 _manager_local = threading.local()
+# Rastrea si ESTA llamada a list_devices hizo el CoInitialize del hilo, de
+# modo que el CoUninitialize del finally solo deshaga el conteo de refs de
+# esta llamada (patrón reentrante) sin desbalancear el apartamento cuando el
+# hilo ya tenía COM activo.
+_com_owner = threading.local()
 
 
 def _ensure_types():
@@ -447,7 +452,14 @@ class WpdBackend(MtpBackend):
         import ctypes
         import comtypes
         _ensure_types()
-        comtypes.CoInitialize()
+        # Patrón reentrante: solo inicializa COM si este hilo aún no lo tenía
+        # activo, y solo deshace en el finally si esta llamada fue la
+        # responsable. Así no se desbalancea el apartamento cuando el hilo
+        # (p. ej. el hilo UI) ya tenía COM inicializado.
+        was_initialized = getattr(_com_owner, "initialized", False)
+        if not was_initialized:
+            comtypes.CoInitialize()
+            _com_owner.initialized = True
         try:
             DM = _manager()
             count = ctypes.pointer(ctypes.c_ulong(0))
@@ -471,10 +483,12 @@ class WpdBackend(MtpBackend):
                 devices.append(DeviceInfo(device_id=str(cur), name=name or str(cur)))
             return devices
         finally:
-            try:
-                comtypes.CoUninitialize()
-            except Exception:
-                pass
+            if not was_initialized:
+                try:
+                    comtypes.CoUninitialize()
+                except Exception:
+                    pass
+                _com_owner.initialized = False
 
     def _open_session(self, device_id: str) -> _WpdSession:
         _ensure_types()

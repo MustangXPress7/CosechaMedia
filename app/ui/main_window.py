@@ -1290,6 +1290,11 @@ class MainWindow(QMainWindow):
 
     def on_project_selected(self, index):
         self._reset_wifi_ingestors()
+        # Limpieza COM + detención de timers/ingestors al cambiar de proyecto
+        # (D-25): igual que al borrar proyecto, para no dejar hilos con
+        # referencias COM corruptas ni stagings en curso del proyecto previo.
+        self._reset_mtp_thread_local()
+        self._reset_ingestors()
         project_id = self.project_combo.itemData(index)
         if project_id is None:
             self.current_project_id = None
@@ -1786,6 +1791,15 @@ class MainWindow(QMainWindow):
 
         for ing in self._ingestors:
             ing.stop()
+
+        # Esperar y limpiar el thread de staging para no dejar un hilo con
+        # referencias COM corruptas tras detener la ingesta (D-25).
+        if hasattr(self, '_stage_thread') and self._stage_thread and self._stage_thread.isRunning():
+            self._stage_thread.quit()
+            self._stage_thread.wait(2000)
+            self._stage_thread = None
+        if hasattr(self, '_stage_worker'):
+            self._stage_worker = None
 
         self.btn_start.setText(self.tr("Iniciar Ingesta"))
         self.btn_start.setEnabled(True)
@@ -4103,6 +4117,7 @@ class MainWindow(QMainWindow):
         # Detener thread de staging si existe
         if hasattr(self, '_stage_thread') and self._stage_thread and self._stage_thread.isRunning():
             self._stage_thread.quit()
+            self._stage_thread.wait(2000)
             self._stage_thread = None
         if hasattr(self, '_stage_worker'):
             self._stage_worker = None
