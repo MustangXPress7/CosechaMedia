@@ -103,7 +103,7 @@ class TestIngestor(unittest.TestCase):
         # Un directorio hermano con nombre similar no debe emparejarse.
         self.assertEqual(
             ing._get_dispositivo_for_file(os.path.join(self.tmp, "inbox", "Alice2", "x.mp4")),
-            "Unknown_Camera")
+            "SinClasificar")
 
     def test_copy_progress_emitted_by_percent(self):
         src = self._make_source(size=8192 * 300)  # 300 bloques → enough para throttle

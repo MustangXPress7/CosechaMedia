@@ -19,7 +19,7 @@ from PySide6.QtGui import QColor, QFont, QPen
 from app.core.db import db
 from app.core.metadata_engine import metadata_engine
 from app.core.utils import create_folder_structure
-from app.core.ingestor import copy_verified
+from app.core.ingestor import copy_verified, FALLBACK_CAMERA_NAME
 from app.core.translator import QtString
 from app.core import translator
 from app.ui import theme
@@ -44,7 +44,7 @@ def _human_bytes(num: float) -> str:
 def _sanitize_name(name: str) -> str:
     for char in '<>:"/\\|?*':
         name = name.replace(char, "_")
-    return name.strip() or "Unknown_Camera"
+    return name.strip() or FALLBACK_CAMERA_NAME
 
 
 def _fmt_short_date(date_key: str) -> str:
@@ -882,8 +882,8 @@ class SelectiveDumpAssistant(QDialog):
     def _camera_for(self, path):
         meta = metadata_engine.get_video_metadata(path)
         cam = meta.get("camera_model") if meta else None
-        if not cam or cam in ("Unknown", "Unknown_Camera", ""):
-            cam = self._default_dispositivo or "Unknown_Camera"
+        if not cam or cam in ("Unknown", FALLBACK_CAMERA_NAME, ""):
+            cam = self._default_dispositivo or FALLBACK_CAMERA_NAME
         return _sanitize_name(cam)
 
     def _build_jobs(self):

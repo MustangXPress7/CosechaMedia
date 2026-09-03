@@ -287,8 +287,9 @@ class MetadataEngine:
         operador. Conserva el `file_size` real vía `os.path.getsize` cuando es
         legible, y el fallback por extensión (imagen/RAW → cámara) igual que en
         el flujo de éxito, de modo que el dict nunca pierde información útil."""
+        from app.core.ingestor import FALLBACK_CAMERA_NAME
         metadata = {
-            "camera_model": "Unknown_Camera", "camera_make": "Unknown", "serial": None,
+            "camera_model": FALLBACK_CAMERA_NAME, "camera_make": "Unknown", "serial": None,
             "creation_date": None, "creation_dt": None, "date_source": None,
             "duration": 0, "bitrate": 0, "format": "", "width": 0, "height": 0,
             "fps": 0, "codec": "", "audio_codec": "", "file_size": 0,
@@ -326,13 +327,14 @@ class MetadataEngine:
         return raw_ext_to_brand.get(ext, "Unknown")
     
     def detect_camera_batch(self, file_paths: List[str]) -> Dict:
+        from app.core.ingestor import FALLBACK_CAMERA_NAME
         camera_counts = {}
         
         for file_path in file_paths[:10]:
             metadata = self.get_video_metadata(file_path)
             if metadata:
                 camera = metadata.get("camera_model", "Unknown")
-                if metadata.get("metadata_verified") is not False and camera not in ("Unknown", "Unknown_Camera"):
+                if metadata.get("metadata_verified") is not False and camera not in ("Unknown", FALLBACK_CAMERA_NAME):
                     camera_counts[camera] = camera_counts.get(camera, 0) + 1
         
         if camera_counts:

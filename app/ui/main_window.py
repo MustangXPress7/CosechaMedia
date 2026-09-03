@@ -83,9 +83,10 @@ def _generate_proxies_worker(progress, jobs, height):
     return count
 
 def _reorganize_worker(progress, ingestors):
-    for i, ing in enumerate(ingestors, start=1):
-        progress.emit(translator.tr("Reorganizando ingesta %1/%2...").arg(i).arg(len(ingestors)))
-        ing.reorganize_by_metadata()
+    # La reorganización se mueve al nuevo ReorganizeDialog (Plan 3).
+    # El método ingestor.reorganize_by_metadata() se eliminó (D-18); este
+    # worker queda como no-op hasta sustituirse por el diálogo nuevo.
+    progress.emit(translator.tr("La reorganización por metadatos se ha movido al diálogo 'Reorganizar footage...'."))
     return True
 
 class _StageWorker(QObject):
@@ -625,7 +626,7 @@ class MainWindow(QMainWindow):
         op_row = QHBoxLayout()
         op_row.setSpacing(6)
         self.btn_reorganize = QPushButton(self.tr("Reorganizar por metadatos"))
-        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos"))
+        self.btn_reorganize.setToolTip(self.tr("Reorganiza los archivos en 'SinClasificar' detectando su cámara por metadatos"))
         self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
         op_row.addWidget(self.btn_reorganize)
 
@@ -4722,7 +4723,7 @@ class MainWindow(QMainWindow):
             return
         reply = QMessageBox.question(
             self, self.tr("Reorganizar"),
-            self.tr("¿Reorganizar archivos en 'Unknown_Camera' detectando su cámara por metadatos?"),
+            self.tr("¿Reorganizar archivos en 'SinClasificar' detectando su cámara por metadatos?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No
         )
         if reply != QMessageBox.Yes:

@@ -222,9 +222,9 @@ class TestGetVideoMetadata(unittest.TestCase):
 
     def test_detect_camera_batch_does_not_count_failures(self):
         """detect_camera_batch no cuenta como cámara los fallos
-        (metadata_verified=False o Unknown_Camera)."""
+        (metadata_verified=False o SinClasificar)."""
         with patch.object(self.engine, "get_video_metadata",
-                          return_value={"camera_model": "Unknown_Camera",
+                          return_value={"camera_model": "SinClasificar",
                                         "metadata_verified": False}):
             result = self.engine.detect_camera_batch([self.file])
         self.assertEqual(result["primary_camera"], "Unknown")

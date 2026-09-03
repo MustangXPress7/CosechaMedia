@@ -13,6 +13,11 @@ from app.core.metadata_engine import metadata_engine
 
 from PySide6.QtCore import QObject, Signal
 
+# Nombre de la carpeta destino para el material que no pudo clasificarse por
+# cámara (metadatos desconocidos). Reemplaza el antiguo nombre fallback de
+# cámara desconocida.
+FALLBACK_CAMERA_NAME = "SinClasificar"
+
 
 def _human_bytes(num: int) -> str:
     for unit in ["B", "KB", "MB", "GB", "TB"]:
@@ -559,16 +564,16 @@ class Ingestor(QObject):
         try:
             known_cam = self._get_dispositivo_for_file(source_path)
             metadata = metadata_engine.get_video_metadata(source_path)
-            if known_cam != "Unknown_Camera":
+            if known_cam != FALLBACK_CAMERA_NAME:
                 camera_name = known_cam
             else:
-                camera_name = metadata.get("camera_model", "Unknown_Camera")
+                camera_name = metadata.get("camera_model", FALLBACK_CAMERA_NAME)
                 camera_name = self._sanitize_camera_name(camera_name)
 
-                if camera_name == "Unknown_Camera" and self.default_dispositivo:
+                if camera_name == FALLBACK_CAMERA_NAME and self.default_dispositivo:
                     camera_name = self.default_dispositivo
 
-                if camera_name == "Unknown_Camera":
+                if camera_name == FALLBACK_CAMERA_NAME:
                     self.camera_rename_needed.emit(source_path, camera_name)
 
                 self._update_dispositivo_mapping(source_path, camera_name)
@@ -725,52 +730,7 @@ class Ingestor(QObject):
                 # cuando la raíz es "Joan").
                 if npath == nroot or npath.startswith(nroot.rstrip("/") + "/"):
                     return cam_name
-            return "Unknown_Camera"
-
-    def reorganize_by_metadata(self):
-        unknown_dir = os.path.join(self.destination_root, self.folder_name, "Unknown_Camera")
-        if not os.path.exists(unknown_dir):
-            return
-        
-        files_to_reorganize = []
-        for root, dirs, files in os.walk(unknown_dir):
-            for file in files:
-                file_path = os.path.join(root, file)
-                files_to_reorganize.append(file_path)
-        
-        camera_batches = {}
-        for file_path in files_to_reorganize:
-            metadata = metadata_engine.get_video_metadata(file_path)
-            camera = metadata.get("camera_model", "Unknown_Camera")
-            camera = self._sanitize_camera_name(camera)
-            
-            if camera not in camera_batches:
-                camera_batches[camera] = []
-            camera_batches[camera].append((file_path, metadata))
-        
-        for camera_name, files in camera_batches.items():
-            if camera_name == "Unknown_Camera":
-                continue
-            
-            for file_path, metadata in files:
-                shoot_date = self._determine_date(metadata, camera_name)
-                new_dir = create_folder_structure(
-                    self.destination_root,
-                    camera_name,
-                    shoot_date,
-                    "camera_first",
-                    folder_name=self.folder_name
-                )
-                new_path = os.path.join(new_dir, os.path.basename(file_path))
-                n = 1
-                while os.path.exists(new_path):
-                    base, ext = os.path.splitext(os.path.basename(file_path))
-                    new_path = os.path.join(new_dir, f"{base} ({n}){ext}")
-                    n += 1
-                try:
-                    shutil.move(file_path, new_path)
-                except Exception:
-                    pass
+            return FALLBACK_CAMERA_NAME
 
     def get_stats(self) -> Dict:
         self._stats["duration"] = time.time() - self._stats["start_time"]

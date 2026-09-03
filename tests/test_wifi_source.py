@@ -814,7 +814,7 @@ class TestWifiSource(unittest.TestCase):
         bob_cache = inboxmod.wifi_cache_dir("Bob", db=self.db)
         cam2 = ing._get_dispositivo_for_file(
             os.path.join(bob_cache, "clip.mp4"))
-        self.assertEqual(cam2, "Unknown_Camera")
+        self.assertEqual(cam2, "SinClasificar")
 
     def test_is_inbox_cache_path(self):
         from app.core import shoot_inbox as inboxmod

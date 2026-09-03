@@ -655,8 +655,8 @@
     </message>
     <message>
         <location filename="../ui/main_window.py" line="571"/>
-        <source>Reorganiza los archivos en 'Unknown_Camera' detectando su cámara por metadatos</source>
-        <translation>Reorganize files in 'Unknown_Camera' by detecting their camera via metadata</translation>
+        <source>Reorganiza los archivos en 'SinClasificar' detectando su cámara por metadatos</source>
+        <translation>Reorganize files in 'SinClasificar' by detecting their camera via metadata</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="577"/>
@@ -2131,8 +2131,8 @@ This action cannot be undone.</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="3812"/>
-        <source>¿Reorganizar archivos en 'Unknown_Camera' detectando su cámara por metadatos?</source>
-        <translation>Reorganize files in 'Unknown_Camera' by detecting their camera via metadata?</translation>
+        <source>¿Reorganizar archivos en 'SinClasificar' detectando su cámara por metadatos?</source>
+        <translation>Reorganize files in 'SinClasificar' by detecting their camera via metadata?</translation>
     </message>
     <message>
         <location filename="../ui/main_window.py" line="3819"/>

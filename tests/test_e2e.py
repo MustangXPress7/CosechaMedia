@@ -116,7 +116,7 @@ class TestEndToEndIngest(unittest.TestCase):
         date_dir = self.window.project_date.toString("yyyy-MM-dd")
         found = []
         for disk in (self.disk_a, self.disk_b):
-            base = os.path.join(disk, "Footage", "Unknown_Camera", date_dir)
+            base = os.path.join(disk, "Footage", "SinClasificar", date_dir)
             if os.path.isdir(base):
                 found.extend(os.listdir(base))
         self.assertEqual(sorted(found), ["clip1.mp4", "clip2.MOV"])
@@ -147,7 +147,7 @@ class TestEndToEndIngest(unittest.TestCase):
         def clips():
             found = []
             for disk in (self.disk_a, self.disk_b):
-                base = os.path.join(disk, "Footage", "Unknown_Camera", date_dir)
+                base = os.path.join(disk, "Footage", "SinClasificar", date_dir)
                 if os.path.isdir(base):
                     found.extend(os.listdir(base))
             return sorted(found)
@@ -155,7 +155,7 @@ class TestEndToEndIngest(unittest.TestCase):
         self.assertEqual(clips(), ["clip1.mp4", "clip2.MOV"])
         for c in clips():
             os.remove(os.path.join(
-                self.disk_a, "Footage", "Unknown_Camera", date_dir, c))
+                self.disk_a, "Footage", "SinClasificar", date_dir, c))
 
         # Re-ingesta tras borrar de la carpeta maestra
         self.window.start_ingest()
@@ -198,7 +198,7 @@ class TestEndToEndIngest(unittest.TestCase):
         def clips():
             found = []
             for disk in (self.disk_a, self.disk_b):
-                base = os.path.join(disk, "Footage", "Unknown_Camera")
+                base = os.path.join(disk, "Footage", "SinClasificar")
                 if os.path.isdir(base):
                     for root, _dirs, files in os.walk(base):
                         found.extend(files)
@@ -210,7 +210,7 @@ class TestEndToEndIngest(unittest.TestCase):
                          "Los clips dentro de la ventana anclada deben volcarse")
 
         for disk in (self.disk_a, self.disk_b):
-            base = os.path.join(disk, "Footage", "Unknown_Camera")
+            base = os.path.join(disk, "Footage", "SinClasificar")
             if os.path.isdir(base):
                 for root, _dirs, files in os.walk(base):
                     for f in files:

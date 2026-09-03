@@ -156,7 +156,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
 
         self.window.on_file_finished(
             source_file, os.path.join(self.tmp, "dest", "clip.mp4"), True,
-            {"camera_model": "Unknown_Camera", "metadata_verified": False})
+            {"camera_model": "SinClasificar", "metadata_verified": False})
 
         camera_text = self.window.table.item(row, 1).text()
         self.assertIn("no verificados", camera_text)
