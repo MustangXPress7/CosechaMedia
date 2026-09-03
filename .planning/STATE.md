@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.6.0
 milestone_name: Verificación avanzada + Reorganizador de footage
-current_phase: 01.6.0
-current_phase_name: Añadir origen + Reorganizador + Bugs
-status: executing
-stopped_at: Completed Plan 01.6.0-03 (ReorganizeDialog integration)
+current_phase: null
+current_phase_name: null
+status: completed
+stopped_at: Phase 01.6.0 complete - all 3 plans executed and verified
 last_updated: "2026-09-03T22:23:00Z"
 last_activity: 2026-09-03
-last_activity_desc: Plan 01.6.0-03 completed - ReorganizeDialog created and integrated with menu entry
-state_head: 4567a3f
+last_activity_desc: Phase 01.6.0 complete - all 3 plans executed and verified
+state_head: 0da0d6f
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
   completed_plans: 3
 ---
@@ -67,10 +67,10 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: 01.6.0 (Añadir origen + Reorganizador + Bugs) — EXECUTING
-Plan: 3 of 3 completed
-Status: Plan 01.6.0-03 completed (ReorganizeDialog created, integrated in main_window + menu)
-Last activity: 2026-09-03 — Plan 01.6.0-03 completed
+Phase: Milestone v1.6.0 Planning
+Plan: —
+Status: Phase 01.6.0 complete — all plans verified
+Last activity: 2026-09-03 — Phase 01.6.0 complete
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -199,8 +199,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-03T21:58:08Z
-Stopped at: Completed Plan 01.6.0-03 (ReorganizeDialog integration)
+Last session: 2026-09-03T22:23:00Z
+Stopped at: Phase 01.6.0 complete - all 3 plans executed and verified
 Resume file: .planning/phases/01.6.0-registro-known-devices-req-09/01.6.0-CONTEXT.md
 
 ## Operator Next Steps
