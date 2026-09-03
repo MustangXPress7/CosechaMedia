@@ -30,7 +30,7 @@ bienvenida (reservados desde v1.5).
 <details>
 <summary>🚧 v1.6.0 Verificación avanzada + Reorganizador de footage (Phase 1.6.0) — IN PROGRESS</summary>
 
-- [ ] **Phase 1.6.0: Verificación avanzada + Reorganizador de footage** (0/0 plans) — planned
+- [ ] **Phase 1.6.0: Añadir origen + Reorganizador + Bugs** (0/3 plans) — planned
 
 </details>
 
@@ -113,11 +113,13 @@ Plans:
   3. "Reorganizar footage..." existe y funciona con _SinClasificar
   4. Thread-local COM se limpia correctamente en reset de proyecto
 
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 1.6.0 to break down)
+- [ ] 01.6.0-01-PLAN.md — COM threading balanceado (D-23..D-25) + Unknown_Camera → SinClasificar (D-16, D-18)
+- [ ] 01.6.0-02-PLAN.md — AddSourceDialog tabla plana 3 secciones (D-01..D-15) + integración main_window
+- [ ] 01.6.0-03-PLAN.md — ReorganizeDialog SinClasificar + MD5 re-registro (D-16..D-22, REQ-06)
 
 ### Phase 1.7.0: Registro devices + mejoras origen
 
@@ -188,7 +190,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
-| 1.6.0. Añadir origen + Reorganizador + Bugs | 0/0 | Planned |  |
+| 1.6.0. Añadir origen + Reorganizador + Bugs | 0/3 | Planned |  |
 | 1.7.0. Registro devices + mejoras origen | 0/0 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
