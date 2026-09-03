@@ -1,20 +1,20 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.6.0
-milestone_name: Añadir origen + Reorganizador + Bugs
-status: Planning
-stopped_at: Phase 01.6.0 tree cleaned, ready for plan-phase
-last_updated: "2026-09-03T16:30:00Z"
+milestone_name: Verificación avanzada + Reorganizador de footage
+current_phase: 01.6.0
+current_phase_name: Añadir origen + Reorganizador + Bugs
+status: executing
+stopped_at: Completed Plan 01.6.0-02 (AddSourceDialog integration)
+last_updated: "2026-09-03T22:15:00Z"
 last_activity: 2026-09-03
-last_activity_desc: Post-incidente cleanup (steps A+B), tree stable
-state_head: 857d63d0afaa093f02e7e8407f0b1a26c030f54c
+last_activity_desc: Plan 01.6.0-02 completed - AddSourceDialog integrated, SourcePickerDialog removed
+state_head: d6501ce
 progress:
   total_phases: 1
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-current_phase: null
-current_phase_name: null
+  total_plans: 3
+  completed_plans: 2
 ---
 
 Total Phases: 13
@@ -67,10 +67,10 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: Milestone v1.6.0 Planning
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-02 — Cataloged all pending actions into phases and waves
+Phase: 01.6.0 (Añadir origen + Reorganizador + Bugs) — EXECUTING
+Plan: 2 of 3 completed
+Status: Plan 01.6.0-02 completed (AddSourceDialog integrated, SourcePickerDialog removed)
+Last activity: 2026-09-03 — Plan 01.6.0-02 completed
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -118,6 +118,8 @@ Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 | 01.5.0-02 (copy_verified hash stream-through) | 12m | 3 tasks | 2 files |
 | 01.5.0-03 (watcher inventory + should_skip) | 45m | 3 tasks | 5 files |
 | 01.5.0-04 (R3/R5 regression + full suite gate) | 15m | 2 tasks | 2 files |
+| 01.6.0-01 (COM threading + SinClasificar) | 36m | 2 tasks | 12 files |
+| 01.6.0-02 (AddSourceDialog) | 45m | 3 tasks | 5 files (2 new, 1 mod, 2 del) |
 
 ## Accumulated Context
 
