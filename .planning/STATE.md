@@ -1,21 +1,23 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-status: Awaiting next milestone
-stopped_at: Completed 01.5.0-04-PLAN.md
-last_updated: "2026-08-29T20:13:45.558Z"
-last_activity: 2026-08-29
-last_activity_desc: Milestone v1.5.0 completed and archived
-state_head: 0890edfd8a6c8cad90fdd0287c53460bfb1f9fea
+milestone: v1.6.0
+milestone_name: Verificación avanzada + Reorganizador de footage
+status: Planning
+stopped_at: Phase 01.6.0 context gathered
+last_updated: "2026-09-03T15:18:40.565Z"
+last_activity: 2026-09-02
+last_activity_desc: Organizing inventory into phases and waves
+state_head: 990cb621a7098d8608b59e3ee175cb321abfc14a
 progress:
-  total_phases: 4
+  total_phases: 1
   completed_phases: 0
-  total_plans: 9
-  completed_plans: 8
-milestone_name: Consolidación y bugs
-current_phase: 01.5.0
-current_phase_name: Consolidación y bugs del flujo
+  total_plans: 0
+  completed_plans: 0
+current_phase: null
+current_phase_name: null
 ---
+
+Total Phases: 13
 
 # Project State
 
@@ -65,10 +67,28 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: Milestone v1.5.0 complete
+Phase: Milestone v1.6.0 Planning
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-08-29 — Milestone v1.5.0 completed and archived
+Last activity: 2026-09-02 — Cataloged all pending actions into phases and waves
+
+## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
+
+### Ola 1 — Verificación XXH64+ASC MHL
+
+- [ ] Crear módulo `app/core/integrity.py`
+- [ ] Añadir columna `hash_policy` a `projects`
+
+### Ola 2 — Reorganizador Footage (REQ-06)
+
+- [ ] Crear `app/ui/reorganize_dialog.py`
+- [ ] Mover en sitio usando `metadata_engine`
+
+**Nota:** Mantener 1.6.0 enfocado en ingesta. Otras features a fases intermedias.
+
+## Next Steps
+
+Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 
 ## Performance Metrics
 
@@ -170,9 +190,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-08-29T12:31:01.662Z
-Stopped at: Completed 01.5.0-02-PLAN.md
-Resume file: None
+Last session: 2026-09-03T15:18:40.552Z
+Stopped at: Phase 01.6.0 context gathered
+Resume file: .planning/phases/01.6.0-registro-known-devices-req-09/01.6.0-CONTEXT.md
 
 ## Operator Next Steps
 
