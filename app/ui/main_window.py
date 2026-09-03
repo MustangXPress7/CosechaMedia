@@ -4091,6 +4091,43 @@ class MainWindow(QMainWindow):
                 self.tr("Recepción WiFi reanudada."))
         self.ingest_status_label.setText(self.tr("Recepción WiFi reanudada."))
 
+    def _reset_mtp_thread_local(self):
+        """Reinicia el thread-local COM del MTP para evitar referencias corruptas."""
+        try:
+            from app.core import mtp
+            import threading
+            if hasattr(mtp, '_manager_local'):
+                mtp._manager_local = threading.local()
+        except Exception:
+            pass
+        # Detener thread de staging si existe
+        if hasattr(self, '_stage_thread') and self._stage_thread and self._stage_thread.isRunning():
+            self._stage_thread.quit()
+            self._stage_thread = None
+        if hasattr(self, '_stage_worker'):
+            self._stage_worker = None
+
+    def _reset_ingestors(self):
+        """Limpia los ingestors vivos."""
+        # Detener timers y watchers
+        if hasattr(self, '_sync_timer') and self._sync_timer.isActive():
+            self._sync_timer.stop()
+        if hasattr(self, '_cam_timer') and self._cam_timer.isActive():
+            self._cam_timer.stop()
+        for watcher in self.watchers[:]:
+            try:
+                watcher.stop()
+            except Exception:
+                pass
+        self.watchers = []
+        # Detener ingestors
+        for ing in self._ingestors[:]:
+            try:
+                ing.stop()
+            except Exception:
+                pass
+        self._ingestors = []
+
     def _reset_wifi_ingestors(self):
         for ing in self._wifi_ingestors.values():
             try:
@@ -4398,6 +4435,10 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.No:
             return
 
+        self._reset_mtp_thread_local()
+        self._reset_ingestors()
+        self._reset_wifi_ingestors()
+
         try:
             conn = db.get_connection()
             cursor = conn.cursor()
@@ -4477,6 +4518,10 @@ class MainWindow(QMainWindow):
 
         if reply == QMessageBox.No:
             return
+
+        self._reset_mtp_thread_local()
+        self._reset_ingestors()
+        self._reset_wifi_ingestors()
 
         try:
             conn = db.get_connection()
