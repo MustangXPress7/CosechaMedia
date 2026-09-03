@@ -1,5 +1,5 @@
-"""Reorganizador de footage: mueve archivos de SinClasificar/ a cámara/fecha
-con verificación MD5 y re-registro en DB.
+"""Reorganizador de footage: escanea el proyecto y organiza archivos de vídeo
+por cámara/fecha con verificación MD5 y re-registro en DB.
 
 Flujo: selector de carpeta → escaneo off-thread → resumen → ejecución off-thread
 con shutil.move + calculate_md5 + UPDATE files.
@@ -52,7 +52,7 @@ def _unique_dest(dest_dir: str, src_path: str) -> str:
 
 
 class _ScanWorker(QObject):
-    """Worker para escanear SinClasificar/ off-thread."""
+    """Worker para escanear archivos desorganizados en el proyecto off-thread."""
     progress = Signal(str)
     finished = Signal(bool, object)
 
@@ -70,20 +70,31 @@ class _ScanWorker(QObject):
             self.finished.emit(False, str(e))
 
     def _scan(self):
-        self.progress.emit("Escaneando SinClasificar…")
-        sinclasificar = os.path.join(self.project_root, "SinClasificar")
-        if not os.path.exists(sinclasificar):
-            return {"error": "No existe carpeta SinClasificar"}
-
+        self.progress.emit("Escaneando proyecto…")
+        
+        # Carpeta de footage organizada (excluir del escaneo)
+        footage_root = os.path.join(self.project_root, "Footage")
+        
         summary = {}
         unclassified = []
+        scanned_count = 0
 
-        for root, dirs, files in os.walk(sinclasificar):
-            # Saltar la propia carpeta SinClasificar como raíz
-            if root == sinclasificar and not files:
+        for root, dirs, files in os.walk(self.project_root):
+            # Excluir la carpeta Footage organizada
+            if root.startswith(footage_root + os.sep) or root == footage_root:
                 continue
+            # Excluir carpetas de sistema/ocultas
+            if any(part.startswith('.') for part in root.split(os.sep)):
+                continue
+            
             for fname in files:
                 file_path = os.path.join(root, fname)
+                # Solo procesar archivos de video
+                ext = os.path.splitext(fname)[1].lower()
+                if ext not in ['.mp4', '.mov', '.avi', '.mkv', '.mxf', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg']:
+                    continue
+                
+                scanned_count += 1
                 try:
                     meta = metadata_engine.get_video_metadata(file_path)
                     camera = meta.get("camera_model", "") or ""
@@ -108,8 +119,8 @@ class _ScanWorker(QObject):
                     print(f"Error reorganizando {file_path}: {e}")
                     unclassified.append(file_path)
 
-        result = {"summary": summary, "unclassified": unclassified}
-        self.progress.emit("Escaneo completado")
+        result = {"summary": summary, "unclassified": unclassified, "scanned": scanned_count}
+        self.progress.emit("Escaneo completado: {} archivos".format(scanned_count))
         return result
 
 
@@ -240,7 +251,8 @@ class ReorganizeDialog(QDialog):
         layout.setSpacing(16)
 
         self.lbl_info = QLabel(self.tr(
-            "Seleccione la carpeta raíz del volcado que contiene la subcarpeta SinClasificar/"
+            "Seleccione la carpeta raíz del proyecto. Se escanearán todos los archivos de vídeo "
+            "fuera de la carpeta Footage/ y se organizarán por cámara/fecha."
         ))
         self.lbl_info.setWordWrap(True)
         layout.addWidget(self.lbl_info)
@@ -259,7 +271,7 @@ class ReorganizeDialog(QDialog):
 
         layout.addLayout(folder_layout)
 
-        # Mensaje rápido si ya existe SinClasificar
+        # Mensaje rápido si hay archivos
         self.lbl_quick = QLabel("")
         self.lbl_quick.setStyleSheet("color: {};".format(
             theme.color("success")
@@ -280,38 +292,36 @@ class ReorganizeDialog(QDialog):
 
     def _check_initial_sinclasificar(self):
         if self.project_root:
-            sinclasificar = os.path.join(self.project_root, "SinClasificar")
-            if os.path.exists(sinclasificar):
-                self.txt_folder.setText(self.project_root)
-                self._count_files_quick(sinclasificar)
-                self.btn_scan.setEnabled(True)
+            self.txt_folder.setText(self.project_root)
+            # Contar archivos de vídeo en el proyecto (excluyendo Footage/)
+            self._count_files_quick(self.project_root)
 
-    def _count_files_quick(self, sinclasificar_path):
+    def _count_files_quick(self, project_root):
         count = 0
-        for root, dirs, files in os.walk(sinclasificar_path):
-            count += len(files)
+        footage_root = os.path.join(project_root, "Footage")
+        for root, dirs, files in os.walk(project_root):
+            # Excluir Footage/
+            if root.startswith(footage_root + os.sep) or root == footage_root:
+                continue
+            if any(part.startswith('.') for part in root.split(os.sep)):
+                continue
+            for fname in files:
+                ext = os.path.splitext(fname)[1].lower()
+                if ext in ['.mp4', '.mov', '.avi', '.mkv', '.mxf', '.mts', '.m2ts', '.ts', '.mpg', '.mpeg']:
+                    count += 1
         if count > 0:
-            self.lbl_quick.setText(self.tr("Se encontraron {0} archivos sin clasificar en SinClasificar/").arg(count))
+            self.lbl_quick.setText(self.tr("Se encontraron {0} archivos de vídeo para reorganizar").arg(count))
             self.lbl_quick.setVisible(True)
+            self.btn_scan.setEnabled(True)
 
     def _on_browse(self):
         path = QFileDialog.getExistingDirectory(
-            self, self.tr("Seleccionar carpeta raíz del volcado"), self.project_root or ""
+            self, self.tr("Seleccionar carpeta raíz del proyecto"), self.project_root or ""
         )
         if path:
             self.project_root = path
             self.txt_folder.setText(path)
-            sinclasificar = os.path.join(path, "SinClasificar")
-            if os.path.exists(sinclasificar):
-                self._count_files_quick(sinclasificar)
-                self.btn_scan.setEnabled(True)
-            else:
-                self.lbl_quick.setText(self.tr("No se encontró la carpeta SinClasificar/ en la ubicación seleccionada."))
-                self.lbl_quick.setStyleSheet("color: {};".format(
-                    theme.color("warning")
-                ))
-                self.lbl_quick.setVisible(True)
-                self.btn_scan.setEnabled(False)
+            self._count_files_quick(path)
 
     def _on_scan(self):
         self.btn_scan.setEnabled(False)
@@ -339,7 +349,7 @@ class ReorganizeDialog(QDialog):
             return
 
         if "error" in result:
-            QMessageBox.information(self, self.tr("SinClasificar"), self.tr(result["error"]))
+            QMessageBox.information(self, self.tr("Escaneo"), self.tr(result["error"]))
             self.btn_scan.setEnabled(True)
             return
 
@@ -508,7 +518,7 @@ class ReorganizeDialog(QDialog):
         if moved:
             parts.append(self.tr("{0} archivos reorganizados correctamente").arg(moved))
         if unclassified:
-            parts.append(self.tr("{0} archivos permanecen en SinClasificar").arg(unclassified))
+            parts.append(self.tr("{0} archivos sin clasificar (sin metadatos de cámara)").arg(unclassified))
         if errors:
             parts.append(self.tr("{0} errores").arg(errors))
             if result.get("error_details"):

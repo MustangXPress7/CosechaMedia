@@ -621,7 +621,7 @@ class MainWindow(QMainWindow):
         op_row = QHBoxLayout()
         op_row.setSpacing(6)
         self.btn_reorganize = QPushButton(self.tr("Reorganizar footage…"))
-        self.btn_reorganize.setToolTip(self.tr("Abre el reorganizador para mover archivos de SinClasificar/ a cámara/fecha con verificación MD5"))
+        self.btn_reorganize.setToolTip(self.tr("Abre el reorganizador para escanear el proyecto y organizar archivos de vídeo por cámara/fecha con verificación MD5"))
         self.btn_reorganize.clicked.connect(self._reorganize_by_metadata)
         op_row.addWidget(self.btn_reorganize)
 
@@ -2811,6 +2811,18 @@ class MainWindow(QMainWindow):
             self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
 
+    def _show_wifi_qr_for_sender(self, sender_name):
+        """Muestra el panel WiFi con el QR para el remitente dado (desde AddSourceDialog)."""
+        if self.current_project_id is None:
+            return
+        if not self._ensure_wifi_server():
+            return
+        self._sync_wifi_sessions()
+        self._show_wifi_panel()
+        if self._wifi_panel is not None:
+            self._wifi_panel.select_sender(sender_name)
+        self._ensure_wifi_ingestion()
+
     def _detect_camera_for_source(self, kind, value):
         """Detecta la cámara para un origen del AddSourceDialog (D-08/D-09).
 
@@ -3511,10 +3523,11 @@ class MainWindow(QMainWindow):
         except Exception:
             devices_connected = []
         dialog = AddSourceDialog(self, folders=folders, senders=senders,
-                                 devices_missing=self._disconnected_devices(),
-                                 devices_connected=devices_connected,
-                                 on_delete=self._delete_saved_source,
-                                 on_detect=self._detect_camera_for_source)
+                                  devices_missing=self._disconnected_devices(),
+                                  devices_connected=devices_connected,
+                                  on_delete=self._delete_saved_source,
+                                  on_detect=self._detect_camera_for_source,
+                                  on_qr=self._show_wifi_qr_for_sender)
         if dialog.exec() != QDialog.Accepted:
             return None
         sources = dialog.result_sources()
@@ -4737,7 +4750,7 @@ class MainWindow(QMainWindow):
             self.ingest_status_label.setText(self.tr("Auto-detect: ninguna unidad nueva."))
 
     def _reorganize_by_metadata(self):
-        """Abre el diálogo ReorganizeDialog para reorganizar footage de SinClasificar/."""
+        """Abre el diálogo ReorganizeDialog para escanear y reorganizar footage del proyecto."""
         if self.current_project_id is None:
             QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Seleccione o cree un proyecto primero."))
             return

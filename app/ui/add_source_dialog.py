@@ -59,10 +59,11 @@ class AddSourceDialog(QDialog):
     def __init__(self, parent=None, folders=(), senders=(),
                  devices_missing=(), devices_connected=(),
                  mtp_backend=None, ftp_backend=None,
-                 on_delete=None, on_detect=None):
+                 on_delete=None, on_detect=None, on_qr=None):
         super().__init__(parent)
         self.on_delete = on_delete      # on_delete(kind, value) -> bool
         self.on_detect = on_detect      # on_detect(kind, value) -> str (cámara)
+        self.on_qr = on_qr              # on_qr(sender_name) -> None
         self._mtp_backend = mtp_backend if mtp_backend is not None else mtp.WpdBackend()
         self._explicit_mtp = mtp_backend is not None
         self._ftp_backend = ftp_backend or ftpmod.FtpBackend()
@@ -266,6 +267,11 @@ class AddSourceDialog(QDialog):
                 " color: %s; font-size: 11px; }"
                 "QPushButton:hover { color: %s; }"
                 % (theme.color("text_secondary"), theme.color("accent")))
+            # Connect QR button to callback
+            sender_name = src["value"]
+            if self.on_qr is not None:
+                qr_btn.clicked.connect(
+                    lambda _=False, name=sender_name: self.on_qr(name))
             pl.addWidget(qr_btn)
         self.table.setCellWidget(row, 1, path_widget)
 
@@ -387,17 +393,50 @@ class AddSourceDialog(QDialog):
         self._update_ok_state()
 
     def _add_wifi_row(self):
-        self._append_raw_source({
-            "kind": "sender", "value": self.tr("Nuevo WiFi"),
-            "camera": self.tr("Sin nombre"), "enabled": True, "connected": True,
-            "label": self.tr("Nuevo WiFi"), "type": "WiFi"})
+        """Crea un nuevo remitente WiFi real (no placeholder)."""
+        from app.ui.wifi_panel import SenderEditDialog
+        from app.core.db import db
+        if self.current_project_id is None:
+            # We need access to the parent/main window to check project_id
+            # For now, we'll show a dialog asking for the sender name
+            pass
+        # Use a simple input dialog since we don't have direct access to parent
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+        name, ok = QInputDialog.getText(
+            self, self.tr("Nuevo dispositivo WiFi"),
+            self.tr("Nombre del dispositivo (aparecerá en el código QR):"),
+            text=self.tr("Móvil"))
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        # Add to database
+        try:
+            db.add_inbox_sender(name)
+        except Exception as e:
+            QMessageBox.warning(self, self.tr("Error"),
+                                self.tr("No se pudo crear el remitente: %1").arg(str(e)))
+            return
+        # Add as a real row
+        row = self._append_raw_source({
+            "kind": "sender", "value": name, "camera": name,
+            "enabled": True, "connected": True,
+            "label": name, "type": "WiFi"})
         self._update_ok_state()
 
     def _add_ftp_row(self):
-        self._append_raw_source({
-            "kind": "ftp_profile", "value": None, "camera": self.tr("Sin nombre"),
-            "enabled": True, "connected": True,
-            "label": self.tr("FTP nuevo"), "type": "FTP"})
+        """Abre el selector de FTP para crear/seleccionar un perfil."""
+        from app.ui.ftp_picker import FtpPickerDialog
+        dialog = FtpPickerDialog(self)
+        if dialog.exec() != QDialog.Accepted:
+            return
+        if not dialog.device_id or not dialog.device_folder:
+            return
+        # Add as a real row with the selected FTP profile
+        name = dialog.device_name or dialog.device_folder
+        row = self._append_raw_source({
+            "kind": "ftp_profile", "value": dialog.device_id,
+            "camera": name, "enabled": True, "connected": True,
+            "label": name, "type": "FTP"})
         self._update_ok_state()
 
     # -- detección de cámara (D-08/D-09) ----------------------------------
