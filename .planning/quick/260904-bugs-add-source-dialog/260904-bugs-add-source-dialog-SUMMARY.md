@@ -1,8 +1,8 @@
 ---
 slug: bugs-add-source-dialog
 created: 2026-09-04
-status: incomplete
-commit: null
+status: complete
+commit: b853589
 ---
 
 # Bugs y mejoras AddSourceDialog
@@ -52,4 +52,4 @@ Corregidos los 7 bugs reportados y aplicadas las 6 mejoras del diálogo
 
 ## Estado
 
-Pendiente de commit. Verificación completa.
+Completado. Commit `b853589`. Verificación completa (342 tests OK).
