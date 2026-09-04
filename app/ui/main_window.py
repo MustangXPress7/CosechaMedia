@@ -3256,23 +3256,40 @@ class MainWindow(QMainWindow):
     def _browse_session_src(self):
         if self.current_session_id is None:
             return
-        choice = self._pick_source_entry()
-        if choice is None:
+        sources = self._pick_source_entry()
+        if not sources:
             return
-        kind, value = choice
-        if kind == "browse":
-            path = QFileDialog.getExistingDirectory(
-                self, self.tr("Seleccionar origen de sesión"),
-                os.path.expanduser("~")
-            )
-            if path:
-                self._assign_session_folder(self.current_session_id, path)
-        elif kind == "folder":
-            self._assign_session_folder(self.current_session_id, value)
-        elif kind == "sender":
-            self._bind_wifi_sender(value, session_id=self.current_session_id)
-        elif kind == "ftp_profile":
-            self._pick_ftp_source(preset_profile_id=value)
+        for src in sources:
+            kind = src.get("kind")
+            value = src.get("value")
+            camera = src.get("camera")
+            if kind == "browse":
+                path = QFileDialog.getExistingDirectory(
+                    self, self.tr("Seleccionar origen de sesión"),
+                    os.path.expanduser("~")
+                )
+                if path:
+                    self._assign_session_folder(self.current_session_id, path)
+            elif kind == "folder":
+                self._assign_session_folder(self.current_session_id, value)
+            elif kind == "sender":
+                self._bind_wifi_sender(value, session_id=self.current_session_id)
+            elif kind == "ftp_profile":
+                self._pick_ftp_source(preset_profile_id=value)
+            elif kind == "device":
+                device_id = value
+                device_folder = ""
+                device_name = camera or "Dispositivo"
+                self._register_device_source_from_picker(
+                    device_id, device_folder, device_name, backend=mtp.WpdBackend())
+            elif kind == "usb":
+                self._assign_session_folder(self.current_session_id, value)
+            elif kind == "ftp_new":
+                profile_id, device_id, device_folder, device_name = value
+                self._register_device_source_from_picker(
+                    device_id, device_folder, device_name, backend=ftp.FtpBackend())
+            elif kind == "wifi":
+                self._pick_wifi_source()
 
     def build_menu(self):
         menu_bar = self.menuBar()

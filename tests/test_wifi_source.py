@@ -713,6 +713,25 @@ class TestWifiSource(unittest.TestCase):
         self.assertEqual(session["source_path"], folder)
         self.assertIn("Auto", session["name"])
 
+    def test_browse_session_src_handles_source_list(self):
+        """Bug: _browse_session_src lanzaba ValueError (expected 2, got 1).
+
+        _pick_source_entry devuelve una LISTA de dicts de origen, no una tupla.
+        Asegura que _browse_session_src itera la lista y despacha cada origen
+        a _assign_session_folder sin crashear.
+        """
+        folder = os.path.join(self.tmp, "sd")
+        os.makedirs(folder, exist_ok=True)
+        sid = self.db.create_session(self.pid, "Manual", "2026-01-01", "active")
+        self.window.current_session_id = sid
+        with mock.patch.object(
+                self.window, "_pick_source_entry",
+                return_value=[{"kind": "folder", "value": folder,
+                               "camera": None, "enabled": True}]):
+            self.window._browse_session_src()
+        session = self.db.get_session(sid)
+        self.assertEqual(session["source_path"], folder)
+
     def test_sender_dialog_has_no_location_field(self):
         """Bug 2: el diálogo de nuevo dispositivo WiFi solo pide el nombre."""
         from app.ui.wifi_panel import SenderEditDialog
