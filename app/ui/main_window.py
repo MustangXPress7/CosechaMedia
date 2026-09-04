@@ -1891,10 +1891,16 @@ class MainWindow(QMainWindow):
             if self.project_camera_detection_mode != "manual" and metadata:
                 if metadata.get("metadata_verified") is False:
                     camera_item = QTableWidgetItem(self.tr("⛔ Metadatos no verificados"))
+                    camera_item.setToolTip(self.tr("ffprobe no respondió; metadatos no verificados"))
                 elif metadata.get("camera_model") != "Unknown":
                     camera_item = QTableWidgetItem(metadata["camera_model"])
-                if metadata.get("metadata_verified") is False:
-                    camera_item.setToolTip(self.tr("ffprobe no respondió; metadatos no verificados"))
+                else:
+                    # camera_model "Unknown" con metadatos verificados: no
+                    # sobreescribir con "Unknown"; conservar el valor que ya
+                    # mostraba la celda (nombre/Detectando...) para que
+                    # camera_item SIEMPRE esté enlazado (evita UnboundLocalError).
+                    existing = self.table.item(row, 1)
+                    camera_item = existing if existing is not None else QTableWidgetItem("")
                 self.table.setItem(row, 1, camera_item)
 
             if success:

@@ -185,6 +185,27 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         self.assertEqual(self.window.table.item(row, 2).text(),
                          self.window.tr("Completado"))
 
+    def test_unknown_camera_keeps_existing_value_no_crash(self):
+        """BUG: camera_model == 'Unknown' con metadata_verified True lanzaba
+        UnboundLocalError (camera_item sin asignar). La celda de cámara
+        conserva el valor previo ('Detectando...') y no crashea."""
+        src = os.path.join(self.tmp, "src3")
+        os.makedirs(src)
+        source_file = os.path.join(src, "clip.mp4")
+        with open(source_file, "wb") as f:
+            f.write(b"data")
+        self.window.on_file_started(source_file)
+        row = self.window.table.rowCount() - 1
+
+        self.window.on_file_finished(
+            source_file, os.path.join(self.tmp, "dest3", "clip.mp4"), True,
+            {"camera_model": "Unknown", "metadata_verified": True})
+
+        self.assertEqual(self.window.table.item(row, 1).text(),
+                         self.window.tr("Detectando..."))
+        self.assertEqual(self.window.table.item(row, 2).text(),
+                         self.window.tr("Completado"))
+
 
 class TestCameraPersistence(unittest.TestCase):
     """Verifica persistencia de cámara en DB (I-03): sd_cards y device_settings."""
