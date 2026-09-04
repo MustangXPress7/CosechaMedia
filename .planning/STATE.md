@@ -7,8 +7,8 @@ current_phase_name: null
 status: completed
 stopped_at: Phase 01.6.0 complete - all 3 plans executed and verified
 last_updated: "2026-09-03T22:23:00Z"
-last_activity: 2026-09-03
-last_activity_desc: Phase 01.6.0 complete - all 3 plans executed and verified
+last_activity: 2026-09-04
+last_activity_desc: Completed quick task 260904-dwm: fix _browse_session_src unpacking error
 state_head: 0da0d6f
 progress:
   total_phases: 1
@@ -183,6 +183,7 @@ Recent decisions affecting current work:
 | 260822-ml7 | Cask de Homebrew para distribución macOS: cask propio (arm64 temporal + dependencia ffmpeg, sha256 :no_check documentado), docs/HOMEBREW.md (instalación --no-quarantine, publicación manual del tap homebrew-tap, checklist por release con fijado de SHA-256) y subsección Homebrew espejo EN/ES en README | 2026-08-22 | ffd2957, cd1feb2, a314038 | Needs Review | [260822-ml7-cask-de-homebrew-para-distribucion-macos](./quick/260822-ml7-cask-de-homebrew-para-distribucion-macos/) |
 | 11 | Bump version 1.5.0.b3 para release beta3 (licencia GPL + firma ad-hoc macOS) | 2026-08-22 | ee2c0ca | — | — |
 | 260904-bugs-add-source-dialog | Bugs (7) y mejoras (6) del diálogo «Añadir origen»: WiFi QR duplicado, borrar no actualiza tabla, Nuevo WiFi, falsos positivos MTP, cámara no persiste, menú Herramientas de limpieza, checkboxes centrados, secciones span, combo de cámara con escáner | 2026-09-04 | b853589 | Verified | [260904-bugs-add-source-dialog](./quick/260904-bugs-add-source-dialog/) |
+| 260904-dwm | Fix _browse_session_src unpacking error (ValueError) al elegir origen en el selector de sesión: _pick_source_entry devuelve lista de dicts, no tupla; despacho con binding de sesión + manejos device/usb/ftp_new/wifi | 2026-09-04 | 86a608a | Verified | [260904-dwm-fix-browse-session-src-unpacking-error-v](./quick/260904-dwm-fix-browse-session-src-unpacking-error-v/) |
 
 ## Deferred Items
 
