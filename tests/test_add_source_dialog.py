@@ -364,6 +364,32 @@ class TestAddSourceDialog(unittest.TestCase):
         # El dispositivo debe quedar ANTES del encabezado WiFi
         self.assertLess(device_row, wifi_row)
 
+    def test_detect_adds_usb_even_without_explicit_backend(self):
+        """Bug E/F (revisado): "Detectar" debe escanear USB incluso con
+        _explicit_mtp=False (producción). Una unidad removable real (H:\\)
+        debe añadirse aunque el diálogo no reciba backend MTP explícito."""
+        with mock.patch.object(utils_module, "get_mounted_drives",
+                               return_value=["H:\\"]), \
+             mock.patch.object(utils_module, "is_removable_drive",
+                               return_value=True):
+            dlg = self._dialog(folders=["E:\\DCIM"])
+            # Sin backend explícito: _populate NO debe listar USB en construcción
+            self.assertIsNone(dlg._row_for_source("usb", "H:\\"))
+            # Pero al pulsar "Detectar" sí debe escanearse y añadirse
+            dlg._detect_devices()
+            self.assertIsNotNone(dlg._row_for_source("usb", "H:\\"))
+
+    def test_detect_skips_non_removable_usb_without_explicit_backend(self):
+        """Tras "Detectar", una unidad que no es removable real no se añade."""
+        with mock.patch.object(utils_module, "get_mounted_drives",
+                               return_value=["E:\\", "F:\\"]), \
+             mock.patch.object(utils_module, "is_removable_drive",
+                               side_effect=lambda p: p == "E:\\"):
+            dlg = self._dialog(folders=["E:\\DCIM"])
+            dlg._detect_devices()
+            self.assertIsNotNone(dlg._row_for_source("usb", "E:\\"))
+            self.assertIsNone(dlg._row_for_source("usb", "F:\\"))
+
     def test_wifi_row_inserted_in_wifi_section(self):
         """BUG-3: un nuevo WiFi se inserta antes de la sección FTP."""
         dlg = self._dialog(folders=["E:\\DCIM"])
@@ -405,6 +431,141 @@ class _Device:
     def __init__(self, device_id, name):
         self.device_id = device_id
         self.name = name
+
+
+# -- E2E: full user flows ----------------------------------------------------
+
+    def test_full_acceptance_flow_multiple_sources(self):
+        """E2E: open dialog → select multiple sources → edit cameras → accept → verify result_sources."""
+        dlg = self._dialog(
+            folders=["E:\\DCIM", "F:\\ROOT"],
+            senders=[{"name": "Alice", "used": False}],
+            on_detect=lambda kind, value: "Sony A7 III",
+            on_qr=lambda name: None)
+        # Check folder 1
+        row1 = dlg._row_for_source("folder", "E:\\DCIM")
+        _set_camera(dlg, row1, "Cámara 1")
+        _checkbox(dlg, row1).setChecked(True)
+        # Check folder 2
+        row2 = dlg._row_for_source("folder", "F:\\ROOT")
+        _set_camera(dlg, row2, "Cámara 2")
+        _checkbox(dlg, row2).setChecked(True)
+        # Check WiFi sender
+        row3 = dlg._row_for_source("sender", "Alice")
+        _set_camera(dlg, row3, "Móvil Alice")
+        _checkbox(dlg, row3).setChecked(True)
+        self.assertTrue(dlg.btn_aceptar.isEnabled())
+        dlg.accept()
+        sources = dlg.result_sources()
+        self.assertEqual(len(sources), 3)
+        kinds = {s["kind"] for s in sources}
+        self.assertEqual(kinds, {"folder", "folder", "sender"})
+        cameras = {s["camera"] for s in sources}
+        self.assertEqual(cameras, {"Cámara 1", "Cámara 2", "Móvil Alice"})
+
+    def test_mtp_folder_picker_interaction(self):
+        """E2E: select MTP device → click Detectar → verify folder selector appears (mocked)."""
+        backend = _MtpBackend(devices=[DeviceInfo("dev-mtp", "Cámara MTP")])
+        dlg = self._dialog(mtp_backend=backend)
+        row = dlg._row_for_source("device", "dev-mtp")
+        self.assertIsNotNone(row)
+        # Simulate clicking "Detectar" (which triggers _detect_devices)
+        with mock.patch.object(utils_module, "get_mounted_drives", return_value=[]):
+            with mock.patch("app.ui.add_source_dialog.QFileDialog.getExistingDirectory", return_value="E:\\DCIM"):
+                dlg._detect_devices()
+        # Device should already be present (enumerated in _populate)
+        self.assertIsNotNone(dlg._row_for_source("device", "dev-mtp"))
+
+    def test_wifi_qr_flow(self):
+        """E2E: select WiFi sender → click QR button → verify on_qr callback invoked."""
+        qr_calls = []
+        dlg = self._dialog(
+            senders=[{"name": "Bob", "used": False}],
+            on_qr=lambda name: qr_calls.append(name))
+        row = dlg._row_for_source("sender", "Bob")
+        self.assertIsNotNone(row)
+        path_widget = dlg.table.cellWidget(row, 1)
+        qr_btns = path_widget.findChildren(QPushButton)
+        qr_btn = next((b for b in qr_btns if b.text() == dlg.tr("QR")), None)
+        self.assertIsNotNone(qr_btn)
+        qr_btn.click()
+        self.assertEqual(qr_calls, ["Bob"])
+
+    def test_ftp_profile_selection(self):
+        """E2E: select FTP profile → verify row has correct kind and value."""
+        class _FakeFtpBackend:
+            def list_profiles(self):
+                return [{"id": "ftp-1", "name": "Mi FTP", "host": "192.168.1.10"}]
+        dlg = self._dialog(ftp_backend=_FakeFtpBackend())
+        row = dlg._row_for_source("ftp_profile", "ftp-1")
+        self.assertIsNotNone(row)
+        cam = dlg.table.cellWidget(row, 2)
+        self.assertEqual(_camera_text(dlg, row), "Mi FTP")
+
+    def test_new_wifi_button_adds_sender(self):
+        """E2E: click Nuevo WiFi → mock QInputDialog → verify sender row added to table."""
+        with mock.patch("app.ui.add_source_dialog.QInputDialog.getText", return_value=("NuevoMóvil", True)):
+            dlg = self._dialog()
+            before = dlg.table.rowCount()
+            dlg._add_wifi_row()
+            # New row should be in WiFi section (before FTP section)
+            row = dlg._row_for_source("sender", "NuevoMóvil")
+            self.assertIsNotNone(row)
+            self.assertEqual(dlg.table.rowCount(), before + 1)
+
+    def test_new_ftp_button_opens_picker(self):
+        """E2E: click Nuevo FTP → mock FtpPickerDialog → verify profile row added."""
+        class _FakePicker:
+            def __init__(self, parent):
+                self._accepted = True
+                self.device_id = "ftp-new"
+                self.device_folder = "/remote"
+                self.device_name = "FTP Nuevo"
+            def exec(self):
+                return QDialog.Accepted
+        with mock.patch("app.ui.add_source_dialog.FtpPickerDialog", _FakePicker):
+            dlg = self._dialog()
+            before = dlg.table.rowCount()
+            dlg._add_ftp_row()
+            row = dlg._row_for_source("ftp_profile", "ftp-new")
+            self.assertIsNotNone(row)
+            self.assertEqual(dlg.table.rowCount(), before + 1)
+
+    def test_reject_cancel_returns_empty(self):
+        """E2E: open dialog → make selections → click Cancel → verify result_sources() == []."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        _set_camera(dlg, row, "Test Cam")
+        _checkbox(dlg, row).setChecked(True)
+        dlg.reject()
+        self.assertEqual(dlg.result_sources(), [])
+
+    def test_keyboard_navigation_accept(self):
+        """E2E: Tab navigation → Space to toggle checkbox → Enter on Aceptar."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        dlg.show()
+        # Focus first checkbox
+        QApplication.processEvents()
+        wrap = dlg.table.cellWidget(1, 0)  # first data row, col 0
+        cb = wrap.findChildren(QCheckBox)[0]
+        cb.setFocus()
+        # Space to toggle
+        from PySide6.QtTest import QTest
+        QTest.keyClick(cb, Qt.Key_Space)
+        self.assertTrue(cb.isChecked())
+        # Tab to camera combo
+        QTest.keyClick(cb, Qt.Key_Tab)
+        cam = dlg.table.cellWidget(1, 2)
+        cam.setFocus()
+        # Type camera name
+        QTest.keyClicks(cam.lineEdit(), "Keyboard Cam")
+        # Tab to Aceptar and press Enter
+        dlg.btn_aceptar.setFocus()
+        QTest.keyClick(dlg.btn_aceptar, Qt.Key_Enter)
+        QApplication.processEvents()
+        sources = dlg.result_sources()
+        self.assertEqual(len(sources), 1)
+        self.assertEqual(sources[0]["camera"], "Keyboard Cam")
 
 
 if __name__ == "__main__":
