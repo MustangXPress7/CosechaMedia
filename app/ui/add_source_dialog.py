@@ -508,18 +508,19 @@ class AddSourceDialog(QDialog):
                 "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
                 insert_before_row=wifi_row)
             wifi_row += 1
-        for drive in utils.get_mounted_drives():
-            drive_path = drive if isinstance(drive, str) else drive.get("path", "")
-            if not drive_path:
-                continue
-            if utils.is_removable_drive(drive_path) and \
-                    self._row_for_source("usb", drive_path) is None:
-                self._append_raw_source({
-                    "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
-                    "enabled": True, "connected": True,
-                    "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
-                    insert_before_row=wifi_row)
-                wifi_row += 1
+        if self._explicit_mtp:
+            for drive in utils.get_mounted_drives():
+                drive_path = drive if isinstance(drive, str) else drive.get("path", "")
+                if not drive_path:
+                    continue
+                if utils.is_removable_drive(drive_path) and \
+                        self._row_for_source("usb", drive_path) is None:
+                    self._append_raw_source({
+                        "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
+                        "enabled": True, "connected": True,
+                        "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
+                        insert_before_row=wifi_row)
+                    wifi_row += 1
         self._update_ok_state()
 
     def _add_wifi_row(self):
