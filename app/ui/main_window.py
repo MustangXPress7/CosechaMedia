@@ -2811,18 +2811,6 @@ class MainWindow(QMainWindow):
             self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
 
-    def _show_wifi_qr_for_sender(self, sender_name):
-        """Muestra el panel WiFi con el QR para el remitente dado (desde AddSourceDialog)."""
-        if self.current_project_id is None:
-            return
-        if not self._ensure_wifi_server():
-            return
-        self._sync_wifi_sessions()
-        self._show_wifi_panel()
-        if self._wifi_panel is not None:
-            self._wifi_panel.select_sender(sender_name)
-        self._ensure_wifi_ingestion()
-
     def _detect_camera_for_source(self, kind, value):
         """Detecta la cámara para un origen del AddSourceDialog (D-08/D-09).
 
@@ -3365,6 +3353,16 @@ class MainWindow(QMainWindow):
         act_containers.triggered.connect(self._manage_containers)
         m_config.addAction(act_containers)
 
+        m_tools = menu_bar.addMenu(self.tr("&Herramientas"))
+
+        act_del_devices = QAction(self.tr("Borrar dispositivos &guardados…"), self)
+        act_del_devices.triggered.connect(self._delete_all_saved_devices)
+        m_tools.addAction(act_del_devices)
+
+        act_del_cameras = QAction(self.tr("Borrar cámaras &conocidas…"), self)
+        act_del_cameras.triggered.connect(self._delete_all_known_cameras)
+        m_tools.addAction(act_del_cameras)
+
         self._view_menu = menu_bar.addMenu(self.tr("&Vista"))
         self._theme_menu = self._view_menu.addMenu(self.tr("Tema"))
         self._theme_group = QActionGroup(self)
@@ -3594,6 +3592,41 @@ class MainWindow(QMainWindow):
             self.update_start_button_state()
             return True
         return False
+
+    def _delete_all_saved_devices(self):
+        """Borra todos los dispositivos guardados (known_devices, inbox_senders, perfiles FTP)."""
+        reply = QMessageBox.question(
+            self, self.tr("Borrar dispositivos guardados"),
+            self.tr("Esto eliminará todos los dispositivos conocidos, "
+                    "remitentes WiFi y perfiles FTP guardados.\n"
+                    "Esta acción no se puede deshacer.\n\n"
+                    "¿Continuar?"),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        db.delete_all_saved_devices()
+        self._populate_source_paths_from_sessions()
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        self.update_start_button_state()
+        self.ingest_status_label.setText(
+            self.tr("Todos los dispositivos guardados han sido eliminados."))
+
+    def _delete_all_known_cameras(self):
+        """Borra la cache de cámaras conocidas y nombres en DB."""
+        reply = QMessageBox.question(
+            self, self.tr("Borrar cámaras conocidas"),
+            self.tr("Esto limpiará la cache de detección de cámaras y "
+                    "los nombres de cámara guardados en archivos.\n"
+                    "La próxima ingesta volverá a detectar cámaras automáticamente.\n\n"
+                    "¿Continuar?"),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply != QMessageBox.Yes:
+            return
+        metadata_engine.clear_cache()
+        db.delete_all_known_cameras()
+        self.ingest_status_label.setText(
+            self.tr("Cámaras conocidas eliminadas. La detección se reiniciará."))
 
     def _disconnected_devices(self):
         """Dispositivos MTP desconectados y perfiles FTP con sesiones en el

@@ -786,6 +786,50 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
+    def list_known_camera_names(self):
+        """Nombres de cámara conocidos agregados de sd_cards, device_settings y dispositivos."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        names = set()
+        for table, col in (("sd_cards", "nombre_dispositivo"),
+                           ("device_settings", "nombre_dispositivo"),
+                           ("dispositivos", "name")):
+            try:
+                cursor.execute(f'SELECT {col} FROM {table}')
+                for (n,) in cursor.fetchall():
+                    n = (n or "").strip()
+                    if n:
+                        names.add(n)
+            except Exception:
+                pass
+        conn.close()
+        return sorted(n for n in names if n and n != "Sin nombre")
+
+    def delete_all_known_cameras(self):
+        """Limpia todos los nombres de cámara conocidos (CHG-2)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM sd_cards')
+        cursor.execute('DELETE FROM device_settings')
+        cursor.execute('DELETE FROM dispositivos')
+        conn.commit()
+        conn.close()
+
+    def delete_all_saved_devices(self):
+        """Borra todos los dispositivos guardados y remitentes sino perfiles FTP (CHG-1).
+
+        Limpia las tablas de dispositivo/remitente/perfil; las sesiones se
+        conservan (solo se olvida el registro guardado)."""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM sd_cards')
+        cursor.execute('DELETE FROM device_settings')
+        cursor.execute('DELETE FROM dispositivos')
+        cursor.execute('DELETE FROM inbox_senders')
+        cursor.execute('DELETE FROM ftp_profiles')
+        conn.commit()
+        conn.close()
+
     def list_inbox_senders(self):
         conn = self.get_connection()
         cursor = conn.cursor()

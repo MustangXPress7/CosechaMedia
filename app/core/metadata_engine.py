@@ -482,4 +482,9 @@ class MetadataEngine:
         else:
             return {"type": "other", "category": "reference"}
 
+    def clear_cache(self):
+        """Limpia la caché de metadatos en memoria."""
+        with self._cache_lock:
+            self._cache.clear()
+
 metadata_engine = MetadataEngine()

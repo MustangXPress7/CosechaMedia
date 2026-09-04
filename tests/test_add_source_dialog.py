@@ -18,12 +18,31 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QLabel, QLineEdit, QPushButton, QTabWidget,
+    QApplication, QCheckBox, QComboBox, QLabel, QLineEdit, QPushButton, QTabWidget,
 )
 
 import app.core.utils as utils_module
 from app.core.mtp import DeviceInfo
 from app.ui.add_source_dialog import AddSourceDialog
+
+
+def _checkbox(dlg, row):
+    """El QCheckBox dentro del contenedor centrado de la fila (CHG-3)."""
+    wrap = dlg.table.cellWidget(row, 0)
+    for ch in wrap.findChildren(QCheckBox):
+        return ch
+    return None
+
+
+def _set_camera(dlg, row, text):
+    """Asigna texto al combo editable de cámara de una fila."""
+    combo = dlg.table.cellWidget(row, 2)
+    combo.setEditText(text)
+
+
+def _camera_text(dlg, row):
+    combo = dlg.table.cellWidget(row, 2)
+    return combo.lineEdit().text() if combo.lineEdit() else combo.currentText()
 
 
 class _MtpBackend:
@@ -61,18 +80,39 @@ class TestAddSourceDialog(unittest.TestCase):
         dlg = self._dialog()
         self.assertEqual(len(dlg.findChildren(QTabWidget)), 0)
         self.assertTrue(hasattr(dlg, "table"))
-        # 3 filas separadoras de sección, una por título
+        # 3 filas separadoras de sección, una por título (celda combinada col 0)
         titles = [dlg.tr("Conexión física (MTP/USB/SD)"),
                   dlg.tr("WiFi / PairDrop"), dlg.tr("FTP")]
-        found = [s for i, s in enumerate(dlg._row_sources)
-                 if s is None and i < dlg.table.rowCount()]
-        # Contar cabeceras por texto de la fila 0 (ruta)
         section_rows = 0
         for i in range(dlg.table.rowCount()):
-            lbl = dlg.table.cellWidget(i, 1)
+            lbl = dlg.table.cellWidget(i, 0)
             if isinstance(lbl, QLabel) and lbl.text() in titles:
                 section_rows += 1
         self.assertEqual(section_rows, 3)
+
+    def test_section_rows_span_all_columns(self):
+        """CHG-4: las filas de sección combinan las 5 columnas con setSpan."""
+        dlg = self._dialog()
+        for i in range(dlg.table.rowCount()):
+            lbl = dlg.table.cellWidget(i, 0)
+            if isinstance(lbl, QLabel) and lbl.text() in (
+                    dlg.tr("Conexión física (MTP/USB/SD)"),
+                    dlg.tr("WiFi / PairDrop"), dlg.tr("FTP")):
+                span = dlg.table.rowSpan(i, 0)
+                self.assertEqual(span, 1)
+                self.assertEqual(dlg.table.columnSpan(i, 0), 5)
+
+    def test_section_label_in_column_0(self):
+        """CHG-4: el rótulo de sección se coloca en la columna 0 (antes col 1)."""
+        dlg = self._dialog()
+        titles = {dlg.tr("Conexión física (MTP/USB/SD)"),
+                  dlg.tr("WiFi / PairDrop"), dlg.tr("FTP")}
+        found = 0
+        for i in range(dlg.table.rowCount()):
+            lbl = dlg.table.cellWidget(i, 0)
+            if isinstance(lbl, QLabel) and lbl.text() in titles:
+                found += 1
+        self.assertEqual(found, 3)
 
     def test_five_columns(self):
         dlg = self._dialog()
@@ -93,9 +133,8 @@ class TestAddSourceDialog(unittest.TestCase):
         dlg = self._dialog(folders=["E:\\DCIM", "F:\\ROOT"])
         row = dlg._row_for_source("folder", "E:\\DCIM")
         self.assertIsNotNone(row)
-        cam = dlg.table.cellWidget(row, 2)
-        cam.setText("Cámara A")
-        dlg.table.cellWidget(row, 0).setChecked(True)
+        _set_camera(dlg, row, "Cámara A")
+        _checkbox(dlg, row).setChecked(True)
         self.assertTrue(dlg.btn_aceptar.isEnabled())
         sources = dlg.result_sources()
         self.assertEqual(len(sources), 1)
@@ -108,8 +147,8 @@ class TestAddSourceDialog(unittest.TestCase):
         dlg = self._dialog(folders=["E:\\DCIM", "F:\\ROOT"])
         for path in ("E:\\DCIM", "F:\\ROOT"):
             row = dlg._row_for_source("folder", path)
-            dlg.table.cellWidget(row, 2).setText("Cam")
-            dlg.table.cellWidget(row, 0).setChecked(True)
+            _set_camera(dlg, row, "Cam")
+            _checkbox(dlg, row).setChecked(True)
         self.assertEqual(len(dlg.result_sources()), 2)
 
     def test_reject_returns_empty_list(self):
@@ -124,10 +163,10 @@ class TestAddSourceDialog(unittest.TestCase):
     def test_ok_disabled_until_camera_filled(self):
         dlg = self._dialog(folders=["E:\\DCIM"])
         row = dlg._row_for_source("folder", "E:\\DCIM")
-        dlg.table.cellWidget(row, 0).setChecked(True)
+        _checkbox(dlg, row).setChecked(True)
         # sin nombre de cámara → deshabilitado
         self.assertFalse(dlg.btn_aceptar.isEnabled())
-        dlg.table.cellWidget(row, 2).setText("Sony")
+        _set_camera(dlg, row, "Sony")
         self.assertTrue(dlg.btn_aceptar.isEnabled())
 
     # -- inhabilitado / atenuado (D-12) ------------------------------------
@@ -137,7 +176,7 @@ class TestAddSourceDialog(unittest.TestCase):
         dlg = self._dialog(devices_missing=[{"id": "M1", "name": "Cámara A"}])
         row = dlg._row_for_source("device", "M1")
         self.assertIsNotNone(row)
-        cb = dlg.table.cellWidget(row, 0)
+        cb = _checkbox(dlg, row)
         self.assertIsInstance(cb, QCheckBox)
         self.assertFalse(cb.isChecked())
         self.assertFalse(cb.isEnabled())
@@ -196,8 +235,7 @@ class TestAddSourceDialog(unittest.TestCase):
                                return_value=[]):
             dlg = self._dialog(mtp_backend=backend)
         row = dlg._row_for_source("device", "dev-1")
-        cam = dlg.table.cellWidget(row, 2)
-        self.assertEqual(cam.text(), "Cámara Sony")
+        self.assertEqual(_camera_text(dlg, row), "Cámara Sony")
 
     # -- fallo WPD no-bloqueante (D-15) ------------------------------------
 
@@ -222,15 +260,97 @@ class TestAddSourceDialog(unittest.TestCase):
             on_detect=lambda kind, value: "Sony A7 III")
         row = dlg._row_for_source("folder", "E:\\DCIM")
         cam = dlg.table.cellWidget(row, 2)
-        cam.setText("")
+        _set_camera(dlg, row, "")
         dlg._detect_camera_for_row(row)
         # worker lanzado; la UI no se bloquea y muestra progreso inline
-        self.assertEqual(cam.text(), dlg.tr("Detectando…"))
+        self.assertEqual(dlg.tr("Detectando…"), _camera_text(dlg, row))
         deadline = time.time() + 5
-        while cam.text() == dlg.tr("Detectando…") and time.time() < deadline:
+        while _camera_text(dlg, row) == dlg.tr("Detectando…") and time.time() < deadline:
             QApplication.processEvents()
             time.sleep(0.01)
-        self.assertEqual(cam.text(), "Sony A7 III")
+        self.assertEqual(_camera_text(dlg, row), "Sony A7 III")
+
+    # -- nueva funcionalidad (bugs/mejoras 2026-09-04) --------------------
+
+    def test_delete_removes_row_from_table(self):
+        """BUG-2/4: borrar una fila la elimina de la tabla y del dict interno."""
+        calls = []
+        dlg = self._dialog(
+            folders=["E:\\DCIM"],
+            on_delete=lambda k, v: calls.append((k, v)) or True)
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        before = dlg.table.rowCount()
+        btn = dlg.table.cellWidget(row, 4)
+        btn.click()
+        self.assertEqual(calls, [("folder", "E:\\DCIM")])
+        self.assertEqual(dlg.table.rowCount(), before - 1)
+        self.assertIsNone(dlg._row_for_source("folder", "E:\\DCIM"))
+
+    def test_delete_row_kept_when_callback_returns_false(self):
+        """BUG-4: si on_delete devuelve False, la fila permanece."""
+        dlg = self._dialog(
+            folders=["E:\\DCIM"],
+            on_delete=lambda k, v: False)
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        before = dlg.table.rowCount()
+        btn = dlg.table.cellWidget(row, 4)
+        btn.click()
+        self.assertEqual(dlg.table.rowCount(), before)
+
+    def test_delete_row_when_no_callback(self):
+        """Si no hay on_delete, la fila se elimina igualmente de la UI."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        before = dlg.table.rowCount()
+        btn = dlg.table.cellWidget(row, 4)
+        btn.click()
+        self.assertEqual(dlg.table.rowCount(), before - 1)
+
+    def test_camera_edit_persists_in_dict(self):
+        """BUG-7: editar la cámara actualiza el dict interno (persistente)."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        _set_camera(dlg, row, "Canon R5")
+        self.assertEqual(dlg._row_sources[row]["camera"], "Canon R5")
+
+    def test_camera_result_uses_edited_value(self):
+        """BUG-7: el valor editado se devuelve en result_sources."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        _set_camera(dlg, row, "Sony FX3")
+        _checkbox(dlg, row).setChecked(True)
+        sources = dlg.result_sources()
+        self.assertEqual(sources[0]["camera"], "Sony FX3")
+
+    def test_checkbox_centered(self):
+        """CHG-3: el checkbox de la columna 0 va centrado en un contenedor."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        wrap = dlg.table.cellWidget(row, 0)
+        self.assertEqual(len(wrap.findChildren(QCheckBox)), 1)
+        cb = _checkbox(dlg, row)
+        self.assertIsInstance(cb, QCheckBox)
+        self.assertTrue(cb.isChecked() == cb.isChecked())
+
+    def test_camera_combo_with_trigger(self):
+        """CHG-5: la celda de cámara es un combo con disparador de detección."""
+        dlg = self._dialog(
+            folders=["E:\\DCIM"],
+            on_detect=lambda kind, value: "Sony A7 III")
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        combo = dlg.table.cellWidget(row, 2)
+        self.assertIsInstance(combo, QComboBox)
+        self.assertTrue(combo.isEditable())
+        # El último item es el disparador
+        last = combo.count() - 1
+        combo.setCurrentIndex(last)
+        # Disparar lanza detección
+        self.assertEqual(_camera_text(dlg, row), dlg.tr("Detectando…"))
+        deadline = time.time() + 5
+        while _camera_text(dlg, row) == dlg.tr("Detectando…") and time.time() < deadline:
+            QApplication.processEvents()
+            time.sleep(0.01)
+        self.assertEqual(_camera_text(dlg, row), "Sony A7 III")
 
 
 if __name__ == "__main__":

@@ -860,5 +860,87 @@ class TestAutoSyncOffThread(unittest.TestCase):
                     self.assertNotEqual(captured_ident['worker'], main_ident)
 
 
+class TestCleanupMenu(unittest.TestCase):
+    """Verifica CHG-1/CHG-2: borrar dispositivos guardados y cámaras conocidas."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_cleanup_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_delete_all_saved_devices(self):
+        """CHG-1: borra dispositivos, sd_cards, remitentes y perfiles FTP."""
+        self.db.add_inbox_sender("Alice")
+        self.db.save_dispositivo("ABC123", "Sony A7")
+        self.db.save_dispositivo_config("d1", "Canon")
+        self.db.add_ftp_profile("FTP1", "192.168.1.1")
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.Yes):
+            self.window._delete_all_saved_devices()
+        conn = self.db.get_connection()
+        n_senders = conn.execute("SELECT COUNT(*) FROM inbox_senders").fetchone()[0]
+        n_cards = conn.execute("SELECT COUNT(*) FROM sd_cards").fetchone()[0]
+        n_dev = conn.execute("SELECT COUNT(*) FROM device_settings").fetchone()[0]
+        n_ftp = conn.execute("SELECT COUNT(*) FROM ftp_profiles").fetchone()[0]
+        conn.close()
+        self.assertEqual(n_senders, 0)
+        self.assertEqual(n_cards, 0)
+        self.assertEqual(n_dev, 0)
+        self.assertEqual(n_ftp, 0)
+
+    def test_delete_all_saved_devices_cancelled(self):
+        """CHG-1: si el usuario cancela, no se borra nada."""
+        self.db.add_inbox_sender("Alice")
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.No):
+            self.window._delete_all_saved_devices()
+        self.assertEqual(len(self.db.list_inbox_senders()), 1)
+
+    def test_delete_all_known_cameras(self):
+        """CHG-2: limpia la cache de metadatos y los nombres conocidos."""
+        self.db.save_dispositivo("ABC123", "Sony A7")
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.Yes):
+            with mock.patch.object(me_module.metadata_engine, "clear_cache") as mock_clear:
+                self.window._delete_all_known_cameras()
+        mock_clear.assert_called_once()
+        self.assertIsNone(self.db.get_dispositivo_for_card("ABC123"))
+
+    def test_cleanup_menu_actions_exist(self):
+        """CHG-1/CHG-2: las acciones del menú Herramientas existen."""
+        text_dev = self.window.tr("Borrar dispositivos &guardados…")
+        text_cam = self.window.tr("Borrar cámaras &conocidas…")
+        actions = self.window.findChildren(mw.QAction)
+        labels = {a.text() for a in actions}
+        self.assertIn(text_dev, labels)
+        self.assertIn(text_cam, labels)
+
+
 if __name__ == "__main__":
     unittest.main()

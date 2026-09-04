@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
+    QCheckBox, QComboBox, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
     QWidget,
 )
@@ -25,6 +25,20 @@ from app.core import ftp as ftpmod
 from app.core.translator import QtString
 from app.ui import theme
 from app.ui import icons
+
+
+# Ítem disparador de detección en el combo de cámara (CHG-5)
+TRIGGER_DETECT = object()
+
+
+def _camera_text(widget):
+    """Extrae el texto del widget de cámara (QLineEdit o QComboBox editable)."""
+    if isinstance(widget, QComboBox):
+        le = widget.lineEdit() if hasattr(widget, "lineEdit") else None
+        return le.text() if le is not None else widget.currentText()
+    if isinstance(widget, QLineEdit):
+        return widget.text()
+    return ""
 
 
 class _CameraDetectWorker(QObject):
@@ -230,8 +244,11 @@ class AddSourceDialog(QDialog):
         section = QLabel(title)
         section.setStyleSheet(
             "font-weight: 600; font-size: 11px; color: {};"
-            .format(theme.color("text_secondary")))
-        self.table.setCellWidget(row, 1, section)
+            "background-color: {}; padding: 2px 6px;"
+            .format(theme.color("text_secondary"), theme.color("bg_elevated")))
+        # Celda combinada en todas las columnas (CHG-4)
+        self.table.setSpan(row, 0, 1, self.table.columnCount())
+        self.table.setCellWidget(row, 0, section)
         return row + 1
 
     def _add_source_row(self, row, src):
@@ -245,7 +262,13 @@ class AddSourceDialog(QDialog):
         if not src.get("enabled") or not src.get("connected"):
             cb.setEnabled(False)
         cb.stateChanged.connect(self._update_ok_state)
-        self.table.setCellWidget(row, 0, cb)
+        # Contenedor centrado (CHG-3)
+        cb_wrap = QWidget()
+        cb_lay = QHBoxLayout(cb_wrap)
+        cb_lay.setContentsMargins(0, 0, 0, 0)
+        cb_lay.setAlignment(Qt.AlignCenter)
+        cb_lay.addWidget(cb)
+        self.table.setCellWidget(row, 0, cb_wrap)
 
         # Col 1: ruta/origen + botón QR solo para WiFi (D-05/D-06)
         path_widget = QWidget()
@@ -275,12 +298,10 @@ class AddSourceDialog(QDialog):
             pl.addWidget(qr_btn)
         self.table.setCellWidget(row, 1, path_widget)
 
-        # Col 2: nombre de cámara (editable)
-        cam = QLineEdit()
-        cam.setText(src["camera"])
+        # Col 2: nombre de cámara (editable o combo con conocidas, CHG-5/CHG-6)
+        cam = self._build_camera_combo(row, src)
         if not src.get("connected"):
             cam.setEnabled(False)
-        cam.textChanged.connect(self._update_ok_state)
         self.table.setCellWidget(row, 2, cam)
 
         # Col 3: estado activo/online
@@ -310,11 +331,88 @@ class AddSourceDialog(QDialog):
         self.table.setCellWidget(row, 4, trash)
         return row + 1
 
+    def _known_camera_names(self):
+        """Nombres de cámara conocidos en el sistema (CHG-5)."""
+        try:
+            from app.core.db import db
+            return db.list_known_camera_names()
+        except Exception:
+            return []
+
+    def _build_camera_combo(self, row, src):
+        """Combo editable con nombres conocidos + disparador de detección (CHG-5/CHG-6)."""
+        combo = QComboBox()
+        combo.setEditable(True)
+        combo.setInsertPolicy(QComboBox.NoInsert)
+        known = self._known_camera_names()
+        combo.addItems(known)
+        self._detect_trigger_index = len(known)
+        combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
+        # Datos: -1 = normal (editable), índice de disparo especial
+        for i in range(len(known)):
+            combo.setItemData(i, i)
+        combo.setItemData(self._detect_trigger_index, TRIGGER_DETECT)
+        # Seleccionar el nombre actual si está en la lista; si no, escribirlo
+        current = (src.get("camera") or "").strip()
+        idx = combo.findText(current) if current else -1
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+        elif current:
+            combo.setEditText(current)
+        else:
+            combo.setCurrentIndex(-1)
+            combo.setEditText("")
+        combo.currentIndexChanged.connect(
+            lambda i, r=row: self._on_camera_combo_changed(r, i))
+        combo.lineEdit().textChanged.connect(self._update_ok_state)
+        combo.lineEdit().textChanged.connect(
+            lambda text, r=row: self._update_camera_in_row(r, text))
+        return combo
+
+    def _on_camera_combo_changed(self, row, index):
+        if index < 0:
+            return
+        combo = self.table.cellWidget(row, 2)
+        if combo is None or not isinstance(combo, QComboBox):
+            return
+        if combo.itemData(index) is TRIGGER_DETECT:
+            src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
+            if src is None or self.on_detect is None:
+                return
+            # Reset al valor anterior mientras se detecta (evita quedarse pegado)
+            combo.blockSignals(True)
+            combo.setEditText(self.tr("Detectando…"))
+            combo.blockSignals(False)
+            self._start_camera_detection(row, src)
+        else:
+            # Seleccionó un nombre conocido → persistirlo
+            text = combo.currentText().strip()
+            if text:
+                combo.setEditText(text)
+                self._update_camera_in_row(row, text)
+
     # -- acciones ---------------------------------------------------------
+
 
     def _on_delete_clicked(self, kind, value):
         if self.on_delete is not None:
-            self.on_delete(kind, value)
+            accepted = self.on_delete(kind, value)
+            if accepted is False:
+                return
+        # Quitar la fila de la tabla inmediatamente
+        for i, src in enumerate(self._row_sources):
+            if src is None:
+                continue
+            if src["kind"] == kind and src["value"] == value:
+                self._remove_row(i)
+                break
+
+    def _remove_row(self, row):
+        """Elimina la fila visual y del dict interno."""
+        if 0 <= row < len(self._row_sources):
+            self._row_sources.pop(row)
+            self.table.removeRow(row)
+            self._update_ok_state()
 
     def _browse_folder(self):
         start = ""
@@ -338,15 +436,18 @@ class AddSourceDialog(QDialog):
         cb = QCheckBox()
         cb.setChecked(False)
         cb.stateChanged.connect(self._update_ok_state)
-        self.table.setCellWidget(row, 0, cb)
+        cb_wrap = QWidget()
+        cb_lay = QHBoxLayout(cb_wrap)
+        cb_lay.setContentsMargins(0, 0, 0, 0)
+        cb_lay.setAlignment(Qt.AlignCenter)
+        cb_lay.addWidget(cb)
+        self.table.setCellWidget(row, 0, cb_wrap)
         pw = QWidget()
         pl = QHBoxLayout(pw)
         pl.setContentsMargins(4, 0, 4, 0)
         pl.addWidget(QLabel(src["label"]), 1)
         self.table.setCellWidget(row, 1, pw)
-        cam = QLineEdit()
-        cam.setText(src["camera"])
-        cam.textChanged.connect(self._update_ok_state)
+        cam = self._build_camera_combo(row, src)
         self.table.setCellWidget(row, 2, cam)
         status = QLabel(self.tr("Conectado"))
         status.setStyleSheet(
@@ -394,14 +495,8 @@ class AddSourceDialog(QDialog):
 
     def _add_wifi_row(self):
         """Crea un nuevo remitente WiFi real (no placeholder)."""
-        from app.ui.wifi_panel import SenderEditDialog
-        from app.core.db import db
-        if self.current_project_id is None:
-            # We need access to the parent/main window to check project_id
-            # For now, we'll show a dialog asking for the sender name
-            pass
-        # Use a simple input dialog since we don't have direct access to parent
         from PySide6.QtWidgets import QInputDialog, QMessageBox
+        from app.core.db import db
         name, ok = QInputDialog.getText(
             self, self.tr("Nuevo dispositivo WiFi"),
             self.tr("Nombre del dispositivo (aparecerá en el código QR):"),
@@ -409,14 +504,12 @@ class AddSourceDialog(QDialog):
         if not ok or not name.strip():
             return
         name = name.strip()
-        # Add to database
         try:
             db.add_inbox_sender(name)
         except Exception as e:
             QMessageBox.warning(self, self.tr("Error"),
                                 self.tr("No se pudo crear el remitente: %1").arg(str(e)))
             return
-        # Add as a real row
         row = self._append_raw_source({
             "kind": "sender", "value": name, "camera": name,
             "enabled": True, "connected": True,
@@ -443,7 +536,10 @@ class AddSourceDialog(QDialog):
 
     def _detect_camera_for_row(self, row):
         cam = self.table.cellWidget(row, 2)
-        if cam is None or cam.text().strip():
+        if cam is None:
+            return
+        text = _camera_text(cam)
+        if text.strip():
             return
         src = self._row_sources[row]
         if src is None:
@@ -454,8 +550,14 @@ class AddSourceDialog(QDialog):
 
     def _start_camera_detection(self, row, src):
         cam = self.table.cellWidget(row, 2)
-        cam.setText(self.tr("Detectando…"))
-        cam.setEnabled(False)
+        if isinstance(cam, QComboBox):
+            cam.setEnabled(False)
+            combo = cam
+            if hasattr(combo, "lineEdit") and combo.lineEdit() is not None:
+                combo.setEditText(self.tr("Detectando…"))
+        else:
+            cam.setText(self.tr("Detectando…"))
+            cam.setEnabled(False)
         src = dict(src)
         src["_row"] = row
         worker = _CameraDetectWorker(self.on_detect, src, self._cam_executor)
@@ -469,9 +571,24 @@ class AddSourceDialog(QDialog):
         cam = self.table.cellWidget(row, 2)
         if cam is None:
             return
-        cam.setEnabled(True)
-        cam.setText(name if ok and name else self.tr("Sin nombre"))
+        result = name if ok and name else self.tr("Sin nombre")
+        if isinstance(cam, QComboBox):
+            cam.setEnabled(True)
+            self._set_combo_text(cam, result)
+        else:
+            cam.setEnabled(True)
+            cam.setText(result)
         self._update_ok_state()
+
+    @staticmethod
+    def _set_combo_text(combo, text):
+        """Escribe text en un combo editable sin disparar índices de disparo."""
+        idx = combo.findText(text)
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+        else:
+            combo.setEditText(text)
+        combo.lineEdit().setText(text)
 
     # -- estado de aceptar -------------------------------------------------
 
@@ -482,11 +599,10 @@ class AddSourceDialog(QDialog):
         for i, src in enumerate(self._row_sources):
             if src is None:
                 continue
-            cb = self.table.cellWidget(i, 0)
-            if not isinstance(cb, QCheckBox) or not cb.isChecked():
+            if not self._checkbox_checked(i):
                 continue
             cam = self.table.cellWidget(i, 2)
-            if isinstance(cam, QLineEdit) and cam.text().strip():
+            if _camera_text(cam).strip():
                 return True
         return False
 
@@ -508,11 +624,10 @@ class AddSourceDialog(QDialog):
         for i, src in enumerate(self._row_sources):
             if src is None:
                 continue
-            cb = self.table.cellWidget(i, 0)
-            if not isinstance(cb, QCheckBox) or not cb.isChecked():
+            if not self._checkbox_checked(i):
                 continue
             cam = self.table.cellWidget(i, 2)
-            camera = cam.text().strip() if isinstance(cam, QLineEdit) else ""
+            camera = _camera_text(cam).strip()
             out.append({"kind": src["kind"], "value": src["value"],
                         "camera": camera, "enabled": True})
         return out
@@ -537,3 +652,17 @@ class AddSourceDialog(QDialog):
             elif src["value"] == value:
                 return i
         return None
+
+    def _update_camera_in_row(self, row, text):
+        """Persiste el nombre de cámara editado en el dict interno."""
+        if 0 <= row < len(self._row_sources) and self._row_sources[row] is not None:
+            self._row_sources[row]["camera"] = text.strip()
+
+    def _checkbox_checked(self, row):
+        """True si el QCheckBox de la fila está marcado (dentro del contenedor centrado)."""
+        wrap = self.table.cellWidget(row, 0)
+        if wrap is None:
+            return False
+        for ch in wrap.findChildren(QCheckBox):
+            return ch.isChecked()
+        return False

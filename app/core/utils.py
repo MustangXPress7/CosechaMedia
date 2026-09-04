@@ -62,15 +62,41 @@ def _windows_mounted_drives():
             try:
                 drive_type = windll.kernel32.GetDriveTypeW(drive_path)
                 if drive_type == 2:
+                    label = get_drive_label(drive_path)
+                    if _is_false_positive_drive(label, drive_path):
+                        continue
                     drives.append({
                         "path": drive_path,
                         "type": "removable",
-                        "label": get_drive_label(drive_path)
+                        "label": label
                     })
             except Exception:
                 pass
         bitmask >>= 1
     return drives
+
+
+def _is_false_positive_drive(label, path):
+    """Filtra unidades que GetDriveType=REMOVABLE pero son discos fijos.
+
+    Algunos SSD/NVMe reportan DRIVE_REMOVABLE pero son discos del sistema.
+    Se descartan si: etiqueta vacía + tiene carpetas de sistema (Windows, Program Files)
+    o etiqueta coincide con patrones de sistema conocidos.
+    """
+    import os
+    _SYSTEM_LABELS = {'windows', 'system reserved', 'recovery', 'boot', 'efi system partition'}
+    if label and label.lower() in _SYSTEM_LABELS:
+        return True
+    if not label:
+        # Sin etiqueta: verificar si tiene carpetas típicas de sistema
+        _SYSTEM_DIRS = {'windows', 'program files', 'program files (x86)', '$recycle.bin'}
+        try:
+            entries = {e.lower() for e in os.listdir(path)}
+            if entries & _SYSTEM_DIRS:
+                return True
+        except OSError:
+            pass
+    return False
 
 
 def _mac_mounted_drives():
