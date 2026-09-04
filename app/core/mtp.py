@@ -472,6 +472,14 @@ class WpdBackend(MtpBackend):
             for cur in ids:
                 if not cur:
                     continue
+                # WPD también enumera las unidades USB de almacenamiento masivo
+                # (lectores de tarjetas SD, discos externos) vía wpdbusenum#
+                # _??_usbstor#disk#... Aunque reporten DRIVE_REMOVABLE, son
+                # discos, no dispositivos MTP reales: se filtran aquí porque ya
+                # se muestran como unidades USB en su propia sección. De lo
+                # contrario aparecen como dispositivos MTP fantasma (bug 2).
+                if "usbstor" in str(cur).lower():
+                    continue
                 nlen = ctypes.pointer(ctypes.c_ulong(0))
                 try:
                     DM.GetDeviceFriendlyName(cur, ctypes.POINTER(ctypes.c_ushort)(), nlen)

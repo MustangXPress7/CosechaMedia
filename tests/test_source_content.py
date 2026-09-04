@@ -164,6 +164,20 @@ class TestSourceContent(unittest.TestCase):
             btn.click()
         self.assertEqual(len(self.db.get_sessions(self.pid)), 1)
 
+    def test_repair_folder_device_id_clears_stale_usbstor(self):
+        """Bug 1: un device_id 'usbstor' obsoleto en una sesión de tarjeta se
+        limpia (junto con su mapeo huérfano) para que la tarjeta se identifique
+        por serial en vez del id MTP falso."""
+        sid2 = self.db.create_session(self.pid, "Auto (E:)", "2024-01-02", "active", self.src)
+        self.db.update_session_config(sid2, device_id="\\?\\swd#wpdbusenum#_??_usbstor#disk&x#0",
+                                      nombre_dispositivo="Fake Cam")
+        self.window.current_project_id = self.pid
+        with mock.patch.object(mw, "is_removable_drive", return_value=True):
+            self.window._repair_folder_device_id(self.src)
+        s = self.db.get_session(sid2)
+        self.assertEqual(s["device_id"], "")
+        self.assertIn(self.src, self.window._source_paths)
+
     def test_files_table_delete_button_removes_row_only(self):
         self.window.on_file_started(os.path.join(self.src, "clip.mp4"))
         self.assertEqual(self.window.table.rowCount(), 1)

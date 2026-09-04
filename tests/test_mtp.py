@@ -307,6 +307,39 @@ class TestThreadLocalManager(unittest.TestCase):
         self.assertEqual([d.name for d in devices], ["Camera A", "Camera B"])
         self.assertGreaterEqual(fake_dm.GetDevices.call_count, 1)
 
+    def test_list_devices_filters_usbstor_mass_storage(self):
+        """Bug 2: las unidades USB de almacenamiento masivo (usbstor) no son
+        dispositivos MTP reales y se filtran de list_devices (evita los
+        'dispositivos MTP fantasma' de las tarjetas/lectores)."""
+        fake_dm = mock.MagicMock()
+
+        def fake_get_devices(ids, count):
+            if not ids:
+                count.contents.value = 3
+                return
+            for i, dev_id in enumerate([
+                    "CAM_MTP", "\\?\\swd#wpdbusenum#_??_usbstor#disk&x&0#abcdef&0", "CAM2"]):
+                ids[i] = dev_id
+
+        fake_dm.GetDevices.side_effect = fake_get_devices
+
+        def fake_friendly_name(dev_id, buf, nlen):
+            name = {"CAM_MTP": "Cámara", "CAM2": "Cámara B"}.get(dev_id, dev_id)
+            nlen.contents.value = len(name)
+            if buf:
+                for i, ch in enumerate(name):
+                    buf[i] = ord(ch)
+                buf[len(name)] = 0
+
+        fake_dm.GetDeviceFriendlyName.side_effect = fake_friendly_name
+
+        with mock.patch.object(mtp, "_manager", return_value=fake_dm), \
+             mock.patch("comtypes.CoInitialize"), \
+             mock.patch("comtypes.CoUninitialize"):
+            devices = mtp.WpdBackend().list_devices()
+        self.assertEqual([d.device_id for d in devices], ["CAM_MTP", "CAM2"])
+        self.assertEqual([d.name for d in devices], ["Cámara", "Cámara B"])
+
     def test_wpd_session_devicename_no_duplicate(self):
         fake_port = mock.MagicMock()
         fake_types = mock.MagicMock()

@@ -2479,6 +2479,7 @@ class MainWindow(QMainWindow):
                     )
                     self.ingest_status_label.setText(self.tr("Sesión auto creada para %1").arg(path))
                 self.current_session_id = sid
+                self._repair_folder_device_id(path)
                 self._detect_camera_for_session(sid, path)
             else:
                 for s in with_path:
@@ -3691,6 +3692,7 @@ class MainWindow(QMainWindow):
                             QDate.currentDate().toString("yyyy-MM-dd"), "active",
                             source_path=path)
                     self._detect_camera_for_session(sid, path, force_prompt=True)
+        self._repair_folder_device_id(path)
         self._refresh_source_list()
         self._refresh_sessions_combo()
         self.update_start_button_state()
@@ -3715,8 +3717,32 @@ class MainWindow(QMainWindow):
         if session.get("device_id"):
             db.update_session_config(session_id, device_id="", device_folder="")
             self._detect_camera_for_session(session_id, path)
+        self._repair_folder_device_id(path)
         self._refresh_sessions_combo()
         self.update_start_button_state()
+
+    def _repair_folder_device_id(self, path):
+        """Repara el device_id de una sesión ligada a una carpeta/tarjeta.
+
+        Un bug anterior (bug 2) podía dejar sesiones con device_id ``usbstor``
+        (unidades USB de almacenamiento masivo que WPD enumera). Esos NO son
+        dispositivos MTP reales: un device_id así rompe la asociación por
+        serial, de modo que la sesión «no pilla el dispositivo». Lo limpiamos
+        para que la tarjeta se identifique por su serial de volumen (sd_cards),
+        tanto al asignar de nuevo un origen como al detectar la cámara.
+        """
+        if not is_removable_drive(path):
+            return
+        if self.current_project_id is None:
+            return
+        for s in db.get_sessions(self.current_project_id):
+            if s.get("source_path") != path:
+                continue
+            did = str(s.get("device_id") or "")
+            if "usbstor" in did.lower():
+                db.update_session_config(s["id"], device_id="", device_folder="")
+                # Limpiar también el mapeo cámara huérfano guardado bajo ese id fake
+                db.delete_device_settings_by_key(did)
 
     def _warn_managed_source(self, path):
         sessions = (db.get_sessions(self.current_project_id)

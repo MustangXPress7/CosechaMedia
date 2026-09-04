@@ -725,6 +725,18 @@ class DatabaseManager:
         conn.close()
         return ids
 
+    def delete_device_settings_by_key(self, device_key: str):
+        """Elimina el mapeo de cámara guardado (device_settings) de un device_key.
+
+        Se usa para limpiar entradas huérfanas que un bug anterior guardó bajo
+        ids WPD de almacenamiento masivo (usbstor), que no son MTP reales."""
+        if not device_key:
+            return
+        conn = self.get_connection()
+        conn.execute('DELETE FROM device_settings WHERE device_key = ?', (device_key,))
+        conn.commit()
+        conn.close()
+
     def add_ftp_profile(self, name: str, host: str, port: int = 21, username: str = "",
                         password: str = "", base_folder: str = "",
                         passive: bool = True, timeout: int = 15) -> int:
