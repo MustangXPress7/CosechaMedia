@@ -449,7 +449,7 @@ class MainWindow(QMainWindow):
         self.source_list = QTableWidget()
         self.source_list.setColumnCount(3)
         self.source_list.setHorizontalHeaderLabels(
-            [self.tr("Ruta de origen"), self.tr("Cámara"), self.tr("Opciones")])
+            [self.tr("Ruta de origen"), self.tr("Dispositivo"), self.tr("Opciones")])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Stretch)
@@ -2304,7 +2304,7 @@ class MainWindow(QMainWindow):
         self._unknown_cameras.clear()
         for old_name in unknown_list:
             new_name, ok = QInputDialog.getText(
-                self, self.tr("Cámara desconocida detectada"),
+                self, self.tr("Dispositivo desconocido detectado"),
                 self.tr("Se detectó '%1' sin identificar.\nIntroduce un nombre para el dispositivo:").arg(old_name),
                 text=""
             )
@@ -2321,7 +2321,7 @@ class MainWindow(QMainWindow):
                     if s.get("nombre_dispositivo") == old_name:
                         sp = s.get("source_path", "")
                         self._persist_camera_mapping(s["id"], sp, new_cam)
-                self.ingest_status_label.setText(self.tr("Cámara renombrada: %1 → %2").arg(old_name).arg(new_cam))
+                self.ingest_status_label.setText(self.tr("Dispositivo renombrado: %1 → %2").arg(old_name).arg(new_cam))
 
     def _on_source_double_clicked(self, item):
         if item.column() == 0:
@@ -2376,8 +2376,8 @@ class MainWindow(QMainWindow):
             return
         current = session.get("nombre_dispositivo") or ""
         name, ok = QInputDialog.getText(
-            self, self.tr("Renombrar cámara"),
-            self.tr("Nombre de la cámara para este origen:"),
+            self, self.tr("Renombrar dispositivo"),
+            self.tr("Nombre del dispositivo para este origen:"),
             text=current
         )
         if ok:
@@ -2726,7 +2726,7 @@ class MainWindow(QMainWindow):
             self._set_camera_cell_text(source_path, known_cam)
             self._refresh_source_list()
             self._refresh_sessions_combo()
-            self.ingest_status_label.setText(self.tr("Cámara conocida: %1").arg(known_cam))
+            self.ingest_status_label.setText(self.tr("Dispositivo conocido: %1").arg(known_cam))
             return
 
         # 3. Detección automática (I-14)
@@ -2760,7 +2760,7 @@ class MainWindow(QMainWindow):
                 self._refresh_source_list()
                 self._refresh_sessions_combo()
                 self.ingest_status_label.setText(
-                    self.tr("Cámara detectada: %1").arg(cam))
+                    self.tr("Dispositivo detectado: %1").arg(cam))
             else:
                 self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
             QTimer.singleShot(0, lambda c=cam or "": self._prompt_nombre_dispositivo(session_id, source_path, c))
@@ -2795,13 +2795,13 @@ class MainWindow(QMainWindow):
         t.start()
 
     def _prompt_nombre_dispositivo(self, session_id, source_path, suggested_name=""):
-        """Prompt manual para nombre de cámara (I-14)."""
+        """Prompt manual para nombre de dispositivo (I-14)."""
         self.raise_()
         self.activateWindow()
         base = self._drive_label(source_path)
         name, ok = QInputDialog.getText(
-            self, self.tr("Nombre de cámara"),
-            self.tr("Introduce el nombre de la cámara para %1:").arg(base),
+            self, self.tr("Nombre de dispositivo"),
+            self.tr("Introduce el nombre del dispositivo para %1:").arg(base),
             text=suggested_name,
         )
         if ok and name.strip():
@@ -2815,7 +2815,7 @@ class MainWindow(QMainWindow):
         self._refresh_source_list()
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(
-            self.tr("Cámara: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
+            self.tr("Dispositivo: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
 
     def _detect_camera_for_source(self, kind, value):
@@ -2881,8 +2881,10 @@ class MainWindow(QMainWindow):
             return
         new_name = item.text().strip()
         db.update_session_config(session["id"], nombre_dispositivo=new_name or None)
+        if new_name:
+            self._persist_camera_mapping(session["id"], path, new_name)
         self._refresh_sessions_combo()
-        self.ingest_status_label.setText(self.tr("Cámara: %1").arg(new_name or self.tr("Sin nombre")))
+        self.ingest_status_label.setText(self.tr("Dispositivo: %1").arg(new_name or self.tr("Sin nombre")))
 
     def _show_source_context_menu(self, pos):
         row = self.source_list.rowAt(pos.y())
@@ -3383,7 +3385,7 @@ class MainWindow(QMainWindow):
         act_del_devices.triggered.connect(self._delete_all_saved_devices)
         m_tools.addAction(act_del_devices)
 
-        act_del_cameras = QAction(self.tr("Borrar cámaras &conocidas…"), self)
+        act_del_cameras = QAction(self.tr("Borrar dispositivos &conocidos…"), self)
         act_del_cameras.triggered.connect(self._delete_all_known_cameras)
         m_tools.addAction(act_del_cameras)
 
@@ -3549,7 +3551,8 @@ class MainWindow(QMainWindow):
                                   devices_connected=devices_connected,
                                   on_delete=self._delete_saved_source,
                                   on_detect=self._detect_camera_for_source,
-                                  on_qr=self._show_wifi_qr_for_sender)
+                                  on_qr=self._show_wifi_qr_for_sender,
+                                  camera_detection_mode=self.project_camera_detection_mode)
         if dialog.exec() != QDialog.Accepted:
             return None
         sources = dialog.result_sources()
@@ -3637,12 +3640,12 @@ class MainWindow(QMainWindow):
             self.tr("Todos los dispositivos guardados han sido eliminados."))
 
     def _delete_all_known_cameras(self):
-        """Borra la cache de cámaras conocidas y nombres en DB."""
+        """Borra la cache de dispositivos conocidos y nombres en DB."""
         reply = QMessageBox.question(
-            self, self.tr("Borrar cámaras conocidas"),
-            self.tr("Esto limpiará la cache de detección de cámaras y "
-                    "los nombres de cámara guardados en archivos.\n"
-                    "La próxima ingesta volverá a detectar cámaras automáticamente.\n\n"
+            self, self.tr("Borrar dispositivos conocidos"),
+            self.tr("Esto limpiará la cache de detección de dispositivos y "
+                    "los nombres de dispositivo guardados en archivos.\n"
+                    "La próxima ingesta volverá a detectar dispositivos automáticamente.\n\n"
                     "¿Continuar?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
@@ -3650,11 +3653,14 @@ class MainWindow(QMainWindow):
         metadata_engine.clear_cache()
         db.delete_all_known_cameras()
         self.ingest_status_label.setText(
-            self.tr("Cámaras conocidas eliminadas. La detección se reiniciará."))
+            self.tr("Dispositivos conocidos eliminados. La detección se reiniciará."))
 
     def _disconnected_devices(self):
-        """Dispositivos MTP desconectados y perfiles FTP con sesiones en el
-        proyecto, para poder borrarlos desde el diálogo unificado (D-12)."""
+        """Dispositivos MTP/FTP desconectados y perfiles FTP con sesiones en el
+        proyecto, para poder borrarlos desde el diálogo unificado (D-12).
+        También incluye dispositivos guardados globalmente (device_settings) que
+        no tienen sesiones en el proyecto actual, para que permanezcan visibles
+        en 'Añadir origen' aunque se borren todas las sesiones del proyecto."""
         if self.current_project_id is None:
             return []
         try:
@@ -3662,15 +3668,27 @@ class MainWindow(QMainWindow):
         except Exception:
             current = set()
         known = {}
+        # 1. Dispositivos con sesiones en el proyecto actual
         for s in db.get_sessions(self.current_project_id):
             did = s.get("device_id") or ""
             if did.startswith("ftp:"):
-                # Los FTP no se pueden "desconectar" por USB; se listan
-                # siempre que tengan sesiones para poder borrarlos (sustituye
-                # a la vía «Configuración → Dispositivos guardados»).
                 known.setdefault(did, s.get("nombre_dispositivo") or "")
             elif did and not did.startswith("wifi:"):
                 known.setdefault(did, s.get("nombre_dispositivo") or "")
+        # 2. Dispositivos guardados globalmente (device_settings) que no están
+        # en el proyecto actual pero deberían seguir apareciendo
+        conn = db.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT device_key, nombre_dispositivo FROM device_settings')
+            for row in cursor.fetchall():
+                did = row["device_key"]
+                name = row["nombre_dispositivo"] or did
+                if did not in known:
+                    known[did] = name
+        finally:
+            conn.close()
+        # Devolver solo los que están desconectados (o FTP que siempre se listan)
         return [{"id": did, "name": known[did] or did}
                 for did in sorted(known) if did.startswith("ftp:") or did not in current]
 

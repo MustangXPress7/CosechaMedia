@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from app.core import utils
 from app.core import mtp
 from app.core import ftp as ftpmod
+from app.core.db import db
 from app.core.translator import QtString
 from app.ui import theme
 from app.ui import icons
@@ -73,11 +74,13 @@ class AddSourceDialog(QDialog):
     def __init__(self, parent=None, folders=(), senders=(),
                  devices_missing=(), devices_connected=(),
                  mtp_backend=None, ftp_backend=None,
-                 on_delete=None, on_detect=None, on_qr=None):
+                 on_delete=None, on_detect=None, on_qr=None,
+                 camera_detection_mode="auto"):
         super().__init__(parent)
         self.on_delete = on_delete      # on_delete(kind, value) -> bool
         self.on_detect = on_detect      # on_detect(kind, value) -> str (cámara)
         self.on_qr = on_qr              # on_qr(sender_name) -> None
+        self._camera_detection_mode = camera_detection_mode
         self._mtp_backend = mtp_backend if mtp_backend is not None else mtp.WpdBackend()
         self._explicit_mtp = mtp_backend is not None
         self._ftp_backend = ftp_backend or ftpmod.FtpBackend()
@@ -105,7 +108,7 @@ class AddSourceDialog(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels([
-            self.tr("Seleccionar"), self.tr("Ruta de origen"), self.tr("Cámara"),
+            self.tr("Seleccionar"), self.tr("Ruta de origen"), self.tr("Dispositivo"),
             self.tr("Estado"), self.tr("Borrar")])
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(1, QHeaderView.Stretch)
@@ -182,12 +185,14 @@ class AddSourceDialog(QDialog):
         # Cuando NO se pasó backend, confiamos en devices_connected (el
         # llamador pre-detecta); la detección a demanda la hace "Detectar".
         for dev in devices:
-            name = dev.name or dev.device_id
+            device_id = dev.device_id
+            # Usar nombre de cámara guardado si existe (feature: recordar última cámara)
+            saved_camera = db.get_dispositivo_for_device(device_id)
+            name = saved_camera or dev.name or device_id
             row = self._add_source_row(
-                row, {"kind": "device", "value": dev.device_id,
+                row, {"kind": "device", "value": device_id,
                       "camera": name, "enabled": True, "connected": True,
-                      "label": self.tr("[MTP] %1").arg(name),
-                      "type": "MTP"})
+                      "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
         # Unidades USB masivas removibles (D-13/D-14). Solo se escanean en
         # construcción cuando hay un backend explícito (o el llamador ya
         # pre-detectó): evita dependencia del estado real del equipo en tests.
@@ -207,9 +212,11 @@ class AddSourceDialog(QDialog):
                               "type": "USB"})
         # Desconectados (D-03/D-12): filas atenuadas, no seleccionables
         for dev in devices_missing:
-            name = dev.get("name") or dev.get("id") or ""
+            device_id = dev["id"]
+            saved_camera = db.get_dispositivo_for_device(device_id)
+            name = saved_camera or dev.get("name") or device_id
             row = self._add_source_row(
-                row, {"kind": "device", "value": dev["id"], "camera": name,
+                row, {"kind": "device", "value": device_id, "camera": name,
                       "enabled": False, "connected": False,
                       "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
 
@@ -229,11 +236,15 @@ class AddSourceDialog(QDialog):
         ftp_profiles = self._ftp_backend.list_profiles() if hasattr(
             self._ftp_backend, "list_profiles") else []
         for p in ftp_profiles:
+            profile_id = p.get("id")
+            device_id = f"ftp:{profile_id}"
+            # Usar nombre de cámara guardado para perfiles FTP
+            saved_camera = db.get_dispositivo_for_device(device_id)
             label = p.get("name") or ""
+            camera = saved_camera or label or self.tr("Sin nombre")
             row = self._add_source_row(
-                row, {"kind": "ftp_profile", "value": p.get("id"),
-                      "camera": label or self.tr("Sin nombre"),
-                      "enabled": True, "connected": True,
+                row, {"kind": "ftp_profile", "value": profile_id,
+                      "camera": camera, "enabled": True, "connected": True,
                       "label": label or self.tr("(sin nombre)"), "type": "FTP"})
 
         self.table.setRowCount(row)
@@ -347,11 +358,19 @@ class AddSourceDialog(QDialog):
         known = self._known_camera_names()
         combo.addItems(known)
         self._detect_trigger_index = len(known)
-        combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
+        # En modo manual, mostrar "Vacío" en lugar de detección automática
+        if self._camera_detection_mode == "manual":
+            combo.addItem(self.tr("— Vacío —"))
+            self._vacio_trigger_index = self._detect_trigger_index
+        else:
+            combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
         # Datos: -1 = normal (editable), índice de disparo especial
         for i in range(len(known)):
             combo.setItemData(i, i)
-        combo.setItemData(self._detect_trigger_index, TRIGGER_DETECT)
+        if self._camera_detection_mode == "manual":
+            combo.setItemData(self._vacio_trigger_index, "VACIO")
+        else:
+            combo.setItemData(self._detect_trigger_index, TRIGGER_DETECT)
         # Seleccionar el nombre actual si está en la lista; si no, escribirlo
         current = (src.get("camera") or "").strip()
         idx = combo.findText(current) if current else -1
@@ -375,7 +394,8 @@ class AddSourceDialog(QDialog):
         combo = self.table.cellWidget(row, 2)
         if combo is None or not isinstance(combo, QComboBox):
             return
-        if combo.itemData(index) is TRIGGER_DETECT:
+        item_data = combo.itemData(index)
+        if item_data is TRIGGER_DETECT:
             src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
             if src is None or self.on_detect is None:
                 return
@@ -384,6 +404,12 @@ class AddSourceDialog(QDialog):
             combo.setEditText(self.tr("Detectando…"))
             combo.blockSignals(False)
             self._start_camera_detection(row, src)
+        elif item_data == "VACIO":
+            # En modo manual, "Vacío" deja el campo editable vacío
+            combo.blockSignals(True)
+            combo.setEditText("")
+            combo.blockSignals(False)
+            self._update_camera_in_row(row, "")
         else:
             # Seleccionó un nombre conocido → persistirlo
             text = combo.currentText().strip()
@@ -494,33 +520,83 @@ class AddSourceDialog(QDialog):
         except Exception as e:
             self._show_wpd_error(e)
             devices = []
-        # Reconstruir toda la tabla es costoso; aquí re-renderizamos la sección
-        # física añadiendo los dispositivos no presentes ya (insertados antes
-        # de la sección WiFi para mantener la categorización).
+        connected_device_ids = {dev.device_id for dev in devices}
+        connected_usb_paths = set()
+        for drive in utils.get_mounted_drives():
+            drive_path = drive if isinstance(drive, str) else drive.get("path", "")
+            if drive_path and utils.is_removable_drive(drive_path):
+                connected_usb_paths.add(drive_path)
+
+        # Actualizar estado de dispositivos existentes en la sección física
         wifi_row = self._section_start_row(1)
+        for row in range(wifi_row):
+            src = self._row_sources[row] if row < len(self._row_sources) else None
+            if src is None or src.get("kind") not in ("device", "usb"):
+                continue
+            device_id = src.get("value")
+            if src["kind"] == "device":
+                is_connected = device_id in connected_device_ids
+            else:  # usb
+                is_connected = device_id in connected_usb_paths
+            
+            if is_connected != src.get("connected", True):
+                src["connected"] = is_connected
+                src["enabled"] = is_connected
+                # Actualizar checkbox
+                cb_wrap = self.table.cellWidget(row, 0)
+                if cb_wrap:
+                    for cb in cb_wrap.findChildren(QCheckBox):
+                        cb.setEnabled(is_connected)
+                        if not is_connected:
+                            cb.setChecked(False)
+                # Actualizar label de ruta (color)
+                path_widget = self.table.cellWidget(row, 1)
+                if path_widget:
+                    for lbl in path_widget.findChildren(QLabel):
+                        if not is_connected:
+                            lbl.setStyleSheet(
+                                "color: {}; font-size: 11px;".format(theme.color("text_secondary")))
+                        else:
+                            lbl.setStyleSheet("")
+                # Actualizar combo de cámara
+                cam_widget = self.table.cellWidget(row, 2)
+                if cam_widget:
+                    cam_widget.setEnabled(is_connected)
+                # Actualizar estado
+                status_widget = self.table.cellWidget(row, 3)
+                if status_widget and isinstance(status_widget, QLabel):
+                    if is_connected:
+                        status_widget.setText(self.tr("Conectado"))
+                        status_widget.setStyleSheet("color: {}; font-size: 11px;".format(theme.color("success")))
+                    else:
+                        status_widget.setText(self.tr("Desconectado"))
+                        status_widget.setStyleSheet("color: {}; font-size: 11px;".format(theme.color("danger")))
+
+        # Añadir nuevos dispositivos no presentes ya
         for dev in devices:
             if self._row_for_source("device", dev.device_id) is not None:
                 continue
-            name = dev.name or dev.device_id
+            device_id = dev.device_id
+            saved_camera = db.get_dispositivo_for_device(device_id)
+            name = saved_camera or dev.name or device_id
             self._append_raw_source({
-                "kind": "device", "value": dev.device_id, "camera": name,
+                "kind": "device", "value": device_id, "camera": name,
                 "enabled": True, "connected": True,
                 "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
                 insert_before_row=wifi_row)
             wifi_row += 1
-        if self._explicit_mtp:
-            for drive in utils.get_mounted_drives():
-                drive_path = drive if isinstance(drive, str) else drive.get("path", "")
-                if not drive_path:
-                    continue
-                if utils.is_removable_drive(drive_path) and \
-                        self._row_for_source("usb", drive_path) is None:
-                    self._append_raw_source({
-                        "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
-                        "enabled": True, "connected": True,
-                        "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
-                        insert_before_row=wifi_row)
-                    wifi_row += 1
+        for drive in utils.get_mounted_drives():
+            drive_path = drive if isinstance(drive, str) else drive.get("path", "")
+            if not drive_path:
+                continue
+            if utils.is_removable_drive(drive_path) and \
+                    self._row_for_source("usb", drive_path) is None:
+                self._append_raw_source({
+                    "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
+                    "enabled": True, "connected": True,
+                    "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
+                    insert_before_row=wifi_row)
+                wifi_row += 1
         self._update_ok_state()
 
     def _add_wifi_row(self):
@@ -640,6 +716,34 @@ class AddSourceDialog(QDialog):
     # -- resultado --------------------------------------------------------
 
     def accept(self):
+        # En modo manual, si hay orígenes seleccionados con cámara "Vacío" (vacía),
+        # mostrar diálogo de renombrado para cada uno antes de aceptar
+        if self._camera_detection_mode == "manual":
+            from PySide6.QtWidgets import QInputDialog, QMessageBox
+            for i, src in enumerate(self._row_sources):
+                if src is None:
+                    continue
+                if not self._checkbox_checked(i):
+                    continue
+                cam = self.table.cellWidget(i, 2)
+                camera = _camera_text(cam).strip()
+                if not camera:
+                    # Preguntar nombre de dispositivo
+                    name, ok = QInputDialog.getText(
+                        self, self.tr("Renombrar dispositivo"),
+                        self.tr("Nombre del dispositivo para %1:").arg(src.get("label", src["value"])),
+                        text=""
+                    )
+                    if not ok:
+                        return  # Usuario canceló, no cerrar diálogo
+                    if not name.strip():
+                        QMessageBox.warning(
+                            self, self.tr("Nombre requerido"),
+                            self.tr("Debe introducir un nombre de dispositivo."))
+                        return
+                    # Actualizar el combo con el nombre ingresado
+                    self._set_combo_text(cam, name.strip())
+                    self._update_camera_in_row(i, name.strip())
         self._accepted = True
         super().accept()
 

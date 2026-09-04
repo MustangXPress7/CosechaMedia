@@ -111,7 +111,7 @@ class FtpDevicePane(QWidget):
         layout.setSpacing(8)
 
         hint = QLabel(
-            self.tr("Conecta el móvil o la cámara al mismo WiFi que el ordenador, "
+            self.tr("Conecta el móvil o el dispositivo al mismo WiFi que el ordenador, "
                     "inicia el servidor FTP en el dispositivo y configura la conexión.")
         )
         hint.setWordWrap(True)
@@ -279,8 +279,8 @@ class FtpDevicePane(QWidget):
         worker.moveToThread(thread)
         thread.started.connect(worker.run)
         worker.done.connect(self._on_scan_done)
-        worker.finished.connect(thread.quit)
-        worker.finished.connect(worker.deleteLater)
+        worker.done.connect(thread.quit)
+        worker.done.connect(worker.deleteLater)
         thread.finished.connect(thread.deleteLater)
         self._detect_thread = thread
         thread.start()

@@ -71,7 +71,7 @@ class MtpDevicePane(QWidget):
         layout.setSpacing(8)
 
         hint = QLabel(
-            self.tr("Conecta el móvil o la cámara por USB y elige la carpeta a importar.")
+            self.tr("Conecta el móvil o el dispositivo por USB y elige la carpeta a importar.")
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: {}; font-size: 12px;".format(theme.color("text_secondary")))
