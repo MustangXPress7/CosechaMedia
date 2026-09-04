@@ -699,7 +699,11 @@ class DatabaseManager:
         return rows
 
     def delete_device(self, device_id: str):
-        """Elimina todas las sesiones (y sus archivos) asociadas a un dispositivo."""
+        """Elimina todas las sesiones (y sus archivos) asociadas a un dispositivo.
+
+        También limpia el mapeo de cámara guardado del dispositivo
+        (device_settings), para que al volver a detectarlo no resucite un
+        nombre de cámara que el usuario solicitó borrar (bug origen 1)."""
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -712,6 +716,10 @@ class DatabaseManager:
         cursor.execute(
             'DELETE FROM sessions WHERE device_id = ? AND device_id != ?',
             (device_id, "")
+        )
+        cursor.execute(
+            'DELETE FROM device_settings WHERE device_key = ?',
+            (device_id,)
         )
         conn.commit()
         conn.close()

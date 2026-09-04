@@ -424,13 +424,27 @@ class AddSourceDialog(QDialog):
         row = self._append_raw_source({
             "kind": "folder", "value": path, "camera": self.tr("Sin nombre"),
             "enabled": True, "connected": True,
-            "label": path, "type": "FOLDER"})
+            "label": path, "type": "FOLDER"},
+            insert_before_row=self._section_start_row(1))
         self._update_ok_state()
 
-    def _append_raw_source(self, src):
-        row = self.table.rowCount()
+    def _section_start_row(self, section_index):
+        """Row index del encabezado de la sección section_index (0=física, 1=WiFi, 2=FTP)."""
+        count = 0
+        for i, src in enumerate(self._row_sources):
+            if src is None:
+                if count == section_index:
+                    return i
+                count += 1
+        return len(self._row_sources)
+
+    def _append_raw_source(self, src, insert_before_row=None):
+        row = self.table.rowCount() if insert_before_row is None else insert_before_row
         self.table.insertRow(row)
-        self._row_sources.append(src)
+        if insert_before_row is not None:
+            self._row_sources.insert(row, src)
+        else:
+            self._row_sources.append(src)
         # reutilizamos _add_source_row sobre la fila recién creada no es trivial;
         # hacemos el render directo
         cb = QCheckBox()
@@ -453,7 +467,16 @@ class AddSourceDialog(QDialog):
         status.setStyleSheet(
             "color: {}; font-size: 11px;".format(theme.color("success")))
         self.table.setCellWidget(row, 3, status)
-        trash = QPushButton(self.tr("Borrar"))
+        trash = QPushButton()
+        trash.setObjectName("IconButton")
+        trash.setStyleSheet(
+            "QPushButton { border: none; padding: 2px; }"
+            "QPushButton:hover { color: %s; }" % theme.color("danger"))
+        try:
+            icons.apply(trash, "trash", size=16)
+        except Exception:
+            trash.setText(self.tr("Borrar"))
+        trash.setToolTip(self.tr("Borrar"))
         trash.clicked.connect(
             lambda _=False, k=src["kind"], v=src["value"]:
             self._on_delete_clicked(k, v))
@@ -472,7 +495,9 @@ class AddSourceDialog(QDialog):
             self._show_wpd_error(e)
             devices = []
         # Reconstruir toda la tabla es costoso; aquí re-renderizamos la sección
-        # física añadiendo los dispositivos no presentes ya.
+        # física añadiendo los dispositivos no presentes ya (insertados antes
+        # de la sección WiFi para mantener la categorización).
+        wifi_row = self._section_start_row(1)
         for dev in devices:
             if self._row_for_source("device", dev.device_id) is not None:
                 continue
@@ -480,7 +505,9 @@ class AddSourceDialog(QDialog):
             self._append_raw_source({
                 "kind": "device", "value": dev.device_id, "camera": name,
                 "enabled": True, "connected": True,
-                "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
+                "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
+                insert_before_row=wifi_row)
+            wifi_row += 1
         for drive in utils.get_mounted_drives():
             drive_path = drive if isinstance(drive, str) else drive.get("path", "")
             if not drive_path:
@@ -490,7 +517,9 @@ class AddSourceDialog(QDialog):
                 self._append_raw_source({
                     "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
                     "enabled": True, "connected": True,
-                    "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"})
+                    "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
+                    insert_before_row=wifi_row)
+                wifi_row += 1
         self._update_ok_state()
 
     def _add_wifi_row(self):
@@ -513,7 +542,8 @@ class AddSourceDialog(QDialog):
         row = self._append_raw_source({
             "kind": "sender", "value": name, "camera": name,
             "enabled": True, "connected": True,
-            "label": name, "type": "WiFi"})
+            "label": name, "type": "WiFi"},
+            insert_before_row=self._section_start_row(2))
         self._update_ok_state()
 
     def _add_ftp_row(self):

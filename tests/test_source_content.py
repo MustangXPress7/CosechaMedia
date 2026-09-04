@@ -148,12 +148,13 @@ class TestSourceContent(unittest.TestCase):
         self.assertFalse(btn.icon().isNull())
         self.assertFalse(hasattr(self.window, "btn_remove_source"))
 
-    def test_source_delete_button_hides_source_keeps_session(self):
+    def test_source_delete_button_removes_source_and_sessions(self):
+        """BUG origen 2/5: borrar un origen elimina sus sesiones de forma persistente."""
         self.window._refresh_source_list()
         btn = self._trash_button(0)
         with mock.patch.object(mw.QMessageBox, "question", return_value=mw.QMessageBox.Yes):
             btn.click()
-        self.assertEqual(len(self.db.get_sessions(self.pid)), 1)
+        self.assertEqual(len(self.db.get_sessions(self.pid)), 0)
         self.assertNotIn(self.src, self.window._source_paths)
 
     def test_source_delete_button_no_keeps_session(self):

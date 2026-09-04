@@ -157,13 +157,16 @@ class TestDatabaseManager(unittest.TestCase):
         conn.close()
 
         self.assertEqual(len(self.db.get_sessions_by_device("DEV1")), 1)
+        self.db.save_dispositivo_config("DEV1", "Camara Prueba")
         self.db.delete_device("DEV1")
-        self.assertEqual(self.db.get_sessions_by_device("DEV1"), [])
+        self.assertEqual(len(self.db.get_sessions_by_device("DEV1")), 0)
         self.assertIsNone(self.db.get_session(sid1))
         conn = self.db.get_connection()
         files = conn.execute("SELECT COUNT(*) FROM files WHERE session_id = ?", (sid1,)).fetchone()[0]
         conn.close()
         self.assertEqual(files, 0)
+        # el mapeo de cámara guardado para el dispositivo se limpia también
+        self.assertIsNone(self.db.get_dispositivo_for_device("DEV1"))
 
         other = self.db.get_devices()
         self.assertTrue(all(d["device_id"] != "DEV1" for d in other))

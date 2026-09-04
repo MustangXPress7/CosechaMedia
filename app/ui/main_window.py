@@ -2922,14 +2922,14 @@ class MainWindow(QMainWindow):
         names = ", ".join(s["name"] for s in sessions)
         reply = QMessageBox.question(
             self, self.tr("Eliminar origen"),
-            self.tr("¿Quitar el origen '%1' de la lista?\n"
-                    "Las sesiones se mantienen guardadas.")
+            self.tr("¿Eliminar el origen '%1' y sus sesiones?\n"
+                    "Esta acción no se puede deshacer.")
             .arg(path).arg(names),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
-        self._hide_source_path(path)
+        self._remove_source_path(path)
 
     def _remove_source_path(self, path):
         """Borra las sesiones de un origen y, si es WiFi, también su remitente."""

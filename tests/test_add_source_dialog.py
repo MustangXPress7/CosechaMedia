@@ -352,6 +352,60 @@ class TestAddSourceDialog(unittest.TestCase):
             time.sleep(0.01)
         self.assertEqual(_camera_text(dlg, row), "Sony A7 III")
 
+    def test_detected_device_inserted_in_physical_section(self):
+        """BUG-3: tras "Detectar", los MTP nuevos se insertan antes de la sección WiFi."""
+        backend = _MtpBackend([_Device("MTP1", "Cam A")])
+        dlg = self._dialog(mtp_backend=backend, folders=["E:\\DCIM"])
+        wifi_row = dlg._section_start_row(1)
+        # Lanzar detección: el MTP no está presente aún, debe añadirse
+        dlg._detect_devices()
+        device_row = dlg._row_for_source("device", "MTP1")
+        self.assertIsNotNone(device_row)
+        # El dispositivo debe quedar ANTES del encabezado WiFi
+        self.assertLess(device_row, wifi_row)
+
+    def test_wifi_row_inserted_in_wifi_section(self):
+        """BUG-3: un nuevo WiFi se inserta antes de la sección FTP."""
+        dlg = self._dialog(folders=["E:\\DCIM"])
+        wifi_row = dlg._section_start_row(1)
+        # Simular inserción de fila WiFi sin depender de QInputDialog
+        dlg._append_raw_source(
+            {"kind": "sender", "value": "NuevoMóvil", "camera": "NuevoMóvil",
+             "enabled": True, "connected": True, "label": "NuevoMóvil",
+             "type": "WiFi"},
+            insert_before_row=dlg._section_start_row(2))
+        sender_row = dlg._row_for_source("sender", "NuevoMóvil")
+        ftp_row = dlg._section_start_row(2)
+        self.assertIsNotNone(sender_row)
+        self.assertGreaterEqual(sender_row, wifi_row)
+        self.assertLess(sender_row, ftp_row)
+
+    def test_detected_device_delete_button_works(self):
+        """BUG-4: el botón borrar de un dispositivo recién detectado elimina la fila."""
+        backend = _MtpBackend([_Device("MTP9", "Cam Z")])
+        calls = []
+        dlg = self._dialog(
+            mtp_backend=backend,
+            on_delete=lambda k, v: calls.append((k, v)) or True)
+        dlg._detect_devices()
+        row = dlg._row_for_source("device", "MTP9")
+        self.assertIsNotNone(row)
+        btn = dlg.table.cellWidget(row, 4)
+        self.assertIsNotNone(btn)
+        before = dlg.table.rowCount()
+        btn.click()
+        self.assertEqual(calls, [("device", "MTP9")])
+        self.assertEqual(dlg.table.rowCount(), before - 1)
+        self.assertIsNone(dlg._row_for_source("device", "MTP9"))
+
+
+class _Device:
+    """Minimal fake con los atributos que usa el diálogo (name, device_id)."""
+
+    def __init__(self, device_id, name):
+        self.device_id = device_id
+        self.name = name
+
 
 if __name__ == "__main__":
     unittest.main()
