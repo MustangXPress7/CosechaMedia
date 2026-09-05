@@ -195,6 +195,27 @@ class TestShootInboxServer(unittest.TestCase):
         self.assertIn("src=Alice", url)
         self.assertIn(f"token={self.alice['token']}", url)
 
+    def test_server_socket_has_keepalive(self):
+        """Anti-hang (T-01.6.0-12): SO_KEEPALIVE activo en el socket de escucha."""
+        sock = self.server._httpd.socket
+        self.assertEqual(sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE), 1)
+
+    def test_upload_rejects_oversized_content_length(self):
+        """Un Content-Length por encima del límite se rechaza con 413 sin
+        escribir nada en disco (T-01.6.0-12: límite de upload)."""
+        url = (f"{self.base}/upload?src={self.alice['name']}"
+               f"&token={self.alice['token']}&name=huge.mp4")
+        big = inboxmod.MAX_UPLOAD_BYTES + 1
+        req = Request(url, data=b"x", method="POST")
+        req.add_header("Content-Type", "application/octet-stream")
+        req.add_header("Content-Length", str(big))
+        with self.assertRaises(HTTPError) as ctx:
+            urlopen(req, timeout=10)
+        self.assertEqual(ctx.exception.code, 413)
+        expected_dir = inboxmod.wifi_cache_dir("Alice", db=self.db)
+        self.assertFalse(os.path.exists(expected_dir))
+        self.assertEqual(self.received, [])
+
 
 class TestUploadHandlerConnectionErrors(unittest.TestCase):
     """``_UploadHandler.handle`` debe tragar los errores de conexión que el

@@ -171,10 +171,21 @@ class FtpSession:
         )
         self._conn: Optional[ftplib.FTP] = None
         self.closed = False
+        timeout = max(1, int(profile.timeout or 15))
         try:
             conn = ftplib.FTP()
-            conn.connect(profile.host, int(profile.port or 21),
-                         timeout=int(profile.timeout or 15))
+            conn.connect(profile.host, int(profile.port or 21), timeout=timeout)
+            # Anti-hang (T-01.6.0-11): fijar timeout en el socket subyacente para
+            # que ninguna lectura/escritura quede colgada indefinidamente, y
+            # SO_KEEPALIVE para detectar conexiones muertas a medio vuelo.
+            if conn.sock is not None:
+                conn.sock.settimeout(timeout)
+                try:
+                    conn.sock.setsockopt(
+                        socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                except OSError:
+                    # Algunas plataformas (macOS) no exponen SO_KEEPALIVE por socket.
+                    pass
             conn.set_pasv(bool(profile.passive))
             if profile.username:
                 conn.login(profile.username, profile.password or "")

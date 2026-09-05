@@ -29,6 +29,14 @@ from app.core.db import db as _default_db
 from app.core.ftp import local_ip
 from app.ui import theme
 
+# Tamaño máximo aceptable de un archivo de vídeo/RAW por upload (T-01.6.0-12).
+# Un clip/cámara rara vez supera 64 GiB en un solo envío; el límite evita que
+# un cliente malicioso o con un Content-Length corrupto inunde la memoria/el
+# disco del buzón.
+MAX_UPLOAD_BYTES = 64 * 1024 * 1024 * 1024  # 64 GiB
+# Timeout (segundos) de lectura del cuerpo de un POST de subida.
+UPLOAD_READ_TIMEOUT = 300
+
 # CSS de la página web de subida (B-07): se genera dinámicamente a partir del tema
 # de la aplicación para mantener coherencia con la UI de escritorio.
 def _make_page_css(dark: bool) -> str:
@@ -396,6 +404,10 @@ class _UploadHandler(BaseHTTPRequestHandler):
         if length <= 0:
             self._send_json(400, {"ok": False, "error": "sin contenido"})
             return
+        if length > MAX_UPLOAD_BYTES:
+            self._send_json(413, {"ok": False,
+                                  "error": "archivo demasiado grande"})
+            return
 
         target_dir = wifi_cache_dir(src, self.server.db)
         os.makedirs(target_dir, exist_ok=True)
@@ -403,6 +415,12 @@ class _UploadHandler(BaseHTTPRequestHandler):
         part = final + ".part"
         received = 0
         try:
+            # Timeout de lectura del cuerpo: si el móvil se queda colgado a
+            # mitad de subida, la conexión no consume un hilo para siempre.
+            try:
+                self.rfile._sock.settimeout(UPLOAD_READ_TIMEOUT)
+            except (AttributeError, OSError):
+                pass
             os.makedirs(os.path.dirname(part), exist_ok=True)
             with open(part, "wb") as f:
                 remaining = length
@@ -469,6 +487,12 @@ class ShootInboxServer:
             return
         os.makedirs(self.root, exist_ok=True)
         httpd = ThreadingHTTPServer((self.host, self.port), _UploadHandler)
+        # Anti-hang (T-01.6.0-12): SO_KEEPALIVE en el socket de escucha para
+        # liberar conexiones muertas y que no se acumulen hilos colgados.
+        try:
+            httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        except OSError:
+            pass
         httpd.root = self.root
         httpd.db = self.db
         httpd.senders = lambda: self.db.list_inbox_senders()

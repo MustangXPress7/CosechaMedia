@@ -35,6 +35,7 @@ class FakeFtpConnection:
         self.retr_count = 0
         self.quit_called = False
         self.close_called = False
+        self.sock = None
 
     def connect(self, host, port=21, timeout=None):
         return "220 fake"
@@ -106,6 +107,79 @@ class FakeFtpConnection:
 
     def close(self):
         self.close_called = True
+
+
+class TestFtpTimeoutHandling(unittest.TestCase):
+    """Anti-hang (T-01.6.0-11): la sesión FTP cliente debe imponer timeouts y
+    SO_KEEPALIVE en el socket subyacente para no colgarse al conectar contra un
+    servidor lento o muerto."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ftp_timeout_")
+        self._old_db_path = db.db_path
+        db.db_path = os.path.join(self.tmp, "db.sqlite")
+        db.create_tables()
+
+    def tearDown(self):
+        db.db_path = self._old_db_path
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _hang_session(self):
+        """Crea un FtpSession con un socket fake que registra settimeout/keepalive."""
+        profile = ftpmod.FtpProfile(name="Hangy", host="127.0.0.1", port=21,
+                                    timeout=30)
+        sess = object.__new__(ftpmod.FtpSession)
+        sess._profile = profile
+        return sess
+
+    def test_settimeout_applied_to_socket(self):
+        """El socket subyacente recibe un timeout (evita accept()/recv() colgados)."""
+        capture = {}
+        sock = mock.Mock()
+        sock.fileno = mock.Mock(return_value=7)
+
+        def _setsockopt(level, opt, val):
+            capture[(level, opt)] = val
+
+        sock.setsockopt = mock.Mock(side_effect=_setsockopt)
+        conn = FakeFtpConnection(_tree())
+        conn.sock = sock
+        with mock.patch.object(ftpmod.ftplib, "FTP", lambda: conn):
+            sess = ftpmod.FtpSession(ftpmod.FtpProfile(
+                name="X", host="127.0.0.1", port=21, timeout=30))
+            try:
+                # settimeout se llamó con el timeout configurado (30)
+                sock.settimeout.assert_called_once_with(30)
+            finally:
+                sess.close()
+        self.assertEqual(capture.get((socket.SOL_SOCKET, socket.SO_KEEPALIVE)), 1)
+
+    def test_keepalive_enabled(self):
+        """SO_KEEPALIVE se activa en el socket FTP."""
+        sock = mock.Mock()
+        sock.setsockopt = mock.Mock()
+        conn = FakeFtpConnection(_tree())
+        conn.sock = sock
+        with mock.patch.object(ftpmod.ftplib, "FTP", lambda: conn):
+            sess = ftpmod.FtpSession(ftpmod.FtpProfile(
+                name="X", host="127.0.0.1", port=21, timeout=30))
+            try:
+                sock.setsockopt.assert_any_call(
+                    socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            finally:
+                sess.close()
+
+    def test_connection_error_is_controlled(self):
+        """Una conexión que falla no cuelga: lanza excepción controlada y limpia."""
+        def _hanging_factory():
+            conn = FakeFtpConnection(_tree())
+            conn.connect = mock.Mock(side_effect=socket.timeout("timed out"))
+            conn.sock = mock.Mock()
+            return conn
+        with mock.patch.object(ftpmod.ftplib, "FTP", _hanging_factory):
+            with self.assertRaises(socket.timeout):
+                ftpmod.FtpSession(ftpmod.FtpProfile(
+                    name="X", host="127.0.0.1", port=21, timeout=30))
 
 
 class TestFtpHelpers(unittest.TestCase):
