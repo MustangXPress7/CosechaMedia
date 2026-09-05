@@ -209,6 +209,67 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
                          self.window.tr("Completado"))
 
 
+class TestIngestTableTerminology(unittest.TestCase):
+    """B-13: la tabla de ingesta usa el término 'Dispositivo' (no 'Cámara')
+    en la cabecera; las celdas siguen mostrando el modelo detectado."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_term_")
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "term.db"))
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "auto"
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_ingest_table_header_says_dispositivo(self):
+        """La cabecera de la columna 1 es 'Dispositivo', nunca 'Cámara'."""
+        header = self.window.table.horizontalHeaderItem(1).text()
+        self.assertEqual(header, self.window.tr("Dispositivo"))
+        self.assertNotEqual(header, "Cámara")
+
+    def test_ingest_table_cell_shows_camera_model(self):
+        """Las celdas de la columna 1 siguen mostrando el modelo del
+        dispositivo detectado (no cambia el contenido, solo el rótulo)."""
+        src = os.path.join(self.tmp, "src")
+        os.makedirs(src)
+        source_file = os.path.join(src, "clip.mp4")
+        with open(source_file, "wb") as f:
+            f.write(b"data")
+        self.window._current_camera_map = {src: "Canon C300"}
+        self.window.on_file_started(source_file)
+        row = self.window.table.rowCount() - 1
+        self.assertEqual(self.window.table.item(row, 1).text(), "Canon C300")
+
+
 class TestCameraPersistence(unittest.TestCase):
     """Verifica persistencia de cámara en DB (I-03): sd_cards y device_settings."""
 

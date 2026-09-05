@@ -715,7 +715,7 @@ class MainWindow(QMainWindow):
         # --- Files table ---
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels([
-            self.tr("Archivo"), self.tr("Cámara"), self.tr("Estado"),
+            self.tr("Archivo"), self.tr("Dispositivo"), self.tr("Estado"),
             self.tr("Progreso"), self.tr("Destino"), "",
         ])
         th = self.table.horizontalHeader()
