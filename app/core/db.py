@@ -5,6 +5,11 @@ import sys
 from datetime import datetime
 from typing import List, Tuple, Optional
 
+
+class DuplicateMasterPathError(Exception):
+    """Se lanza al intentar crear un proyecto con una master_path que ya existe."""
+    pass
+
 def data_dir() -> str:
     """Directorio de datos de la app (junto al ejecutable si frozen)."""
     if getattr(sys, "frozen", False):
@@ -31,6 +36,7 @@ class DatabaseManager:
     def get_connection(self):
         conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=5)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout = 5000")
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -328,6 +334,38 @@ class DatabaseManager:
 
         conn.commit()
         conn.close()
+
+    def create_project(self, name: str, root_path: str, description: str = "") -> int:
+        """Crea un proyecto verificando duplicados de master_path ANTES de la transacción.
+        
+        Args:
+            name: Nombre del proyecto
+            root_path: Ruta maestra (master path)
+            description: Descripción opcional
+            
+        Returns:
+            ID del proyecto creado
+            
+        Raises:
+            DuplicateMasterPathError: Si ya existe un proyecto con la misma root_path
+        """
+        root_path = os.path.abspath(root_path)
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT 1 FROM projects WHERE root_path = ?', (root_path,))
+            if cursor.fetchone():
+                raise DuplicateMasterPathError(f"Ya existe un proyecto con la ruta maestra: {root_path}")
+            
+            cursor.execute(
+                'INSERT INTO projects (name, root_path, description) VALUES (?, ?, ?)',
+                (name, root_path, description)
+            )
+            project_id = cursor.lastrowid
+            conn.commit()
+            return project_id
+        finally:
+            conn.close()
 
     def save_recent_path(self, path: str, path_type: str):
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")

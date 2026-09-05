@@ -383,6 +383,40 @@ class TestWatcherSeen(unittest.TestCase):
         seen = self.db.load_seen("E:\\src")
         self.assertEqual(seen.get(os.path.normpath("E:/x/a.mp4")), "copied")
 
+    def test_create_project_duplicate_master_path(self):
+        """Crear proyecto A con path X, intentar crear B con path X → error controlado, NO lock, B no creado."""
+        pid_a = self.db.create_project("Proyecto A", "/tmp/master_path_x", "Desc A")
+        self.assertIsInstance(pid_a, int)
+        
+        from app.core.db import DuplicateMasterPathError
+        with self.assertRaises(DuplicateMasterPathError):
+            self.db.create_project("Proyecto B", "/tmp/master_path_x", "Desc B")
+        
+        # Verificar que el proyecto B NO se creó
+        conn = self.db.get_connection()
+        count = conn.execute("SELECT COUNT(*) FROM projects WHERE name = 'Proyecto B'").fetchone()[0]
+        conn.close()
+        self.assertEqual(count, 0)
+
+    def test_wizard_saves_master_path(self):
+        """Completar wizard con master_path Y → proyecto creado con master_path=Y en DB."""
+        pid = self.db.create_project("Proyecto Wizard", "/tmp/master_path_y", "Desc Wizard")
+        conn = self.db.get_connection()
+        row = conn.execute("SELECT root_path FROM projects WHERE id = ?", (pid,)).fetchone()
+        conn.close()
+        self.assertEqual(row[0], os.path.abspath("/tmp/master_path_y"))
+
+    def test_concurrent_create_projects(self):
+        """Simular 2 creaciones simultáneas con paths distintos → ambas OK (WAL mode)."""
+        pid1 = self.db.create_project("Proyecto 1", "/tmp/path_1")
+        pid2 = self.db.create_project("Proyecto 2", "/tmp/path_2")
+        self.assertNotEqual(pid1, pid2)
+        conn = self.db.get_connection()
+        rows = conn.execute("SELECT id, root_path FROM projects WHERE id IN (?, ?)", (pid1, pid2)).fetchall()
+        conn.close()
+        paths = {row[1] for row in rows}
+        self.assertEqual(paths, {os.path.abspath("/tmp/path_1"), os.path.abspath("/tmp/path_2")})
+
 
 if __name__ == "__main__":
     unittest.main()

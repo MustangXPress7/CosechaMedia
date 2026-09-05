@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                               QGroupBox, QRadioButton, QButtonGroup, QComboBox, QCheckBox,
                               QFileDialog, QSpinBox, QWidget)
 from PySide6.QtCore import Qt, QSettings
-from app.core.db import db
+from app.core.db import db, DuplicateMasterPathError
 from app.ui import theme
 from app.core.translator import QtString
  
@@ -211,47 +211,44 @@ class ProjectWizard(QDialog):
             QMessageBox.warning(self, self.tr("Error"), self.tr("Debes poner un nombre y una ruta de destino."))
             return
         
-        conn = db.get_connection()
         try:
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO projects (name, root_path) 
-                VALUES (?, ?)
-            ''', (name, os.path.abspath(dest)))
-            project_id = cursor.lastrowid
+            project_id = db.create_project(name, dest, self.desc_input.text().strip())
             
+            # Actualizar configuración adicional del proyecto
             org_type = self.org_combo.currentIndex()
             date_mode = "auto" if self.date_mode_combo.currentIndex() == 0 else "manual"
             use_metadata_date = date_mode == "auto"
             duration_type = 2 if date_mode == "auto" else 1
             camera_detection_mode = "auto" if self.detect_combo.currentIndex() == 1 else "manual"
             
-            cursor.execute('''
-                UPDATE projects SET 
-                    description = ?,
-                    duration_type = ?,
-                    organization_type = ?,
-                    use_metadata_date = ?,
-                    date_mode = ?,
-                    camera_detection_mode = ?,
-                    camera_detection_timeout = ?,
-                    generate_proxies = ?,
-                    proxy_resolution = ?
-                WHERE id = ?
-            ''', (
-                self.desc_input.text().strip(),
-                duration_type,
-                org_type,
-                use_metadata_date,
-                date_mode,
-                camera_detection_mode,
-                self.spin_detect_timeout.value(),
-                self.chk_generate_proxies.isChecked(),
-                self.proxy_combo.currentText(),
-                project_id
-            ))
-            
-            conn.commit()
+            conn = db.get_connection()
+            try:
+                cursor = conn.cursor()
+                cursor.execute('''
+                    UPDATE projects SET 
+                        duration_type = ?,
+                        organization_type = ?,
+                        use_metadata_date = ?,
+                        date_mode = ?,
+                        camera_detection_mode = ?,
+                        camera_detection_timeout = ?,
+                        generate_proxies = ?,
+                        proxy_resolution = ?
+                    WHERE id = ?
+                ''', (
+                    duration_type,
+                    org_type,
+                    use_metadata_date,
+                    date_mode,
+                    camera_detection_mode,
+                    self.spin_detect_timeout.value(),
+                    self.chk_generate_proxies.isChecked(),
+                    self.proxy_combo.currentText(),
+                    project_id
+                ))
+                conn.commit()
+            finally:
+                conn.close()
             
             self.name_input.clear()
             self.desc_input.clear()
@@ -259,8 +256,8 @@ class ProjectWizard(QDialog):
             
             self.on_finished_callback(project_id)
             
+        except DuplicateMasterPathError as e:
+            QMessageBox.warning(self, self.tr("Ruta duplicada"), self.tr(str(e)))
+            return
         except Exception as e:
-            conn.rollback()
             QMessageBox.critical(self, self.tr("Error"), self.tr("No se pudo guardar el proyecto: %1").arg(str(e)))
-        finally:
-            conn.close()
