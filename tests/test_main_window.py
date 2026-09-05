@@ -14,8 +14,8 @@ from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QMessageBox
-from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QApplication, QLabel, QMessageBox
+from PySide6.QtCore import Qt, QTimer
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -23,6 +23,7 @@ import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
 from app.core.ingestor import _free_space, generate_integrity_report, generate_card_content_report
 from app.core.sd_reader import sd_reader
+from app.ui import theme
 
 
 class TestCameraDetectionToken(unittest.TestCase):
@@ -293,6 +294,107 @@ class TestCameraPersistence(unittest.TestCase):
         if serial:
             cam = self.db.get_dispositivo_for_card(serial[0])
             self.assertEqual(cam, "ARRI Alexa")
+
+
+class TestDevicePersistenceAcrossProjects(unittest.TestCase):
+    """B-17/D-12: los dispositivos guardados (device_settings) persisten al
+    deshabilitar un origen y al borrar el proyecto. Solo la papelera del
+    diálogo «Añadir origen» borra el guardado."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_devpersist_")
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "devpersist.db"))
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "manual"
+
+        self.src = os.path.join(self.tmp, "card")
+        os.makedirs(self.src)
+        self.sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active",
+                                          self.src)
+        self.db.save_dispositivo_config("mtp:PERSIST1", "Sony FX6")
+        self.db.update_session_config(self.sid, device_id="mtp:PERSIST1",
+                                      nombre_dispositivo="Sony FX6")
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _count_device_settings(self, key):
+        conn = self.db.get_connection()
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM device_settings WHERE device_key = ?", (key,)
+            ).fetchone()
+            return row[0]
+        finally:
+            conn.close()
+
+    def test_disable_source_keeps_device_settings(self):
+        """Desmarcar el checkbox → enabled=0 en la sesión y device_settings
+        intactos (B-17): inhabilitar NO es borrar."""
+        self.window._on_source_widget_check_changed(0, self.src, Qt.Unchecked)
+        sess = self.db.get_session(self.sid)
+        self.assertEqual(sess.get("enabled"), 0)
+        self.assertEqual(self._count_device_settings("mtp:PERSIST1"), 1)
+
+    def test_disabled_source_row_is_dimmed(self):
+        """Con enabled=0 la etiqueta del origen aparece atenuada (D-12)."""
+        self.window._populate_source_paths_from_sessions()
+        self.window._refresh_source_list()
+        self.window._on_source_widget_check_changed(0, self.src, Qt.Unchecked)
+        # La sesión queda en la tabla (habilitada=0) al refrescar la lista
+        self.window._populate_source_paths_from_sessions()
+        self.window._refresh_source_list()
+        cell = self.window.source_list.cellWidget(0, 0)
+        label = next(w for w in cell.findChildren(QLabel) if w.text() == self.src)
+        self.assertIn(theme.color("text_disabled"), label.styleSheet())
+
+    def test_delete_project_keeps_device_settings(self):
+        """Borrar el proyecto NO borra device_settings: el dispositivo sigue
+        disponible para otros proyectos y en «Añadir origen» (B-17)."""
+        with mock.patch.object(mw.QMessageBox, "question",
+                               return_value=mw.QMessageBox.Yes):
+            with mock.patch.object(mw.QMessageBox, "information"):
+                self.window.delete_current_project()
+        self.assertEqual(self._count_device_settings("mtp:PERSIST1"), 1)
+        # La sesión del proyecto sí se borra
+        self.assertIsNone(self.db.get_session(self.sid))
+
+    def test_add_source_trash_deletes_device_settings(self):
+        """La papelera del diálogo «Añadir origen» SÍ borra device_settings:
+        es el kill switch intencional (B-04)."""
+        with mock.patch.object(mw.QMessageBox, "question",
+                               return_value=mw.QMessageBox.Yes):
+            result = self.window._delete_saved_source("device", "mtp:PERSIST1")
+        self.assertTrue(result)
+        self.assertEqual(self._count_device_settings("mtp:PERSIST1"), 0)
 
 
 class TestForcePromptI14(unittest.TestCase):

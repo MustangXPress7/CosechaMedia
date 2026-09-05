@@ -2410,6 +2410,8 @@ class MainWindow(QMainWindow):
             cam = sess.get("nombre_dispositivo") if sess else None
             cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
             cam_item = QTableWidgetItem(cam_text)
+            if not checked:
+                cam_item.setForeground(QColor(theme.color("text_disabled")))
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
@@ -2439,7 +2441,12 @@ class MainWindow(QMainWindow):
         cb.stateChanged.connect(lambda state, r=row, p=path: self._on_source_widget_check_changed(r, p, state))
         lay.addWidget(cb)
         lbl = QLabel(path)
-        lbl.setStyleSheet(f"font-size: 11px;")
+        # Origen deshabilitado (D-12): el label se atenúa
+        if not checked:
+            lbl.setStyleSheet(
+                f"font-size: 11px; color: {theme.color('text_disabled')};")
+        else:
+            lbl.setStyleSheet(f"font-size: 11px;")
         lbl.setToolTip(path)
         lbl.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
         lay.addWidget(lbl, 1)
@@ -2461,6 +2468,16 @@ class MainWindow(QMainWindow):
                 lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
             lay.addWidget(qr_btn)
         return widget
+
+    def _disable_source_in_project(self, session_id):
+        """Inhabilita un origen en el proyecto actual sin borrar el dispositivo
+        guardado (B-17/D-12).
+
+        Desmarcar el checkbox pone la sesión con enabled=0: el origen queda
+        atenuado en la tabla y NO se toca device_settings ni el diálogo
+        «Añadir origen». La papelera de ese diálogo es el único camino que
+        borra el dispositivo guardado."""
+        db.update_session_config(session_id, enabled=0)
 
     def _on_source_widget_check_changed(self, row, path, state):
         checked = state == Qt.Checked
@@ -2512,7 +2529,7 @@ class MainWindow(QMainWindow):
                             self.current_session_id = None
                         deleted.append(sid)
                     else:
-                        db.update_session_config(sid, enabled=0)
+                        self._disable_source_in_project(sid)
                         disabled.append(sid)
                 if deleted:
                     self.ingest_status_label.setText(self.tr("Sesión auto eliminada para %1").arg(path))
@@ -4590,20 +4607,14 @@ class MainWindow(QMainWindow):
         try:
             conn = db.get_connection()
             cursor = conn.cursor()
-            # Recoger device_ids y serials de las sesiones que se van a borrar
+            # Recoger seriales de sd_cards de las rutas de origen que se borran
             cursor.execute(
-                'SELECT device_id, source_path FROM sessions WHERE project_id = ?',
+                'SELECT source_path FROM sessions WHERE project_id = ?',
                 (self.current_project_id,))
             sessions_data = cursor.fetchall()
-            device_ids = set()
             volume_serials = set()
             for row in sessions_data:
-                did = row[0]
-                if did:
-                    device_ids.add(did)
-            # Obtener seriales de sd_cards para las rutas de origen
-            for row in sessions_data:
-                sp = row[1]
+                sp = row[0]
                 if sp:
                     serial = sd_reader.get_volume_serial(sp)
                     if serial:
@@ -4612,16 +4623,12 @@ class MainWindow(QMainWindow):
             cursor.execute('DELETE FROM dump_locations WHERE project_id = ?', (self.current_project_id,))
             cursor.execute('DELETE FROM files WHERE session_id IN (SELECT id FROM sessions WHERE project_id = ?)', (self.current_project_id,))
             cursor.execute('DELETE FROM sessions WHERE project_id = ?', (self.current_project_id,))
-            cursor.execute('DELETE FROM cameras WHERE project_id = ?', (self.current_project_id,))
             cursor.execute('DELETE FROM projects WHERE id = ?', (self.current_project_id,))
 
-            # Limpiar dispositivos fantasma (solo si no los usa otro proyecto)
-            for did in device_ids:
-                cursor.execute(
-                    'SELECT COUNT(*) FROM sessions WHERE device_id = ? AND project_id != ?',
-                    (did, self.current_project_id))
-                if cursor.fetchone()[0] == 0:
-                    cursor.execute('DELETE FROM device_settings WHERE device_key = ?', (did,))
+            # B-17/D-12: device_settings NO se borra al eliminar el proyecto.
+            # Los dispositivos guardados son globales y deben persistir entre
+            # proyectos (y visibles en «Añadir origen»). El único camino de
+            # borrado es la papelera del diálogo (db.delete_device).
             for serial in volume_serials:
                 cursor.execute(
                     'SELECT COUNT(*) FROM sessions WHERE source_path IS NOT NULL AND project_id != ?',
@@ -4677,9 +4684,8 @@ class MainWindow(QMainWindow):
             cursor.execute('DELETE FROM dump_locations')
             cursor.execute('DELETE FROM files')
             cursor.execute('DELETE FROM sessions')
-            cursor.execute('DELETE FROM cameras')
             cursor.execute('DELETE FROM projects')
-            cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('projects', 'sessions', 'cameras', 'files', 'dump_locations')")
+            cursor.execute("DELETE FROM sqlite_sequence WHERE name IN ('projects', 'sessions', 'files', 'dump_locations')")
             conn.commit()
             conn.close()
 
