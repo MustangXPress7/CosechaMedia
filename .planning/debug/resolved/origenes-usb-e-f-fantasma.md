@@ -13,6 +13,13 @@ resolution:
 
 # Debug Session: origenes-usb-e-f-fantasma
 
+> ⚠️ SUPERSEDED / FALSO FIX (revisado 2026-09-04 por el usuario). El fix
+> `6c91c10` (gate `_explicit_mtp` en `_refresh_physical_section`) ocultaba TODA
+> la detección USB en producción, incluidas las unidades reales (H:). Ver el
+> documento activo `.planning/debug/origenes-usb-e-f-fantasma.md` (sección
+> "REFINED DIAGNOSIS") para el diagnóstico corregido y el hardening de
+> `FILE_REMOVABLE_MEDIA` aplicado en `app/core/utils.py`.
+
 ## Symptoms
 
 - Al hacer click en "Detectar" (del diálogo/ventana de orígenes) aparecen dos

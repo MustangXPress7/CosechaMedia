@@ -1,14 +1,11 @@
 ---
-status: resolved
+status: in_progress
 trigger: "Se crean dos orígenes USB por defecto llamados E y F sin siquiera ser detectados. Luego al cerrar y volver a abrir la ventana de orígenes se eliminan solos."
 created: 2026-09-04
 updated: 2026-09-04
 slug: origenes-usb-e-f-fantasma
 goal: find_and_fix
-resolution:
-  root_cause: "_refresh_physical_section() añade USB drives sin comprobar _explicit_mtp, causando asimetría con _populate()"
-  fix: "Añadido `if self._explicit_mtp:` alrededor del bucle USB en _refresh_physical_section()"
-  commit: 6c91c10
+active: true
 ---
 
 # Debug Session: origenes-usb-e-f-fantasma
@@ -112,6 +109,68 @@ sistema, pero los discos de datos sin carpetas Windows pasan el filtro.
 
 ## Resolution
 
-- **Root cause:** `_refresh_physical_section()` añade USB drives sin comprobar `_explicit_mtp`, causando asimetría con `_populate()`
-- **Fix:** Añadir `if self._explicit_mtp:` alrededor del bucle USB en `_refresh_physical_section()`
+- **Root cause (v1):** `_refresh_physical_section()` añade USB drives sin comprobar `_explicit_mtp`, causando asimetría con `_populate()`
+- **Fix (v1):** Añadir `if self._explicit_mtp:` alrededor del bucle USB en `_refresh_physical_section()` (commit `6c91c10`)
 - **Archivos a modificar:** `app/ui/add_source_dialog.py` (líneas 511-522)
+
+## REFINED DIAGNOSIS (revisión del usuario — 6c91c10 era un FALSO fix)
+
+El fix anterior (`6c91c10`) ocultó el síntoma en lugar de resolverlo: al volcar
+el bucle USB de `_refresh_physical_section()` tras `_explicit_mtp` (que en
+producción es `False`), **"Detectar" dejó de detectar CUALQUIER unidad USB**,
+incluida la real H: (pendrive/tarjeta que SÍ debe aparecer). El motivo por el
+que E:/F: "desaparecieron" no es que se dejara de detectarlos correctamente,
+sino que se deshabilitó toda la detección USB en ese flujo.
+
+### Por qué `_explicit_mtp` es el wrong-guard
+
+- En `main_window.py:3547` `AddSourceDialog` se crea SIN `mtp_backend` →
+  `_explicit_mtp = False` en producción.
+- `_explicit_mtp` solo debía aislar el CASO DE CONSTRUCCIÓN (`_populate`) para
+  que los tests no enumeren la máquina real. El botón "Detectar" (`_refresh_physical_section`)
+  es una acción on-demand del usuario y DEBE escanear USB siempre.
+- Conclusión: **quitar el gate `_explicit_mtp` de `_refresh_physical_section()`
+  (manteniéndolo solo en `_populate`)** para que H: vuelva a detectarse.
+
+### Causa real del falso positivo E:/F: (ya mitigada)
+
+`get_mounted_drives()`/`is_removable_drive()` (Windows) usaban solo
+`GetDriveTypeW() == 2` (DRIVE_REMOVABLE). Ciertos discos USB fijos
+(SSD/NVMe en carcasa, particiones extra de pendrive multi-particionado, lectores
+sin medio) reportan tipo 2 sin ser realmente medios removibles → E:/F: colaban.
+
+**Hardening aplicado (utils.py):** `is_removable_drive()` ahora exige además el
+flag `FILE_REMOVABLE_MEDIA` de `GetVolumeInformationW`; `_windows_mounted_drives()`
+reusa `is_removable_drive()` (antes solo `GetDriveTypeW==2`). Pendrives/tarjetas
+reales (H:) sí marcan el flag; discos fijos (E:/F:) no.
+
+- Test añadido: `tests/test_ingestor.py::TestUtils::test_is_removable_drive_windows_removable_media_flag`
+- Suite completa: `python -m pytest tests -q` → 345 passed, 5 skipped.
+
+### Pendiente (decisión abierta, usuario pidió investigar más antes de aplicar)
+
+- Quitar `if self._explicit_mtp:` de `_refresh_physical_section()` (add_source_dialog.py:511)
+  para que "Detectar" siempre escanee USB.
+- Mantener el gate solo en `_populate()` (constructor, aislamiento de tests).
+- Añadir test que verifique que "Detectar" con `_explicit_mtp=False` sí añade un
+  USB real (H:).
+
+## RESUELTO (gate quitado + tests)
+
+- **Gate quitado** en `_refresh_physical_section()` (add_source_dialog.py:511):
+  el bucle USB ahora corre siempre, no solo con `_explicit_mtp`. Se mantiene el
+  gate en `_populate()` (constructor) para el aislamiento de tests.
+- **Tests añadidos** (`tests/test_add_source_dialog.py`):
+  - `test_detect_adds_usb_even_without_explicit_backend`: con `_explicit_mtp=False`,
+    "Detectar" añade una unidad removable real (H:\).
+  - `test_detect_skips_non_removable_usb_without_explicit_backend`: "Detectar"
+    filtra unidades no removibles (F:\), manteniendo las reales (E:\).
+- Combina con el hardening de `FILE_REMOVABLE_MEDIA` en utils.py: H: se detecta
+  de verdad, E:/F: (no removibles) quedan fuera por el flag, no por esconderlas.
+- Suite: `python -m pytest tests -q` → 346 passed, 5 skipped. Nota: el único
+  fallo puntual `test_mtp.py::test_wpd_session_devicename_no_duplicate` es
+  flaky de entorno (enumera dispositivos WPD reales; pasa aislado y no toca
+  ni mtp.py ni esta ruta).
+- **Pendiente de commit** cuando el usuario lo solicite: app/core/utils.py,
+  app/ui/add_source_dialog.py, tests/test_ingestor.py, tests/test_add_source_dialog.py
+  + docs `.planning/debug/*.md`.

@@ -100,39 +100,57 @@ Plans:
 
 - [x] 01.5.0-04-PLAN.md — Regresiones R3 (DB path CWD) y R5 (auto-sync off-thread) + gate de suite completa
 
-### Phase 1.6.0: Añadir origen + Reorganizador + Bugs
+### Phase 1.6.0: Añadir origen + Reorganizador + Bugs + DeviceRegistry
 
-**Goal:** Mejoras críticas en el flujo de añadir orígenes (menús, eliminación, detección cámara) y el reorganizador footage para mover material sin MD5. También se corrigen bugs de thread-local y timers.
+**Goal:** Mejoras críticas en el flujo de añadir orígenes (menús, eliminación, detección cámara), el reorganizador footage, corrección de bugs de thread-local/timers, y registro persistente de dispositivos (DeviceRegistry) para pre-fill cross-proyecto.
 **Mode:** standard
 **Depends on:** Phase 1.5.0
-**Requirements**: B-13, B-20 (mejoras añadir origen); REQ-06 (reorganizador); bugs de COM threading
+**Requirements**: B-13, B-20 (mejoras añadir origen); REQ-06 (reorganizador); REQ-09 (registro devices); bugs de COM threading
 **Success Criteria** (what must be TRUE):
 
   1. El menú dispositivo (QR/FTP) aparece en la columna "Ruta de origen", no en "Contenido"
   2. Eliminar origen inhabilita, no borra; botón borrar dispositivos guardados funciona
   3. "Reorganizar footage..." existe y funciona con _SinClasificar
   4. Thread-local COM se limpia correctamente en reset de proyecto
+  5. FTP server no se cuelga al conectar; timeouts y keepalive activos
+  6. Dispositivos desconectados muestran "Desconectado"; guardados persisten cross-proyecto
+  7. Tabla de ingesta usa terminología "Dispositivo"; rename de cámara persiste en device_settings
+  8. Proyectos con master_path duplicado dan error controlado (sin DB lock); Wizard guarda master_path
+  9. Filtro de fecha de sesiones detecta unidad correctamente; "Actualizar proyectos" no bloquea dump_type
+  10. Existe tabla `known_devices` con DeviceRegistry UI (pre-fill al añadir origen, persistencia cross-proyecto)
 
-**Plans:** 3 plans
+**Plans:** 6 plans
 
 Plans:
 
-- [ ] 01.6.0-01-PLAN.md — COM threading balanceado (D-23..D-25) + Unknown_Camera → SinClasificar (D-16, D-18)
-- [ ] 01.6.0-02-PLAN.md — AddSourceDialog tabla plana 3 secciones (D-01..D-15) + integración main_window
-- [ ] 01.6.0-03-PLAN.md — ReorganizeDialog SinClasificar + MD5 re-registro (D-16..D-22, REQ-06)
+**Wave 1**
+- [x] 01.6.0-01-PLAN.md — COM threading balanceado (D-23..D-25) + Unknown_Camera → SinClasificar (D-16, D-18)
 
-### Phase 1.7.0: Registro devices + mejoras origen
+**Wave 2**
+- [x] 01.6.0-02-PLAN.md — AddSourceDialog tabla plana 3 secciones (D-01..D-15) + integración main_window
 
-**Goal:** El operador tiene visibilidad de dispositivos conocidos y los cambios en la ventana de añadir orígenes están implementados. Se incluye registro de dispositivos, mejoras en el flujo de origen y notificadores SMTP/Telegram.
+**Wave 3**
+- [x] 01.6.0-03-PLAN.md — ReorganizeDialog SinClasificar + MD5 re-registro (D-16..D-22, REQ-06)
+
+**Wave 4**
+- [ ] 01.6.0-04-PLAN.md — FTP Server Hang + Device Deletion Sync + Disconnected Device Status
+
+**Wave 5**
+- [ ] 01.6.0-05-PLAN.md — Ingest Table Terminology (cámara→dispositivo) + Camera Rename Persistence
+
+**Wave 6**
+- [ ] 01.6.0-06-PLAN.md — DB Lock Duplicate Master Path + Master Path Wizard + Session Date Interval + Update Projects Button + DeviceRegistry
+
+### Phase 1.7.0: Notificadores SMTP/Telegram
+
+**Goal:** Notificadores configurables por proyecto para avisar al acabar la ingesta.
 **Mode:** standard
 **Depends on:** Phase 1.6.0
-**Requirements**: REQ-09 (registro devices), REQ-07 (notificadores), B-13/B-20 (mejoras origen)
+**Requirements**: REQ-07 (notificadores)
 **Success Criteria** (what must be TRUE):
 
-  1. Existe tabla `known_devices` y DeviceRegistry con UI de pre-fill
-  2. Menú dispositivo en "Ruta de origen" (QR/FTP en la columna correcta)
-  3. Botón de eliminar dispositivos guardados funcional correctamente
-  4. Notificadores configurables por proyecto (SMTP + Telegram)
+  1. Notificadores configurables por proyecto (SMTP + Telegram)
+  2. Aviso al finalizar ingesta (éxito/error)
 
 **Plans:** 0 plans
 
@@ -190,7 +208,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
-| 1.6.0. Añadir origen + Reorganizador + Bugs | 0/3 | Planned |  |
-| 1.7.0. Registro devices + mejoras origen | 0/0 | Planned |  |
+| 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 3/6 | In Progress |  |
+| 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
