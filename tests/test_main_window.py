@@ -10,6 +10,7 @@ import time
 import tempfile
 import shutil
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -395,6 +396,134 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
             result = self.window._delete_saved_source("device", "mtp:PERSIST1")
         self.assertTrue(result)
         self.assertEqual(self._count_device_settings("mtp:PERSIST1"), 0)
+
+
+class TestDisconnectedDeviceStatus(unittest.TestCase):
+    """Tarea 3: la columna Estado muestra «Conectado»/«Desconectado» según la
+    conectividad real (cache alimentado por la sonda off-thread)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_status_")
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "status.db"))
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "manual"
+
+        self.src = os.path.join(self.tmp, "device")
+        os.makedirs(self.src)
+        self.sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active",
+                                          self.src)
+        self.db.update_session_config(self.sid, device_id="mtp:OFF1",
+                                      nombre_dispositivo="Sony FX6")
+        self.window._populate_source_paths_from_sessions()
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _status_label(self, row=0):
+        cell = self.window.source_list.cellWidget(row, 2)
+        self.assertIsInstance(cell, QLabel)
+        return cell
+
+    def test_mtp_device_shows_disconnected_when_unknown(self):
+        """Sin datos de sonda aún, un dispositivo MTP guardado se muestra
+        «Desconectado» (no «Conectado») — Tarea 3."""
+        self.window._refresh_source_list()
+        self.assertIn(self.window.tr("Desconectado"), self._status_label().text())
+
+    def test_mtp_device_shows_connected_when_reachable(self):
+        """Con la sonda que reporta el dispositivo como alcanzable → verde."""
+        self.window._connectivity["mtp:OFF1"] = True
+        self.window._refresh_source_list()
+        self.assertIn(self.window.tr("Conectado"), self._status_label().text())
+
+    def test_ftp_profile_disconnected_when_probe_fails(self):
+        """Perfil FTP cuya sonda falla → «Desconectado» (test plan
+        test_ftp_profile_connectivity_check)."""
+        self.db.update_session_config(self.sid, device_id="ftp:42",
+                                      device_folder="DCIM")
+        self.window._connectivity["ftp:42"] = False
+        self.window._populate_source_paths_from_sessions()
+        self.window._refresh_source_list()
+        self.assertIn(self.window.tr("Desconectado"), self._status_label().text())
+
+    def test_folder_source_shows_dash(self):
+        """Un origen de carpeta (sin device_id) no muestra estado de conexión."""
+        self.db.update_session_config(self.sid, device_id="", source_path=self.src)
+        self.window._source_paths = [self.src]
+        self.window._refresh_source_list()
+        self.assertIn("—", self._status_label().text())
+
+    def test_wifi_source_status_follows_server_running(self):
+        """WiFi: «Conectado» cuando el servidor está en marcha; si no, no."""
+        self.db.update_session_config(self.sid, device_id="wifi:pairdrop",
+                                      nombre_dispositivo="Alice")
+        self.window._populate_source_paths_from_sessions()
+        # servidor parado
+        self.window._wifi_server = SimpleNamespace(running=False)
+        self.window._refresh_source_list()
+        self.assertIn(self.window.tr("Desconectado"), self._status_label().text())
+        # servidor en marcha
+        self.window._wifi_server = SimpleNamespace(running=True)
+        self.window._update_source_status_cells()
+        self.assertIn(self.window.tr("Conectado"), self._status_label().text())
+
+    def test_update_source_status_cells_from_probe(self):
+        """El resultado de la sonda refresca solo la columna Estado in-place."""
+        self.window._refresh_source_list()
+        self.assertIn(self.window.tr("Desconectado"), self._status_label().text())
+        self.window._connectivity["mtp:OFF1"] = True
+        self.window._connectivity_ts = time.time()
+        self.window._update_source_status_cells()
+        self.assertIn(self.window.tr("Conectado"), self._status_label().text())
+
+    def test_probe_device_connectivity_uses_mtp_and_ftp(self):
+        """La sonda module-level enumera MTP y comprueba FTP; los WiFi no
+        entran en el mapa de conectividad."""
+        fake_dev = SimpleNamespace(device_id="mtp:ON1")
+        with mock.patch.object(mw.mtp.WpdBackend, "list_devices",
+                               return_value=[fake_dev]):
+            with mock.patch.object(mw.FtpBackend, "is_reachable",
+                                   return_value=True) as fr:
+                result = mw._probe_device_connectivity([
+                    {"device_id": "mtp:ON1"},
+                    {"device_id": "mtp:OFF1"},
+                    {"device_id": "ftp:7"},
+                    {"device_id": "wifi:pairdrop"},
+                ])
+        self.assertEqual(result["mtp_connected"], {"mtp:ON1"})
+        self.assertEqual(result["ftp_reachable"], {"ftp:7"})
+        fr.assert_called_once_with("ftp:7")
+        self.assertIn("ftp_backend", result)
+        self.assertNotIn("wifi:pairdrop", result["mtp_connected"])
+        self.assertNotIn("wifi:pairdrop", result["ftp_reachable"])
 
 
 class TestForcePromptI14(unittest.TestCase):

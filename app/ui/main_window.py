@@ -147,6 +147,36 @@ class _TaskWorker(QObject):
             print(f"Background task error: {e}")
             self.finished.emit(False, e)
 
+
+def _probe_device_connectivity(sessions):
+    """Verifica la conectividad real de cada dispositivo (Tarea 3).
+
+    Corre en un hilo de fondo (via _run_background): enumera MTP/WPD y
+    comprueba el alcance de los perfiles FTP. Devuelve un dict con:
+    - mtp_connected: set de device_ids MTP alcanzables
+    - ftp_reachable: set de device_ids ftp:<id> alcanzables
+    - ftp_backend: backend FTP (para staging posterior)
+    Nunca lanza: ante errores de WPD/FTP devuelve sets vacíos. Los orígenes
+    wifi se resuelven de forma síncrona en la UI (servidor en marcha).
+    """
+    mtp_connected = set()
+    try:
+        mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
+    except Exception:
+        pass
+    ftp_backend = FtpBackend()
+    ftp_reachable = set()
+    for s in sessions:
+        did = s["device_id"]
+        if str(did).startswith("ftp:"):
+            try:
+                if ftp_backend.is_reachable(did):
+                    ftp_reachable.add(did)
+            except Exception:
+                pass
+    return {"mtp_connected": mtp_connected, "ftp_reachable": ftp_reachable,
+            "ftp_backend": ftp_backend}
+
 class MainWindow(QMainWindow):
     def tr(self, text, *args, **kwargs):
         return QtString(super().tr(text, *args, **kwargs))
@@ -190,6 +220,8 @@ class MainWindow(QMainWindow):
         self._ingested_videos = []
         self._background_tasks = []
         self._poll_in_progress = False
+        self._connectivity = {}  # device_id -> bool (Tarea 3: estado real)
+        self._connectivity_ts = 0.0  # cache de la última verificación
 
         self.notification_manager = NotificationManager()
 
@@ -242,29 +274,23 @@ class MainWindow(QMainWindow):
         self._poll_in_progress = True
 
         def _probe_devices(progress_signal):
-            mtp_connected = set()
-            try:
-                mtp_connected = {d.device_id for d in mtp.WpdBackend().list_devices()}
-            except Exception:
-                pass
-            ftp_backend = FtpBackend()
-            ftp_reachable = set()
-            for s in sessions:
-                did = s["device_id"]
-                if str(did).startswith("ftp:"):
-                    try:
-                        if ftp_backend.is_reachable(did):
-                            ftp_reachable.add(did)
-                    except Exception:
-                        pass
-            return {"mtp_connected": mtp_connected, "ftp_reachable": ftp_reachable,
-                    "ftp_backend": ftp_backend}
+            # Reutiliza la sonda compartida de conectividad (Tarea 3)
+            return _probe_device_connectivity(sessions)
 
         def _on_poll_done(ok, result):
             self._poll_in_progress = False
             if not ok:
                 return
+            # Alimentar el cache de conectividad usado por la columna Estado
+            self._connectivity_ts = time.time()
+            for s in sessions:
+                did = s["device_id"]
+                if did and not str(did).startswith("wifi:"):
+                    self._connectivity[did] = (
+                        did in result.get("mtp_connected", set())
+                        or did in result.get("ftp_reachable", set()))
             self._process_device_poll(result, sessions)
+            self._update_source_status_cells()
 
         self._run_background(_probe_devices, _on_poll_done)
 
@@ -447,17 +473,20 @@ class MainWindow(QMainWindow):
         left_col.addLayout(src_top)
 
         self.source_list = QTableWidget()
-        self.source_list.setColumnCount(3)
+        self.source_list.setColumnCount(4)
         self.source_list.setHorizontalHeaderLabels(
-            [self.tr("Ruta de origen"), self.tr("Dispositivo"), self.tr("Opciones")])
+            [self.tr("Ruta de origen"), self.tr("Dispositivo"),
+             self.tr("Estado"), self.tr("Opciones")])
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Stretch)
         header.setSectionResizeMode(1, QHeaderView.Interactive)
         header.setSectionResizeMode(2, QHeaderView.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.Interactive)
         header.setMinimumSectionSize(32)
         header.resizeSection(1, 70)
-        header.resizeSection(2, 110)
+        header.resizeSection(2, 90)
+        header.resizeSection(3, 110)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
@@ -2415,8 +2444,11 @@ class MainWindow(QMainWindow):
             if self.project_camera_detection_mode != "manual":
                 cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
-            # Column 2: opciones (toggle WiFi, rápido/delicado y papelera)
-            self.source_list.setCellWidget(row, 2, self._build_options_widget(row, sess))
+            # Column 2: estado de conectividad (Tarea 3)
+            device_id = (sess or {}).get("device_id") or ""
+            self.source_list.setCellWidget(row, 2, self._build_status_label(device_id))
+            # Column 3: opciones (toggle WiFi, rápido/delicado y papelera)
+            self.source_list.setCellWidget(row, 3, self._build_options_widget(row, sess))
         self.source_list.blockSignals(False)
         self._update_format_sources_state()
         self._update_source_list_height()
@@ -2430,6 +2462,49 @@ class MainWindow(QMainWindow):
         row_h = self.source_list.verticalHeader().defaultSectionSize() or 30
         height = header + self.source_list.rowCount() * row_h
         self.source_list.setMinimumHeight(max(56, height))
+
+    def _build_status_label(self, device_id):
+        """Estado «Conectado»/«Desconectado» para la columna de estado de la
+        tabla de orígenes (Tarea 3).
+
+        El estado real proviene del cache ``self._connectivity``, alimentado
+        por la sonda off-thread del auto-sync; los orígenes WiFi se resuelven
+        de forma síncrona (servidor en marcha). Sin device_id (carpeta/SD)
+        se muestra «—»."""
+        if not device_id:
+            lbl = QLabel(self.tr("—"))
+            lbl.setStyleSheet(
+                f"color: {theme.color('text_secondary')}; font-size: 11px;")
+            return lbl
+        if device_id == WIFI_DEVICE_ID:
+            connected = bool(
+                self._wifi_server is not None and self._wifi_server.running)
+        else:
+            connected = bool(self._connectivity.get(device_id))
+        lbl = QLabel(self.tr("Conectado") if connected else self.tr("Desconectado"))
+        color = theme.color("success") if connected else theme.color("danger")
+        lbl.setStyleSheet(f"color: {color}; font-size: 11px;")
+        return lbl
+
+    def _update_source_status_cells(self):
+        """Refresca solo la columna Estado tras una verificación de
+        conectividad off-thread, sin reconstruir toda la tabla (Tarea 3)."""
+        if self.current_project_id is None:
+            return
+        sessions = db.get_sessions(self.current_project_id)
+        by_path = {}
+        for s in sessions:
+            sp = s.get("source_path")
+            if sp:
+                by_path.setdefault(sp, []).append(s)
+        for row, path in enumerate(self._source_paths):
+            if row >= self.source_list.rowCount():
+                break
+            sesss = by_path.get(path) or []
+            sess = sesss[0] if sesss else None
+            device_id = (sess or {}).get("device_id") or ""
+            self.source_list.setCellWidget(
+                row, 2, self._build_status_label(device_id))
 
     def _build_path_widget(self, row, path, session, checked):
         widget = QWidget()

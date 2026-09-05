@@ -9,7 +9,7 @@ from unittest import mock
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import (QApplication, QFileDialog, QHeaderView,
-                              QPushButton, QWidget)
+                              QLabel, QPushButton, QWidget)
 
 import app.ui.main_window as mw
 import app.core.ingestor as ingestor_module
@@ -22,7 +22,7 @@ class TestSourceContent(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def _options_buttons(self, row):
-        wrapper = self.window.source_list.cellWidget(row, 2)
+        wrapper = self.window.source_list.cellWidget(row, 3)
         if isinstance(wrapper, QWidget):
             return wrapper.findChildren(QPushButton)
         return []
@@ -81,18 +81,22 @@ class TestSourceContent(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_source_list_has_options_column_with_widgets(self):
-        """La tabla tiene 3 columnas; «Opciones» alberga botones pero ningún resumen «Todo»."""
+        """La tabla tiene 4 columnas; «Estado» y «Opciones» albergan el
+        estado de conectividad y los botones; ningún resumen «Todo»."""
         self.window._refresh_source_list()
-        self.assertEqual(self.window.source_list.columnCount(), 3)
+        self.assertEqual(self.window.source_list.columnCount(), 4)
         self.assertEqual(self.window.source_list.horizontalHeaderItem(2).text(),
+                         self.window.tr("Estado"))
+        self.assertEqual(self.window.source_list.horizontalHeaderItem(3).text(),
                          self.window.tr("Opciones"))
-        wrapper = self.window.source_list.cellWidget(0, 2)
+        status = self.window.source_list.cellWidget(0, 2)
+        self.assertIsInstance(status, QLabel)
+        wrapper = self.window.source_list.cellWidget(0, 3)
         self.assertIsInstance(wrapper, QWidget)
         btns = wrapper.findChildren(QPushButton)
         self.assertTrue(btns, "La columna Opciones debe contener botones")
         for btn in btns:
             self.assertNotEqual(btn.text(), "Todo")
-        self.assertIsNone(self.window.source_list.cellWidget(0, 3))
 
     def test_change_source_path_updates_session(self):
         new_src = os.path.join(self.tmp, "new_src")
@@ -128,20 +132,22 @@ class TestSourceContent(unittest.TestCase):
         self.assertFalse(hasattr(mw.MainWindow, "_open_selective_dump"))
 
     def test_source_path_stretches_and_options_fixed(self):
-        """La ruta estira con el panel; Cámara y Opciones quedan en ancho fijo."""
+        """La ruta estira con el panel; Estado y Opciones quedan en ancho fijo."""
         self.window._refresh_source_list()
         header = self.window.source_list.horizontalHeader()
         self.assertEqual(header.sectionResizeMode(0), QHeaderView.Stretch)
         self.assertEqual(header.sectionResizeMode(1), QHeaderView.Interactive)
         self.assertEqual(header.sectionResizeMode(2), QHeaderView.Interactive)
+        self.assertEqual(header.sectionResizeMode(3), QHeaderView.Interactive)
         self.assertFalse(header.stretchLastSection())
         self.assertEqual(header.sectionSize(1), 70)
-        self.assertEqual(header.sectionSize(2), 110)
+        self.assertEqual(header.sectionSize(2), 90)
+        self.assertEqual(header.sectionSize(3), 110)
 
     def test_options_widget_has_integrated_delete(self):
-        """La papelera vive dentro del wrapper de Opciones (columna 2)."""
+        """La papelera vive dentro del wrapper de Opciones (columna 3)."""
         self.window._refresh_source_list()
-        self.assertEqual(self.window.source_list.columnCount(), 3)
+        self.assertEqual(self.window.source_list.columnCount(), 4)
         btn = self._trash_button(0)
         self.assertIsNotNone(btn)
         self.assertIsInstance(btn, QPushButton)
