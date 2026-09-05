@@ -119,26 +119,32 @@ Plans:
   9. Filtro de fecha de sesiones detecta unidad correctamente; "Actualizar proyectos" no bloquea dump_type
   10. Existe tabla `known_devices` con DeviceRegistry UI (pre-fill al añadir origen, persistencia cross-proyecto)
 
-**Plans:** 6 plans
+**Plans:** 5/6 plans executed
 
 Plans:
 
 **Wave 1**
+
 - [x] 01.6.0-01-PLAN.md — COM threading balanceado (D-23..D-25) + Unknown_Camera → SinClasificar (D-16, D-18)
 
 **Wave 2**
+
 - [x] 01.6.0-02-PLAN.md — AddSourceDialog tabla plana 3 secciones (D-01..D-15) + integración main_window
 
 **Wave 3**
+
 - [x] 01.6.0-03-PLAN.md — ReorganizeDialog SinClasificar + MD5 re-registro (D-16..D-22, REQ-06)
 
 **Wave 4**
-- [ ] 01.6.0-04-PLAN.md — FTP Server Hang + Device Deletion Sync + Disconnected Device Status
+
+- [x] 01.6.0-04-PLAN.md — FTP Server Hang + Device Deletion Sync + Disconnected Device Status
 
 **Wave 5**
-- [ ] 01.6.0-05-PLAN.md — Ingest Table Terminology (cámara→dispositivo) + Camera Rename Persistence
+
+- [x] 01.6.0-05-PLAN.md — Ingest Table Terminology (cámara→dispositivo) + Camera Rename Persistence
 
 **Wave 6**
+
 - [ ] 01.6.0-06-PLAN.md — DB Lock Duplicate Master Path + Master Path Wizard + Session Date Interval + Update Projects Button + DeviceRegistry
 
 ### Phase 1.7.0: Notificadores SMTP/Telegram
@@ -208,7 +214,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
-| 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 3/6 | In Progress |  |
+| 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 5/6 | In Progress|  |
 | 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |

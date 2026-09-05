@@ -2,19 +2,19 @@
 gsd_state_version: 1.0
 milestone: v1.6.0
 milestone_name: Verificación avanzada + Reorganizador de footage
-current_phase: null
-current_phase_name: null
-status: completed
-stopped_at: Phase 01.6.0 complete - all 3 plans executed and verified
-last_updated: "2026-09-03T22:23:00Z"
-last_activity: 2026-09-04
-last_activity_desc: Completed quick task 260904-eae: fix on_file_finished UnboundLocalError (camera_item)
-state_head: 0da0d6f
+current_phase: 01.6.0
+current_phase_name: Añadir origen + Reorganizador + Bugs + DeviceRegistry
+status: executing
+stopped_at: Completed 01.6.0-05-PLAN.md
+last_updated: "2026-09-05T09:52:11.344Z"
+last_activity: 2026-09-05
+last_activity_desc: Phase 01.6.0 execution resumed (wave continue)
+state_head: 23bc76b7fc61178b3e3cfae93f3181f88edac666
 progress:
   total_phases: 1
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 0
+  total_plans: 6
+  completed_plans: 5
 ---
 
 Total Phases: 13
@@ -26,7 +26,7 @@ Total Phases: 13
 See: .planning/PROJECT.md (updated 2026-08-15)
 
 **Core value:** Que el operador de cámara pueda vaciar tarjetas SD/cámaras/móviles al archivo del proyecto de forma fiable y sin perder datos — cada archivo copiado con verificación de integridad y organizado correctamente.
-**Current focus:** Phase 01.6.0 — Añadir origen + Reorganizador + Bugs
+**Current focus:** Phase 01.6.0 — Añadir origen + Reorganizador + Bugs + DeviceRegistry
 
 ## Objective: v1.5
 
@@ -67,10 +67,10 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 
 ## Current Position
 
-Phase: Milestone v1.6.0 Planning
-Plan: —
-Status: Phase 01.6.0 complete — all plans verified
-Last activity: 2026-09-03 — Phase 01.6.0 complete
+Phase: 01.6.0 (Añadir origen + Reorganizador + Bugs + DeviceRegistry) — EXECUTING
+Plan: 2 of 6
+Status: Ready to execute
+Last activity: 2026-09-05 — Phase 01.6.0 execution resumed (wave continue)
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -121,6 +121,7 @@ Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 | 01.6.0-01 (COM threading + SinClasificar) | 36m | 2 tasks | 12 files |
 | 01.6.0-02 (AddSourceDialog) | 45m | 3 tasks | 5 files (2 new, 1 mod, 2 del) |
 | 01.6.0-03 (Reorganizador) | 25m | 3 tasks | 4 files (2 new, 1 mod) |
+| Phase 01.6.0 P05 | 31 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -148,6 +149,10 @@ Recent decisions affecting current work:
 - [Plan 01.6.0-03]: MD5 recalc obligatorio al mover (D-19 override) — dest_path SIEMPRE actualizado tras move, md5_hash=NULL si calculate_md5 falla tras reintento
 - [Plan 01.6.0-03]: Sin reporte CSV (D-21) — resumen en diálogo basta; archivos sin clasificar permanecen en SinClasificar/ y se reportan (D-18)
 - [Plan 01.6.0-03]: "Reorganizar footage…" en botón post-ingesta Y menú &Ingesta (D-22) — disponible sin ingesta activa para volcados manuales
+- [Phase 01.6.0]: Reutilizar save_dispositivo_config(device_id, nombre_dispositivo) en lugar de anadir update_device_camera_name: el esquema real de device_settings ya tiene device_key/nombre_dispositivo (el SQL del plan asumia una columna camera_name inexistente)
+- [Phase 01.6.0]: Propagar el nombre editado por callback (on_camera_name_changed) desde AddSourceDialog sin acoplarlo a db
+- [Phase 01.6.0]: Excluir nombres de marcador de posicion (Detectando/Sin nombre/Vacio) de la persistencia en el combo de dispositivos
+- [Phase 01.6.0]: Sanitizar nombres de dispositivo en la capa de datos (DatabaseManager._sanitize_dispositivo_nombre) ademas del handler, para cualquier escritura futura (T-01.6.0-15)
 
 ### Roadmap Evolution
 
@@ -202,9 +207,9 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-03T22:23:00Z
-Stopped at: Phase 01.6.0 complete - all 3 plans executed and verified
-Resume file: .planning/phases/01.6.0-registro-known-devices-req-09/01.6.0-CONTEXT.md
+Last session: 2026-09-05T09:51:47.918Z
+Stopped at: Completed 01.6.0-05-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 

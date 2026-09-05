@@ -3,6 +3,19 @@
 Hallazgos fuera de scope de este plan, registrados para fases futuras. No corregidos aquí
 (regla de límite de scope: solo auto-fix issues causados directamente por los cambios del plan).
 
+## 4. Flake pre-existente de timing en `tests/test_e2e.py` (suite completa)
+
+- **Dónde:** `TestEndToEndIngest` — `test_ingest_to_dump_targets`, `test_redump_after_master_delete`,
+  `test_redump_in_window_mode_when_older_than_window`.
+- **Problema:** en suite completa fallan de forma rotativa (distinta prueba en cada ejecución) por
+  "La segunda ingesta no terminó a tiempo" (timeout 30 s de `_wait_done`), con "database is locked"
+  y "No space left on device" en los logs (disco C: con ~4,4 GB libres). Pasan aisladas y el módulo
+  completo pasa solo (3/3). Observado durante la verificación del plan 01.6.0-05 (3 ejecuciones
+  completas de `python -m pytest tests/`): pruebas distintas fallaron cada vez.
+- **Acción futura sugerida:** subir el timeout de `_wait_done` bajo carga, aislar los watchers
+  entre tests (tornar a apagarlos en tearDown), o ejecutar e2e en CI como job separado; liberar
+  espacio en disco C: de la máquina de desarrollo.
+
 ## 1. Ghost-cleanup de `sd_cards` en borrado de proyecto (misma clase que el bug corregido)
 
 - **Dónde:** `app/ui/main_window.py` — `delete_current_project` y `delete_all_projects` (bucle
