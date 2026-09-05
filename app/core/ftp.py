@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional
 
 from app.core.db import db
+from app.core.translator import tr
 from app.core.mtp import (
     DeviceInfo,
     MtpBackend,
@@ -359,7 +360,9 @@ class FtpBackend(MtpBackend):
             try:
                 saved_camera = db.get_dispositivo_for_device(device_id)
                 meta = {"host": p.get("host"), "name": p.get("name")}
-                db.upsert_known_device(device_id, "ftp", name=name, last_camera=saved_camera, metadata=meta)
+                # Default last_camera para dispositivos nuevos sin nombre guardado
+                last_camera = saved_camera if saved_camera else tr("Sin nombre")
+                db.upsert_known_device(device_id, "ftp", name=name, last_camera=last_camera, metadata=meta)
             except Exception:
                 pass  # No bloquear la detección por fallo de BD
         return devices
@@ -450,7 +453,9 @@ class FtpBackend(MtpBackend):
                     name = row.get("name") or row.get("host") or ""
                     saved_camera = db.get_dispositivo_for_device(device_id)
                     meta = {"host": row.get("host"), "name": row.get("name")}
-                    db.upsert_known_device(device_id, "ftp", name=name, last_camera=saved_camera, metadata=meta)
+                    # Default last_camera para dispositivos nuevos sin nombre guardado
+                    last_camera = saved_camera if saved_camera else tr("Sin nombre")
+                    db.upsert_known_device(device_id, "ftp", name=name, last_camera=last_camera, metadata=meta)
         except Exception:
             pass  # No bloquear el staging por fallo de BD
 

@@ -85,9 +85,9 @@ class TestDeviceRegistry(unittest.TestCase):
         self.assertEqual(kd["device_type"], "mtp")
         self.assertEqual(kd["name"], "Cámara Legacy")
         
-        # Segunda migración no debe duplicar
+        # Segunda migración no debe duplicar (retorna 0 nuevos)
         migrated2 = self.db.sync_device_settings_to_known()
-        self.assertEqual(migrated2, 1)  # Ya existía, upsert no cuenta como nuevo
+        self.assertEqual(migrated2, 0)
 
     def test_device_registry_import_export(self):
         # Exportar
@@ -206,6 +206,7 @@ class TestDeviceRegistry(unittest.TestCase):
         self.db.save_dispositivo_config("ftp:5", "Legacy FTP Camera")
         self.db.save_dispositivo_config("wifi:pairdrop", "Legacy WiFi")
         
+        # Cerrar la conexión actual para evitar lock al copiar
         # Crear NUEVA instancia de DatabaseManager (simula arranque de app)
         tmp2 = tempfile.mkdtemp(prefix="sdimport_migration_")
         try:
@@ -295,6 +296,60 @@ class TestDeviceRegistry(unittest.TestCase):
         self.assertIsNotNone(self.db.get_known_device("mtp:KILL2"))
         self.db.delete_all_saved_devices()
         self.assertIsNone(self.db.get_known_device("mtp:KILL2"))
+
+    def test_migration_idempotent(self):
+        """Ejecutar sync 2 veces -> no duplica."""
+        # Poblar device_settings (legacy)
+        self.db.save_dispositivo_config("mtp:IDEMP1", "Cámara Idempotente")
+        self.db.save_dispositivo_config("ftp:10", "FTP Idempotente")
+        
+        # Primera migración
+        migrated1 = self.db.sync_device_settings_to_known()
+        self.assertEqual(migrated1, 2)
+        
+        # Verificar en known_devices
+        kd1 = self.db.get_known_device("mtp:IDEMP1")
+        self.assertIsNotNone(kd1)
+        self.assertEqual(kd1["name"], "Cámara Idempotente")
+        self.assertEqual(kd1["migrated_from_legacy"], 1)
+        
+        kd2 = self.db.get_known_device("ftp:10")
+        self.assertIsNotNone(kd2)
+        self.assertEqual(kd2["name"], "FTP Idempotente")
+        self.assertEqual(kd2["migrated_from_legacy"], 1)
+        
+        # Segunda migración no debe duplicar (retorna 0 nuevos)
+        migrated2 = self.db.sync_device_settings_to_known()
+        self.assertEqual(migrated2, 0)
+        
+        # Verificar que no hay duplicados
+        devices = self.db.list_known_devices()
+        idemp_devices = [d for d in devices if d["device_id"] in ("mtp:IDEMP1", "ftp:10")]
+        self.assertEqual(len(idemp_devices), 2)
+
+    def test_migration_preserves_names(self):
+        """Nombres en device_settings -> known_devices."""
+        # Poblar device_settings con varios tipos
+        self.db.save_dispositivo_config("mtp:PRESERVE1", "MTP Camera")
+        self.db.save_dispositivo_config("ftp:20", "FTP Camera")
+        self.db.save_dispositivo_config("wifi:test", "WiFi Camera")
+        
+        # Migrar
+        migrated = self.db.sync_device_settings_to_known()
+        self.assertEqual(migrated, 3)
+        
+        # Verificar que los nombres se preservan en known_devices
+        kd1 = self.db.get_known_device("mtp:PRESERVE1")
+        self.assertEqual(kd1["device_type"], "mtp")
+        self.assertEqual(kd1["name"], "MTP Camera")
+        
+        kd2 = self.db.get_known_device("ftp:20")
+        self.assertEqual(kd2["device_type"], "ftp")
+        self.assertEqual(kd2["name"], "FTP Camera")
+        
+        kd3 = self.db.get_known_device("wifi:test")
+        self.assertEqual(kd3["device_type"], "wifi")
+        self.assertEqual(kd3["name"], "WiFi Camera")
 
 
 if __name__ == "__main__":

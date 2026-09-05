@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import Callable, Dict, List, Optional
 
 from app.core.db import db
+from app.core.translator import tr
 
 
 class MtpError(Exception):
@@ -493,9 +494,12 @@ class WpdBackend(MtpBackend):
                 # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
                 try:
                     saved_camera = db.get_dispositivo_for_device(device_id)
-                    meta = {"name": name or device_id}
-                    db.upsert_known_device(device_id, "mtp", name=name or device_id,
-                                           last_camera=saved_camera, metadata=meta)
+                    display_name = name or device_id
+                    meta = {"name": display_name}
+                    # Default last_camera para dispositivos nuevos sin nombre guardado
+                    last_camera = saved_camera if saved_camera else tr("Sin nombre")
+                    db.upsert_known_device(device_id, "mtp", name=display_name,
+                                           last_camera=last_camera, metadata=meta)
                 except Exception:
                     pass  # No bloquear la detección por fallo de BD
             return devices

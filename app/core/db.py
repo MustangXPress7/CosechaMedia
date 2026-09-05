@@ -45,13 +45,36 @@ class DatabaseManager:
             if cursor.fetchone()[0] > 0:
                 return
             # Verificar si hay datos en device_settings para migrar
-            cursor.execute('SELECT COUNT(*) FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
-            if cursor.fetchone()[0] == 0:
+            cursor.execute('SELECT device_key, nombre_dispositivo FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
+            legacy_devices = cursor.fetchall()
+            if not legacy_devices:
                 return
+            
+            # Verificar si ya existe la columna migrated_from_legacy
+            cursor.execute("PRAGMA table_info(known_devices)")
+            cols = [row[1] for row in cursor.fetchall()]
+            if "migrated_from_legacy" not in cols:
+                cursor.execute("ALTER TABLE known_devices ADD COLUMN migrated_from_legacy INTEGER DEFAULT 0")
+            
+            import json
+            for device_key, nombre in legacy_devices:
+                if device_key.startswith("ftp:"):
+                    device_type = "ftp"
+                elif device_key.startswith("wifi:"):
+                    device_type = "wifi"
+                else:
+                    device_type = "mtp"
+                # Verificar si ya existe en known_devices
+                cursor.execute('SELECT 1 FROM known_devices WHERE device_id = ?', (device_key,))
+                if not cursor.fetchone():
+                    cursor.execute(
+                        '''INSERT INTO known_devices (device_id, device_type, name, last_camera, metadata_json, last_seen, migrated_from_legacy)
+                           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)''',
+                        (device_key, device_type, nombre, nombre, json.dumps({"name": nombre}))
+                    )
+            conn.commit()
         finally:
             conn.close()
-        # Ejecutar migración
-        self.sync_device_settings_to_known()
 
     def get_connection(self):
         conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=5)
@@ -349,9 +372,15 @@ class DatabaseManager:
                 serial TEXT,
                 last_camera TEXT,
                 last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                metadata_json TEXT
+                metadata_json TEXT,
+                migrated_from_legacy INTEGER DEFAULT 0
             )
         ''')
+        # Migración: añadir migrated_from_legacy si la tabla ya existía sin ella
+        cursor.execute("PRAGMA table_info(known_devices)")
+        cols = [row[1] for row in cursor.fetchall()]
+        if "migrated_from_legacy" not in cols:
+            cursor.execute("ALTER TABLE known_devices ADD COLUMN migrated_from_legacy INTEGER DEFAULT 0")
 
         cursor.execute('SELECT COUNT(*) FROM projects')
         if cursor.fetchone()[0] == 0:
@@ -906,9 +935,15 @@ class DatabaseManager:
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
+            # Asegurar que la columna migrated_from_legacy existe
+            cursor.execute("PRAGMA table_info(known_devices)")
+            cols = [row[1] for row in cursor.fetchall()]
+            if "migrated_from_legacy" not in cols:
+                cursor.execute("ALTER TABLE known_devices ADD COLUMN migrated_from_legacy INTEGER DEFAULT 0")
+            
             cursor.execute(
-                '''INSERT INTO known_devices (device_id, device_type, name, serial, last_camera, metadata_json, last_seen)
-                   VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                '''INSERT INTO known_devices (device_id, device_type, name, serial, last_camera, metadata_json, last_seen, migrated_from_legacy)
+                   VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 0)
                    ON CONFLICT(device_id) DO UPDATE SET
                        device_type = excluded.device_type,
                        name = COALESCE(excluded.name, known_devices.name),
@@ -932,7 +967,7 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json '
+                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json, migrated_from_legacy '
                 'FROM known_devices WHERE device_id = ?', (device_id,)
             )
             row = cursor.fetchone()
@@ -947,6 +982,7 @@ class DatabaseManager:
                 "last_camera": row[5],
                 "last_seen": row[6],
                 "metadata": json.loads(row[7]) if row[7] else None,
+                "migrated_from_legacy": bool(row[8]) if row[8] is not None else False,
             }
         finally:
             conn.close()
@@ -958,7 +994,7 @@ class DatabaseManager:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json '
+                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json, migrated_from_legacy '
                 'FROM known_devices ORDER BY last_seen DESC'
             )
             rows = []
@@ -972,6 +1008,7 @@ class DatabaseManager:
                     "last_camera": r[5],
                     "last_seen": r[6],
                     "metadata": json.loads(r[7]) if r[7] else None,
+                    "migrated_from_legacy": bool(r[8]) if r[8] is not None else False,
                 })
             return rows
         finally:
@@ -989,10 +1026,16 @@ class DatabaseManager:
             conn.close()
 
     def sync_device_settings_to_known(self):
-        """Migra datos de device_settings a known_devices (one-time migration)."""
+        """Migra datos de device_settings a known_devices (idempotente)."""
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
+            # Verificar si ya existe la columna migrated_from_legacy
+            cursor.execute("PRAGMA table_info(known_devices)")
+            cols = [row[1] for row in cursor.fetchall()]
+            if "migrated_from_legacy" not in cols:
+                cursor.execute("ALTER TABLE known_devices ADD COLUMN migrated_from_legacy INTEGER DEFAULT 0")
+            
             cursor.execute('SELECT device_key, nombre_dispositivo FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
             migrated = 0
             for device_key, nombre in cursor.fetchall():
@@ -1003,8 +1046,16 @@ class DatabaseManager:
                     device_type = "wifi"
                 else:
                     device_type = "mtp"
-                self.upsert_known_device(device_key, device_type, name=nombre)
-                migrated += 1
+                # Verificar si ya existe en known_devices
+                cursor.execute('SELECT 1 FROM known_devices WHERE device_id = ?', (device_key,))
+                if not cursor.fetchone():
+                    import json
+                    cursor.execute(
+                        '''INSERT INTO known_devices (device_id, device_type, name, last_camera, metadata_json, last_seen, migrated_from_legacy)
+                           VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, 1)''',
+                        (device_key, device_type, nombre, nombre, json.dumps({"name": nombre}))
+                    )
+                    migrated += 1
             conn.commit()
             return migrated
         finally:
