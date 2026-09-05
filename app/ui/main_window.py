@@ -1290,6 +1290,7 @@ class MainWindow(QMainWindow):
 
     def load_existing_projects(self):
         previous_id = self.current_project_id
+        previous_session_id = self.current_session_id
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
         self.project_combo.addItem(self.tr("-- Selecciona un proyecto --"), None)
@@ -1312,6 +1313,11 @@ class MainWindow(QMainWindow):
             idx = self.project_combo.findData(previous_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
+            # Restaurar sesión activa si sigue existiendo en el proyecto recargado
+            if previous_session_id is not None:
+                # _load_project se llamará via on_project_selected y luego _refresh_sessions_combo
+                # Guardamos el session_id deseado para restaurarlo después de poblar el combo
+                self._restore_session_id = previous_session_id
 
     def on_project_selected(self, index):
         self._reset_wifi_ingestors()
@@ -3105,7 +3111,14 @@ class MainWindow(QMainWindow):
             return
 
     def _refresh_sessions_combo(self):
-        prev_id = self.sessions_combo.currentData()
+        # Prioridad: _restore_session_id (desde load_existing_projects) > prev_id (actual)
+        restore_id = getattr(self, "_restore_session_id", None)
+        if restore_id is not None:
+            target_id = restore_id
+            self._restore_session_id = None
+        else:
+            target_id = self.sessions_combo.currentData()
+        
         self.sessions_combo.blockSignals(True)
         self.sessions_combo.clear()
         if self.current_project_id is None:
@@ -3125,15 +3138,12 @@ class MainWindow(QMainWindow):
             if src and f"({self._drive_label(src)})" not in s.get("name", ""):
                 label += f" ({self._drive_label(src)})"
             self.sessions_combo.addItem(label, s["id"])
-        if prev_id is not None:
-            idx = self.sessions_combo.findData(prev_id)
+        if target_id is not None:
+            idx = self.sessions_combo.findData(target_id)
             if idx >= 0:
                 self.sessions_combo.setCurrentIndex(idx)
             else:
-                # La sesión previa fue eliminada: quedarse con la primera
-                # restante y refrescar sus datos. Sin esto, la sesión que
-                # queda sigue mostrando los datos de la borrada hasta
-                # reiniciar la aplicación.
+                # La sesión a restaurar no existe: quedarse con la primera
                 self.sessions_combo.setCurrentIndex(0)
                 self._on_session_selected(0)
         else:
