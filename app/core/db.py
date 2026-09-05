@@ -1039,6 +1039,7 @@ class DatabaseManager:
             cursor.execute('DELETE FROM sd_cards')
             cursor.execute('DELETE FROM device_settings')
             cursor.execute('DELETE FROM dispositivos')
+            cursor.execute('DELETE FROM known_devices')
             conn.commit()
         finally:
             conn.close()
@@ -1056,6 +1057,7 @@ class DatabaseManager:
             cursor.execute('DELETE FROM dispositivos')
             cursor.execute('DELETE FROM inbox_senders')
             cursor.execute('DELETE FROM ftp_profiles')
+            cursor.execute('DELETE FROM known_devices')
             conn.commit()
         finally:
             conn.close()

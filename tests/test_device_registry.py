@@ -251,6 +251,51 @@ class TestDeviceRegistry(unittest.TestCase):
         # La conexión tampoco debe existir
         self.assertNotIn('self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)', content)
 
+    def test_cross_project_persistence(self):
+        """Flujo completo cross-proyecto: detectar en A -> visible en B con pre-fill."""
+        # Crear proyecto A
+        pid_a = self.db.create_project("Proyecto A", "/tmp/proj_a")
+        # Simular detección de dispositivo en proyecto A (upsert a known_devices)
+        self.db.upsert_known_device("mtp:CROSS1", "mtp", "Cámara Cross", "SN123", "Sony FX3")
+        
+        # Cambiar a proyecto B (simula cambio de proyecto)
+        pid_b = self.db.create_project("Proyecto B", "/tmp/proj_b")
+        
+        # El dispositivo conocido debe seguir disponible
+        name = self.db.get_dispositivo_for_device("mtp:CROSS1")
+        self.assertEqual(name, "Cámara Cross")
+        
+        # Editar nombre en proyecto B
+        self.db.save_dispositivo_config("mtp:CROSS1", "Sony FX6")
+        self.db.upsert_known_device("mtp:CROSS1", "mtp", name="Sony FX6", last_camera="Sony FX6")
+        
+        # Volver a proyecto A -> nombre actualizado visible
+        name_a = self.db.get_dispositivo_for_device("mtp:CROSS1")
+        self.assertEqual(name_a, "Sony FX6")
+
+    def test_delete_all_clears_known_devices(self):
+        """Kill-switch limpia known_devices."""
+        # Poblar known_devices
+        self.db.upsert_known_device("mtp:KILL1", "mtp", "To Kill", "SN1", "Cam 1")
+        self.db.upsert_known_device("ftp:99", "ftp", "FTP To Kill", None, "FTP Cam")
+        
+        # Verificar que existen
+        self.assertIsNotNone(self.db.get_known_device("mtp:KILL1"))
+        self.assertIsNotNone(self.db.get_known_device("ftp:99"))
+        
+        # Ejecutar kill-switch (delete_all_known_cameras)
+        self.db.delete_all_known_cameras()
+        
+        # Verificar que known_devices se limpió
+        self.assertIsNone(self.db.get_known_device("mtp:KILL1"))
+        self.assertIsNone(self.db.get_known_device("ftp:99"))
+        
+        # También probar delete_all_saved_devices
+        self.db.upsert_known_device("mtp:KILL2", "mtp", "To Kill 2", "SN2", "Cam 2")
+        self.assertIsNotNone(self.db.get_known_device("mtp:KILL2"))
+        self.db.delete_all_saved_devices()
+        self.assertIsNone(self.db.get_known_device("mtp:KILL2"))
+
 
 if __name__ == "__main__":
     unittest.main()
