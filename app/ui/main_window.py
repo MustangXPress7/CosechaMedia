@@ -3568,6 +3568,10 @@ class MainWindow(QMainWindow):
 
         m_tools = menu_bar.addMenu(self.tr("&Herramientas"))
 
+        act_known_devices = QAction(self.tr("Dispositivos &conocidos…"), self)
+        act_known_devices.triggered.connect(self._open_known_devices)
+        m_tools.addAction(act_known_devices)
+
         act_del_devices = QAction(self.tr("Borrar dispositivos &guardados…"), self)
         act_del_devices.triggered.connect(self._delete_all_saved_devices)
         m_tools.addAction(act_del_devices)
@@ -3842,6 +3846,14 @@ class MainWindow(QMainWindow):
         db.delete_all_known_cameras()
         self.ingest_status_label.setText(
             self.tr("Dispositivos conocidos eliminados. La detección se reiniciará."))
+
+    def _open_known_devices(self):
+        """Abre el diálogo de dispositivos conocidos (Herramientas → Dispositivos conocidos)."""
+        from app.ui.device_registry import DeviceRegistryDialog
+        dlg = DeviceRegistryDialog(self)
+        dlg.exec()
+        # Al cerrar, refrescar la lista de orígenes por si cambió algo
+        self._refresh_source_list()
 
     def _disconnected_devices(self):
         """Dispositivos MTP/FTP desconectados y perfiles FTP con sesiones en el

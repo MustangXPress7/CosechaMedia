@@ -320,6 +320,19 @@ class DatabaseManager:
             )
         ''')
 
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS known_devices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                device_id TEXT UNIQUE NOT NULL,
+                device_type TEXT NOT NULL,
+                name TEXT,
+                serial TEXT,
+                last_camera TEXT,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata_json TEXT
+            )
+        ''')
+
         cursor.execute('SELECT COUNT(*) FROM projects')
         if cursor.fetchone()[0] == 0:
             default_dest = os.path.join(
@@ -854,6 +867,129 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    def upsert_known_device(self, device_id: str, device_type: str, name: str = None,
+                           serial: str = None, last_camera: str = None, metadata: dict = None) -> int:
+        """Inserta o actualiza un dispositivo conocido.
+        
+        Args:
+            device_id: ID único del dispositivo (PnP para MTP, ftp:<id> para FTP, wifi:<alias> para WiFi)
+            device_type: 'mtp', 'ftp', 'wifi', 'usb'
+            name: Nombre amigable del dispositivo
+            serial: Número de serie si disponible
+            last_camera: Último nombre de cámara detectado
+            metadata: Dict con metadatos extra (modelo, fabricante, etc.)
+            
+        Returns:
+            ID del dispositivo en known_devices
+        """
+        import json
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''INSERT INTO known_devices (device_id, device_type, name, serial, last_camera, metadata_json, last_seen)
+                   VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                   ON CONFLICT(device_id) DO UPDATE SET
+                       device_type = excluded.device_type,
+                       name = COALESCE(excluded.name, known_devices.name),
+                       serial = COALESCE(excluded.serial, known_devices.serial),
+                       last_camera = COALESCE(excluded.last_camera, known_devices.last_camera),
+                       metadata_json = COALESCE(excluded.metadata_json, known_devices.metadata_json),
+                       last_seen = CURRENT_TIMESTAMP''',
+                (device_id, device_type, name, serial, last_camera, json.dumps(metadata) if metadata else None)
+            )
+            cursor.execute('SELECT id FROM known_devices WHERE device_id = ?', (device_id,))
+            row = cursor.fetchone()
+            conn.commit()
+            return row[0] if row else None
+        finally:
+            conn.close()
+
+    def get_known_device(self, device_id: str):
+        """Obtiene la información completa de un dispositivo conocido."""
+        import json
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json '
+                'FROM known_devices WHERE device_id = ?', (device_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0],
+                "device_id": row[1],
+                "device_type": row[2],
+                "name": row[3],
+                "serial": row[4],
+                "last_camera": row[5],
+                "last_seen": row[6],
+                "metadata": json.loads(row[7]) if row[7] else None,
+            }
+        finally:
+            conn.close()
+
+    def list_known_devices(self):
+        """Lista todos los dispositivos conocidos para la UI."""
+        import json
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT id, device_id, device_type, name, serial, last_camera, last_seen, metadata_json '
+                'FROM known_devices ORDER BY last_seen DESC'
+            )
+            rows = []
+            for r in cursor.fetchall():
+                rows.append({
+                    "id": r[0],
+                    "device_id": r[1],
+                    "device_type": r[2],
+                    "name": r[3],
+                    "serial": r[4],
+                    "last_camera": r[5],
+                    "last_seen": r[6],
+                    "metadata": json.loads(r[7]) if r[7] else None,
+                })
+            return rows
+        finally:
+            conn.close()
+
+    def delete_known_device(self, device_id: str):
+        """Elimina un dispositivo conocido."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM known_devices WHERE device_id = ?', (device_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+        finally:
+            conn.close()
+
+    def sync_device_settings_to_known(self):
+        """Migra datos de device_settings a known_devices (one-time migration)."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('SELECT device_key, nombre_dispositivo FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
+            migrated = 0
+            for device_key, nombre in cursor.fetchall():
+                # device_key puede ser PnP ID (MTP) o ftp:<id> (FTP)
+                if device_key.startswith("ftp:"):
+                    device_type = "ftp"
+                elif device_key.startswith("wifi:"):
+                    device_type = "wifi"
+                else:
+                    device_type = "mtp"
+                self.upsert_known_device(device_key, device_type, name=nombre)
+                migrated += 1
+            conn.commit()
+            return migrated
+        finally:
+            conn.close()
+
     def list_known_camera_names(self):
         """Nombres de cámara conocidos agregados de sd_cards, device_settings y dispositivos."""
         conn = self.get_connection()
@@ -1179,9 +1315,17 @@ class DatabaseManager:
             conn.close()
 
     def get_dispositivo_for_device(self, device_id: str):
-        """Devuelve el nombre de dispositivo conocido para un dispositivo MTP/FTP, o None."""
+        """Devuelve el nombre de dispositivo conocido para un dispositivo MTP/FTP, o None.
+        
+        Prioridad: known_devices (nueva tabla unificada) > device_settings (legacy).
+        """
         if not device_id:
             return None
+        # Primero buscar en known_devices (tabla unificada)
+        known = self.get_known_device(device_id)
+        if known and known.get("name"):
+            return known["name"]
+        # Fallback a device_settings (legacy)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
