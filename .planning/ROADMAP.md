@@ -56,8 +56,10 @@ bienvenida (reservados desde v1.5).
   3. Existe un plan de reubicación priorizado por zona —con impacto estimado y orden de implementación— revisado y aprobado por el usuario (UI-03)
   4. No hay cambios de código: el árbol `app/` no presenta diffs y la suite de tests (`tests/`, Qt offscreen) pasa sin modificaciones
 
-**Plans**: 4/4 plans executed
+**Plans**: 4/5 plans executed
 Plans:
+
+- [ ] 01-PLAN-REUBICACION.md
 
 - [x] 01-01-PLAN.md — Inventario de widgets por zona y capturas offscreen (evidencia, UI-01)
 - [x] 01-02-PLAN.md — Informe de hallazgos 01-HALLAZGOS.md con anclas D-07..D-12 (UI-01, UI-02)
@@ -119,7 +121,7 @@ Plans:
   9. Filtro de fecha de sesiones detecta unidad correctamente; "Actualizar proyectos" no bloquea dump_type
   10. Existe tabla `known_devices` con DeviceRegistry UI (pre-fill al añadir origen, persistencia cross-proyecto)
 
-**Plans:** 5/6 plans executed
+**Plans:** 6/6 plans executed
 
 Plans:
 
@@ -145,7 +147,11 @@ Plans:
 
 **Wave 6**
 
-- [ ] 01.6.0-06-PLAN.md — DB Lock Duplicate Master Path + Master Path Wizard + Session Date Interval + Update Projects Button + DeviceRegistry
+- [x] 01.6.0-06-PLAN.md — DB Lock Duplicate Master Path + Master Path Wizard + Session Date Interval + Update Projects Button + DeviceRegistry
+
+**Wave 7**
+
+- [x] 01.6.0-07-PLAN.md — DeviceRegistry Write Path: upsert on MTP/FTP detection + camera rename + legacy migration + remove Detect button
 
 ### Phase 1.7.0: Notificadores SMTP/Telegram
 
@@ -214,7 +220,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
-| 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 5/6 | In Progress|  |
+| 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 6/6 | Complete | 2026-09-05 |
 | 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
