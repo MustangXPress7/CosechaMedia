@@ -123,7 +123,7 @@ class TestAddSourceDialog(unittest.TestCase):
         headers = dlg.table.horizontalHeaderItem
         self.assertEqual(headers(0).text(), dlg.tr("Seleccionar"))
         self.assertEqual(headers(1).text(), dlg.tr("Ruta de origen"))
-        self.assertEqual(headers(2).text(), dlg.tr("Cámara"))
+        self.assertEqual(headers(2).text(), dlg.tr("Dispositivo"))
         self.assertEqual(headers(3).text(), dlg.tr("Estado"))
         self.assertEqual(headers(4).text(), dlg.tr("Borrar"))
 

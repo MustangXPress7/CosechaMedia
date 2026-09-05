@@ -426,6 +426,45 @@ class TestUtils(unittest.TestCase):
             self.assertTrue(utils.is_removable_drive("/mnt/card"))
             self.assertFalse(utils.is_removable_drive("/home/user"))
 
+    def test_is_removable_drive_windows(self):
+        """Windows: DRIVE_REMOVABLE (GetDriveTypeW==2) es el criterio. El flag
+        FILE_REMOVABLE_MEDIA no se exige porque muchos lectores/pendrives no lo
+        reportan aunque tengan medio válido: E:/F: (type 2) deben detectarse.
+        Los discos fijos (type 3) no son removibles."""
+        import sys as _sys
+        import types as _types
+        from unittest.mock import patch
+        from app.core import utils
+
+        def make_fake_ctypes(drive_type):
+            class _Kernel32:
+                @staticmethod
+                def GetDriveTypeW(drive):
+                    return drive_type
+
+            class _Ctypes(_types.ModuleType):
+                def __init__(self):
+                    super().__init__("ctypes")
+                    self.windll = type("windll", (),
+                                       {"kernel32": _Kernel32()})()
+
+            return _Ctypes()
+
+        cases = [
+            # drive_type, path, expected
+            (2, "E:\\", True),   # lector/pendrive removible (con o sin medio)
+            (2, "F:\\", True),
+            (3, "C:\\", False),  # disco fijo
+            (3, "H:\\", False),  # disco fijo (p. ej. unidad "Proyectos")
+        ]
+        for drive_type, path, expected in cases:
+            fake = make_fake_ctypes(drive_type)
+            with patch.object(utils, "sys",
+                              spec=["platform"]) as fake_sys, \
+                 patch.dict(_sys.modules, {"ctypes": fake}):
+                fake_sys.platform = "win32"
+                self.assertEqual(utils.is_removable_drive(path), expected)
+
     def test_get_drive_label_darwin_linux(self):
         from unittest.mock import patch
         from app.core import utils

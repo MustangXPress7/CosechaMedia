@@ -60,8 +60,7 @@ def _windows_mounted_drives():
         if bitmask & 1:
             drive_path = f"{letter}:\\"
             try:
-                drive_type = windll.kernel32.GetDriveTypeW(drive_path)
-                if drive_type == 2:
+                if is_removable_drive(drive_path):
                     label = get_drive_label(drive_path)
                     if _is_false_positive_drive(label, drive_path):
                         continue
@@ -160,8 +159,12 @@ def get_drive_label(drive_path: str) -> str:
 def is_removable_drive(path: str) -> bool:
     """Devuelve True si la ruta apunta a una unidad extraíble.
 
-    Windows: DRIVE_REMOVABLE. macOS: montada bajo /Volumes. Linux: bajo
-    /media, /run/media o /mnt (heurística).
+    Windows: DRIVE_REMOVABLE (GetDriveTypeW == 2). El flag FILE_REMOVABLE_MEDIA
+    NO se exige: muchos lectores de tarjeta y pendrives (p. ej. LUMIX) no lo
+    reportan aunque tengan un medio válido, y exigirlo haría que "Detectar"
+    ocultara unidades legítimas. El descarte de discos de sistema que reportan
+    type 2 por error lo hace `_is_false_positive_drive`. macOS: montada bajo
+    /Volumes. Linux: bajo /media, /run/media o /mnt (heurística).
     """
     if sys.platform == "win32":
         if len(path) >= 2 and path[1] == ":":

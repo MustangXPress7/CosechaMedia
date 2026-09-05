@@ -741,49 +741,55 @@ class DatabaseManager:
                         password: str = "", base_folder: str = "",
                         passive: bool = True, timeout: int = 15) -> int:
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''INSERT INTO ftp_profiles (name, host, port, username, password, base_folder, passive, timeout)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
-            (name, host, int(port), username or "", password or "",
-             base_folder or "", int(bool(passive)), int(timeout or 15))
-        )
-        pid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return pid
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''INSERT INTO ftp_profiles (name, host, port, username, password, base_folder, passive, timeout)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                (name, host, int(port), username or "", password or "",
+                 base_folder or "", int(bool(passive)), int(timeout or 15))
+            )
+            pid = cursor.lastrowid
+            conn.commit()
+            return pid
+        finally:
+            conn.close()
 
     def get_ftp_profile(self, profile_id: int):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
-               FROM ftp_profiles WHERE id = ?''', (profile_id,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        if not row:
-            return None
-        return {
-            "id": row[0], "name": row[1], "host": row[2], "port": row[3],
-            "username": row[4], "password": row[5], "base_folder": row[6],
-            "passive": bool(row[7]), "timeout": row[8],
-        }
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
+                   FROM ftp_profiles WHERE id = ?''', (profile_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return {
+                "id": row[0], "name": row[1], "host": row[2], "port": row[3],
+                "username": row[4], "password": row[5], "base_folder": row[6],
+                "passive": bool(row[7]), "timeout": row[8],
+            }
+        finally:
+            conn.close()
 
     def list_ftp_profiles(self):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
-               FROM ftp_profiles ORDER BY id ASC'''
-        )
-        rows = [{
-            "id": r[0], "name": r[1], "host": r[2], "port": r[3],
-            "username": r[4], "password": r[5], "base_folder": r[6],
-            "passive": bool(r[7]), "timeout": r[8],
-        } for r in cursor.fetchall()]
-        conn.close()
-        return rows
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''SELECT id, name, host, port, username, password, base_folder, passive, timeout
+                   FROM ftp_profiles ORDER BY id ASC'''
+            )
+            rows = [{
+                "id": r[0], "name": r[1], "host": r[2], "port": r[3],
+                "username": r[4], "password": r[5], "base_folder": r[6],
+                "passive": bool(r[7]), "timeout": r[8],
+            } for r in cursor.fetchall()]
+            return rows
+        finally:
+            conn.close()
 
     def update_ftp_profile(self, profile_id: int, **kwargs):
         allowed = {"name", "host", "port", "username", "password",
@@ -794,46 +800,54 @@ class DatabaseManager:
         set_clause = ", ".join(f"{k} = ?" for k in fields.keys())
         values = list(fields.values()) + [profile_id]
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(f"UPDATE ftp_profiles SET {set_clause} WHERE id = ?", values)
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE ftp_profiles SET {set_clause} WHERE id = ?", values)
+            conn.commit()
+        finally:
+            conn.close()
 
     def delete_ftp_profile(self, profile_id: int):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM ftp_profiles WHERE id = ?', (profile_id,))
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM ftp_profiles WHERE id = ?', (profile_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
     def list_known_camera_names(self):
         """Nombres de cámara conocidos agregados de sd_cards, device_settings y dispositivos."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        names = set()
-        for table, col in (("sd_cards", "nombre_dispositivo"),
-                           ("device_settings", "nombre_dispositivo"),
-                           ("dispositivos", "name")):
-            try:
-                cursor.execute(f'SELECT {col} FROM {table}')
-                for (n,) in cursor.fetchall():
-                    n = (n or "").strip()
-                    if n:
-                        names.add(n)
-            except Exception:
-                pass
-        conn.close()
-        return sorted(n for n in names if n and n != "Sin nombre")
+        try:
+            cursor = conn.cursor()
+            names = set()
+            for table, col in (("sd_cards", "nombre_dispositivo"),
+                               ("device_settings", "nombre_dispositivo"),
+                               ("dispositivos", "name")):
+                try:
+                    cursor.execute(f'SELECT {col} FROM {table}')
+                    for (n,) in cursor.fetchall():
+                        n = (n or "").strip()
+                        if n:
+                            names.add(n)
+                except Exception:
+                    pass
+            return sorted(n for n in names if n and n != "Sin nombre")
+        finally:
+            conn.close()
 
     def delete_all_known_cameras(self):
         """Limpia todos los nombres de cámara conocidos (CHG-2)."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM sd_cards')
-        cursor.execute('DELETE FROM device_settings')
-        cursor.execute('DELETE FROM dispositivos')
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM sd_cards')
+            cursor.execute('DELETE FROM device_settings')
+            cursor.execute('DELETE FROM dispositivos')
+            conn.commit()
+        finally:
+            conn.close()
 
     def delete_all_saved_devices(self):
         """Borra todos los dispositivos guardados y remitentes sino perfiles FTP (CHG-1).
@@ -841,57 +855,67 @@ class DatabaseManager:
         Limpia las tablas de dispositivo/remitente/perfil; las sesiones se
         conservan (solo se olvida el registro guardado)."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM sd_cards')
-        cursor.execute('DELETE FROM device_settings')
-        cursor.execute('DELETE FROM dispositivos')
-        cursor.execute('DELETE FROM inbox_senders')
-        cursor.execute('DELETE FROM ftp_profiles')
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM sd_cards')
+            cursor.execute('DELETE FROM device_settings')
+            cursor.execute('DELETE FROM dispositivos')
+            cursor.execute('DELETE FROM inbox_senders')
+            cursor.execute('DELETE FROM ftp_profiles')
+            conn.commit()
+        finally:
+            conn.close()
 
     def list_inbox_senders(self):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''SELECT id, name, location, token, created_at FROM inbox_senders ORDER BY id ASC'''
-        )
-        rows = [{
-            "id": r[0], "name": r[1], "location": r[2], "token": r[3], "created_at": r[4],
-        } for r in cursor.fetchall()]
-        conn.close()
-        return rows
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''SELECT id, name, location, token, created_at FROM inbox_senders ORDER BY id ASC'''
+            )
+            rows = [{
+                "id": r[0], "name": r[1], "location": r[2], "token": r[3], "created_at": r[4],
+            } for r in cursor.fetchall()]
+            return rows
+        finally:
+            conn.close()
 
     def add_inbox_sender(self, name: str, location: str = "") -> int:
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''INSERT INTO inbox_senders (name, location, token) VALUES (?, ?, ?)''',
-            (name, location, secrets.token_urlsafe(12))
-        )
-        sid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return sid
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''INSERT INTO inbox_senders (name, location, token) VALUES (?, ?, ?)''',
+                (name, location, secrets.token_urlsafe(12))
+            )
+            sid = cursor.lastrowid
+            conn.commit()
+            return sid
+        finally:
+            conn.close()
 
     def update_inbox_sender(self, sender_id: int, name: str, location: str = ""):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'UPDATE inbox_senders SET name = ?, location = ? WHERE id = ?',
-            (name, location, sender_id))
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'UPDATE inbox_senders SET name = ?, location = ? WHERE id = ?',
+                (name, location, sender_id))
+            conn.commit()
+        finally:
+            conn.close()
 
     def delete_inbox_sender(self, sender_id: int):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM inbox_senders WHERE id = ?', (sender_id,))
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM inbox_senders WHERE id = ?', (sender_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_or_create_wifi_session(self, project_id: int, sender_name: str,
-                                   source_path: str, location: str = "") -> int:
+                                    source_path: str, location: str = "") -> int:
         """Devuelve/crea la sesión de ingesta WiFi de un remitente.
 
         Cada remitente de PairDrop es una sesión con ``device_id =
@@ -905,106 +929,113 @@ class DatabaseManager:
         from app.core.shoot_inbox import sanitize_alias
         alias = sanitize_alias(sender_name)
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id FROM sessions WHERE project_id = ? AND device_id = ? AND device_folder = ?",
-            (project_id, WIFI_DEVICE_ID, alias),
-        )
-        row = cursor.fetchone()
-        if row is not None:
-            sid = row[0]
-            if location:
-                # Si el remitente tiene ubicación se aplica; si no, se respeta
-                # el destination_override que el usuario haya configurado.
-                cursor.execute(
-                    "UPDATE sessions SET source_path = ?, nombre_dispositivo = ?, "
-                    "destination_override = ? WHERE id = ?",
-                    (source_path, sender_name, location, sid),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE sessions SET source_path = ?, nombre_dispositivo = ? "
-                    "WHERE id = ?",
-                    (source_path, sender_name, sid),
-                )
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM sessions WHERE project_id = ? AND device_id = ? AND device_folder = ?",
+                (project_id, WIFI_DEVICE_ID, alias),
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                sid = row[0]
+                if location:
+                    # Si el remitente tiene ubicación se aplica; si no, se respeta
+                    # el destination_override que el usuario haya configurado.
+                    cursor.execute(
+                        "UPDATE sessions SET source_path = ?, nombre_dispositivo = ?, "
+                        "destination_override = ? WHERE id = ?",
+                        (source_path, sender_name, location, sid),
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE sessions SET source_path = ?, nombre_dispositivo = ? "
+                        "WHERE id = ?",
+                        (source_path, sender_name, sid),
+                    )
+                conn.commit()
+                return sid
+            cursor.execute(
+                "INSERT INTO sessions (project_id, name, shoot_date, status, "
+                "source_path, nombre_dispositivo, device_id, device_folder, destination_override) "
+                "VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
+                (
+                    project_id,
+                    f"WiFi ({sender_name})",
+                    _dt.now().strftime("%Y-%m-%d"),
+                    source_path,
+                    sender_name,
+                    WIFI_DEVICE_ID,
+                    alias,
+                    location or None,
+                ),
+            )
+            sid = cursor.lastrowid
             conn.commit()
-            conn.close()
             return sid
-        cursor.execute(
-            "INSERT INTO sessions (project_id, name, shoot_date, status, "
-            "source_path, nombre_dispositivo, device_id, device_folder, destination_override) "
-            "VALUES (?, ?, ?, 'active', ?, ?, ?, ?, ?)",
-            (
-                project_id,
-                f"WiFi ({sender_name})",
-                _dt.now().strftime("%Y-%m-%d"),
-                source_path,
-                sender_name,
-                WIFI_DEVICE_ID,
-                alias,
-                location or None,
-            ),
-        )
-        sid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return sid
+        finally:
+            conn.close()
 
     def list_wifi_sessions(self, project_id: int):
         """Devuelve las sesiones WiFi (PairDrop) de un proyecto."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT id, name, device_folder, source_path, nombre_dispositivo, "
-            "destination_override FROM sessions "
-            "WHERE project_id = ? AND device_id = ? ORDER BY id ASC",
-            (project_id, WIFI_DEVICE_ID),
-        )
-        rows = [{
-            "id": r[0],
-            "name": r[1],
-            "device_folder": r[2],
-            "source_path": r[3],
-            "nombre_dispositivo": r[4],
-            "destination_override": r[5],
-        } for r in cursor.fetchall()]
-        conn.close()
-        return rows
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id, name, device_folder, source_path, nombre_dispositivo, "
+                "destination_override FROM sessions "
+                "WHERE project_id = ? AND device_id = ? ORDER BY id ASC",
+                (project_id, WIFI_DEVICE_ID),
+            )
+            rows = [{
+                "id": r[0],
+                "name": r[1],
+                "device_folder": r[2],
+                "source_path": r[3],
+                "nombre_dispositivo": r[4],
+                "destination_override": r[5],
+            } for r in cursor.fetchall()]
+            return rows
+        finally:
+            conn.close()
 
     def dump_locations(self, project_id: int):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            '''SELECT id, path, label, include_date, include_camera, order_index
-               FROM dump_locations WHERE project_id = ? ORDER BY order_index ASC, id ASC''',
-            (project_id,)
-        )
-        rows = [{
-            "id": r[0], "path": r[1], "label": r[2],
-            "include_date": bool(r[3]), "include_camera": bool(r[4]),
-            "order_index": r[5]
-        } for r in cursor.fetchall()]
-        conn.close()
-        return rows
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                '''SELECT id, path, label, include_date, include_camera, order_index
+                   FROM dump_locations WHERE project_id = ? ORDER BY order_index ASC, id ASC''',
+                (project_id,)
+            )
+            rows = [{
+                "id": r[0], "path": r[1], "label": r[2],
+                "include_date": bool(r[3]), "include_camera": bool(r[4]),
+                "order_index": r[5]
+            } for r in cursor.fetchall()]
+            return rows
+        finally:
+            conn.close()
 
     def add_dump_location(self, project_id: int, path: str, label: str = None,
                           include_date: bool = True, include_camera: bool = True):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT COALESCE(MAX(order_index), -1) + 1 FROM dump_locations WHERE project_id = ?',
-            (project_id,)
-        )
-        next_idx = cursor.fetchone()[0]
-        cursor.execute(
-            '''INSERT INTO dump_locations (project_id, path, label, include_date, include_camera, order_index)
-               VALUES (?, ?, ?, ?, ?, ?)''',
-            (project_id, os.path.abspath(path), label, int(include_date), int(include_camera), next_idx)
-        )
-        lid = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return lid
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT COALESCE(MAX(order_index), -1) + 1 FROM dump_locations WHERE project_id = ?',
+                (project_id,)
+            )
+            next_idx = cursor.fetchone()[0]
+            cursor.execute(
+                '''INSERT INTO dump_locations (project_id, path, label, include_date, include_camera, order_index)
+                   VALUES (?, ?, ?, ?, ?, ?)''',
+                (project_id, os.path.abspath(path), label, int(include_date), int(include_camera), next_idx)
+            )
+            lid = cursor.lastrowid
+            conn.commit()
+            return lid
+        finally:
+            conn.close()
 
     def update_dump_location(self, location_id: int, **kwargs):
         allowed = {"path", "label", "include_date", "include_camera", "order_index"}
@@ -1016,165 +1047,187 @@ class DatabaseManager:
         set_clause = ", ".join(f"{k} = ?" for k in fields.keys())
         values = list(fields.values()) + [location_id]
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(f"UPDATE dump_locations SET {set_clause} WHERE id = ?", values)
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(f"UPDATE dump_locations SET {set_clause} WHERE id = ?", values)
+            conn.commit()
+        finally:
+            conn.close()
 
     def delete_dump_location(self, location_id: int):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute('DELETE FROM dump_locations WHERE id = ?', (location_id,))
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM dump_locations WHERE id = ?', (location_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
     def reorder_dump_locations(self, project_id: int, ordered_ids: list):
         conn = self.get_connection()
-        cursor = conn.cursor()
-        for idx, loc_id in enumerate(ordered_ids):
-            cursor.execute(
-                'UPDATE dump_locations SET order_index = ? WHERE id = ? AND project_id = ?',
-                (idx, loc_id, project_id)
-            )
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            for idx, loc_id in enumerate(ordered_ids):
+                cursor.execute(
+                    'UPDATE dump_locations SET order_index = ? WHERE id = ? AND project_id = ?',
+                    (idx, loc_id, project_id)
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     def save_dispositivo(self, volume_serial: str, nombre_dispositivo: str, brand: str = None, model: str = None):
         """Guarda o actualiza el mapeo serial→cámara para una tarjeta SD."""
         if not volume_serial or not nombre_dispositivo:
             return
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT id FROM sd_cards WHERE serial = ?', (volume_serial,)
-        )
-        row = cursor.fetchone()
-        if row:
-            updates = ['nombre_dispositivo = ?', 'last_used = CURRENT_TIMESTAMP']
-            params = [nombre_dispositivo]
-            if brand:
-                updates.append('brand = ?')
-                params.append(brand)
-            if model:
-                updates.append('model = ?')
-                params.append(model)
-            params.append(volume_serial)
+        try:
+            cursor = conn.cursor()
             cursor.execute(
-                f'UPDATE sd_cards SET {", ".join(updates)} WHERE serial = ?', params
+                'SELECT id FROM sd_cards WHERE serial = ?', (volume_serial,)
             )
-        else:
-            cursor.execute(
-                'INSERT INTO sd_cards (serial, brand, model, nombre_dispositivo) VALUES (?, ?, ?, ?)',
-                (volume_serial, brand, model, nombre_dispositivo)
-            )
-        conn.commit()
-        conn.close()
+            row = cursor.fetchone()
+            if row:
+                updates = ['nombre_dispositivo = ?', 'last_used = CURRENT_TIMESTAMP']
+                params = [nombre_dispositivo]
+                if brand:
+                    updates.append('brand = ?')
+                    params.append(brand)
+                if model:
+                    updates.append('model = ?')
+                    params.append(model)
+                params.append(volume_serial)
+                cursor.execute(
+                    f'UPDATE sd_cards SET {", ".join(updates)} WHERE serial = ?', params
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO sd_cards (serial, brand, model, nombre_dispositivo) VALUES (?, ?, ?, ?)',
+                    (volume_serial, brand, model, nombre_dispositivo)
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_dispositivo_for_card(self, volume_serial: str):
         """Devuelve el nombre de cámara conocido para un serial de tarjeta, o None."""
         if not volume_serial:
             return None
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT nombre_dispositivo FROM sd_cards WHERE serial = ?', (volume_serial,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        if row and row['nombre_dispositivo']:
-            return row['nombre_dispositivo']
-        return None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT nombre_dispositivo FROM sd_cards WHERE serial = ?', (volume_serial,)
+            )
+            row = cursor.fetchone()
+            if row and row['nombre_dispositivo']:
+                return row['nombre_dispositivo']
+            return None
+        finally:
+            conn.close()
 
     def get_dispositivo_for_device(self, device_id: str):
         """Devuelve el nombre de dispositivo conocido para un dispositivo MTP/FTP, o None."""
         if not device_id:
             return None
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT nombre_dispositivo FROM device_settings WHERE device_key = ?',
-            (device_id,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        if row and row['nombre_dispositivo']:
-            return row['nombre_dispositivo']
-        return None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT nombre_dispositivo FROM device_settings WHERE device_key = ?',
+                (device_id,)
+            )
+            row = cursor.fetchone()
+            if row and row['nombre_dispositivo']:
+                return row['nombre_dispositivo']
+            return None
+        finally:
+            conn.close()
 
     def save_dispositivo_config(self, device_id: str, nombre_dispositivo: str):
         """Guarda o actualiza el mapeo device_id→cámara para dispositivos MTP/FTP."""
         if not device_id or not nombre_dispositivo:
             return
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT device_key FROM device_settings WHERE device_key = ?',
-            (device_id,)
-        )
-        row = cursor.fetchone()
-        if row:
+        try:
+            cursor = conn.cursor()
             cursor.execute(
-                'UPDATE device_settings SET nombre_dispositivo = ? WHERE device_key = ?',
-                (nombre_dispositivo, device_id)
+                'SELECT device_key FROM device_settings WHERE device_key = ?',
+                (device_id,)
             )
-        else:
-            cursor.execute(
-                'INSERT INTO device_settings (device_key, nombre_dispositivo) VALUES (?, ?)',
-                (device_id, nombre_dispositivo)
-            )
-        conn.commit()
-        conn.close()
+            row = cursor.fetchone()
+            if row:
+                cursor.execute(
+                    'UPDATE device_settings SET nombre_dispositivo = ? WHERE device_key = ?',
+                    (nombre_dispositivo, device_id)
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO device_settings (device_key, nombre_dispositivo) VALUES (?, ?)',
+                    (device_id, nombre_dispositivo)
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_device_delicate(self, device_key: str):
         """Devuelve el modo delicado para un dispositivo (0/1), o None si no hay config."""
         if not device_key:
             return None
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT delicate_mode FROM device_settings WHERE device_key = ?',
-            (device_key,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        return int(row['delicate_mode']) if row else None
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT delicate_mode FROM device_settings WHERE device_key = ?',
+                (device_key,)
+            )
+            row = cursor.fetchone()
+            return int(row['delicate_mode']) if row else None
+        finally:
+            conn.close()
 
     def set_device_delicate(self, device_key: str, delicate: bool):
         """Guarda el modo delicado para un dispositivo."""
         if not device_key:
             return
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'INSERT OR REPLACE INTO device_settings (device_key, delicate_mode) VALUES (?, ?)',
-            (device_key, int(delicate))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT OR REPLACE INTO device_settings (device_key, delicate_mode) VALUES (?, ?)',
+                (device_key, int(delicate))
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def get_setting(self, key: str, default=None):
         """Obtiene un valor de configuración general."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'SELECT value FROM settings WHERE key = ?', (key,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        if row:
-            return row[0]
-        return default
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT value FROM settings WHERE key = ?', (key,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return row[0]
+            return default
+        finally:
+            conn.close()
 
     def set_setting(self, key: str, value):
         """Guarda un valor de configuración general."""
         conn = self.get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
-            (key, value)
-        )
-        conn.commit()
-        conn.close()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+                (key, value)
+            )
+            conn.commit()
+        finally:
+            conn.close()
 
     def load_seen(self, source_path: str) -> dict:
         """Inventario de archivos vistos por el watcher para una fuente.
