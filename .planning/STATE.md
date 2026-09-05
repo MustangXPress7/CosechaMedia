@@ -5,14 +5,14 @@ milestone_name: Verificación avanzada + Reorganizador de footage
 current_phase: 01.6.0
 current_phase_name: Añadir origen + Reorganizador + Bugs + DeviceRegistry
 status: completed
-stopped_at: Phase 01.6.0 complete - all 7 plans executed and verified
-last_updated: "2026-09-05T14:30:00Z"
+stopped_at: Completed 01.6.0-07-PLAN.md (DeviceRegistry write path)
+last_updated: "2026-09-05T15:22:30.356Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 01.6.0 complete - all 7 plans executed and verified
-state_head: 49db787eaa41f772124dd57228c34d5aaeb01ee4
+state_head: 487578753606c85f0fe69456061c5f37b83dc03f
 progress:
   total_phases: 1
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 7
   completed_plans: 7
 ---
@@ -122,6 +122,7 @@ Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 | 01.6.0-02 (AddSourceDialog) | 45m | 3 tasks | 5 files (2 new, 1 mod, 2 del) |
 | 01.6.0-03 (Reorganizador) | 25m | 3 tasks | 4 files (2 new, 1 mod) |
 | Phase 01.6.0 P05 | 31 | 2 tasks | 7 files |
+| Phase 01.6.0 P07 | 75 | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,10 @@ Recent decisions affecting current work:
 - [Phase 01.6.0]: Propagar el nombre editado por callback (on_camera_name_changed) desde AddSourceDialog sin acoplarlo a db
 - [Phase 01.6.0]: Excluir nombres de marcador de posicion (Detectando/Sin nombre/Vacio) de la persistencia en el combo de dispositivos
 - [Phase 01.6.0]: Sanitizar nombres de dispositivo en la capa de datos (DatabaseManager._sanitize_dispositivo_nombre) ademas del handler, para cualquier escritura futura (T-01.6.0-15)
+- [Phase 01.6.0]: DeviceRegistry write path: auto-upsert known_devices on MTP/FTP detection via list_devices() and stage()
+- [Phase 01.6.0]: Legacy device_settings migration to known_devices runs idempotently at startup via _migrate_legacy_devices()
+- [Phase 01.6.0]: Cross-project device persistence: known_devices table + delete_all_known_cameras/delete_all_saved_devices kill-switches clear known_devices
+- [Phase 01.6.0]: Removed btn_detect_drives from main_window (replaced by auto-detection D-09); upsert_known_device in save_dispositivo_config paths
 
 ### Roadmap Evolution
 
@@ -207,8 +212,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-05T09:51:47.918Z
-Stopped at: Completed 01.6.0-05-PLAN.md
+Last session: 2026-09-05T15:22:11.679Z
+Stopped at: Completed 01.6.0-07-PLAN.md (DeviceRegistry write path)
 Resume file: None
 
 ## Operator Next Steps
