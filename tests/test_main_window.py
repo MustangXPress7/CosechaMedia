@@ -738,6 +738,168 @@ class TestRenameCamera(unittest.TestCase):
         self.assertIn("D:\\Footage\\NEW_CAM\\2024-01-01\\clip2.mp4", paths)
 
 
+class TestRenameDialogPersistence(unittest.TestCase):
+    """B-20: renombrar en el diálogo «Añadir origen» persiste el nombre en
+    device_settings y sincroniza las sesiones abiertas del dispositivo."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="sdimport_dlgrename_")
+        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "dlgrename.db"))
+        self._orig_db = mw.db
+        self._orig_ing_db = ingestor_module.db
+        self._orig_me_db = me_module.db
+        mw.db = self.db
+        ingestor_module.db = self.db
+        me_module.db = self.db
+
+        conn = self.db.get_connection()
+        conn.execute(
+            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
+        )
+        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.commit()
+        conn.close()
+
+        self.window = mw.MainWindow()
+        self.window.current_project_id = self.pid
+        self.window.project_camera_detection_mode = "manual"
+        self.src = os.path.join(self.tmp, "dev")
+        os.makedirs(self.src)
+
+    def tearDown(self):
+        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
+            self.window._sync_timer.stop()
+        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
+            self.window._cam_timer.stop()
+        self.window.close()
+        mw.db = self._orig_db
+        ingestor_module.db = self._orig_ing_db
+        me_module.db = self._orig_me_db
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _session_with_device(self, sid, device_id, src):
+        sid = self.db.create_session(self.pid, sid, "2024-01-01", "active", src)
+        conn = self.db.get_connection()
+        conn.execute("UPDATE sessions SET device_id = ? WHERE id = ?",
+                     (device_id, sid))
+        conn.commit()
+        conn.close()
+        return sid
+
+    def test_rename_in_dialog_persists_device_settings(self):
+        """Editar el nombre en el diálogo actualiza device_settings y la
+        sesión del dispositivo (B-20, ruta «device»)."""
+        from unittest.mock import patch
+        from app.core.mtp import DeviceInfo
+        sid = self._session_with_device("S1", "mtp:ren1", self.src)
+        import app.ui.add_source_dialog as asd
+        with patch.object(asd, "db", self.db):
+            dlg = asd.AddSourceDialog(
+                None, devices_connected=[DeviceInfo("mtp:ren1", "Sony FX6")],
+                on_camera_name_changed=self.window._on_dialog_camera_name_changed)
+            row = dlg._row_for_source("device", "mtp:ren1")
+            self.assertIsNotNone(row)
+            combo = dlg.table.cellWidget(row, 2)
+            combo.setEditText("Nuevo Nombre")
+            dlg.close()
+        self.assertEqual(self.db.get_dispositivo_for_device("mtp:ren1"),
+                         "Nuevo Nombre")
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Nuevo Nombre")
+
+    def test_rename_in_dialog_ftp_prefix(self):
+        """La ruta FTP usa el device_id con prefijo ftp: (B-20)."""
+        from unittest.mock import patch
+        sid = self._session_with_device("S2", "ftp:42", self.src)
+
+        class _FakeFtpBackend:
+            def list_profiles(self):
+                return [{"id": "42", "name": "Mi FTP", "host": "192.168.1.10"}]
+        import app.ui.add_source_dialog as asd
+        with patch.object(asd, "db", self.db):
+            dlg = asd.AddSourceDialog(
+                None, ftp_backend=_FakeFtpBackend(),
+                on_camera_name_changed=self.window._on_dialog_camera_name_changed)
+            row = dlg._row_for_source("ftp_profile", "42")
+            self.assertIsNotNone(row)
+            combo = dlg.table.cellWidget(row, 2)
+            combo.setEditText("Camara FTP")
+            dlg.close()
+        self.assertEqual(self.db.get_dispositivo_for_device("ftp:42"),
+                         "Camara FTP")
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Camara FTP")
+
+    def test_cross_project_rename_persists(self):
+        """Renombrar en el diálogo persiste en device_settings (global): el
+        nuevo nombre aparece al volver a abrir el diálogo (B-20, cross-project)."""
+        from unittest.mock import patch
+        from app.core.mtp import DeviceInfo
+        self._session_with_device("S3", "mtp:ren3", self.src)
+        import app.ui.add_source_dialog as asd
+        with patch.object(asd, "db", self.db):
+            dlg = asd.AddSourceDialog(
+                None, devices_connected=[DeviceInfo("mtp:ren3", "Sony FX3")],
+                on_camera_name_changed=self.window._on_dialog_camera_name_changed)
+            row = dlg._row_for_source("device", "mtp:ren3")
+            combo = dlg.table.cellWidget(row, 2)
+            combo.setEditText("RED Komodo 6K")
+            dlg.close()
+        # Segundo diálogo (aunque el proyecto sea otro, el guardado global aparece)
+        self.window.current_project_id = None
+        with patch.object(asd, "db", self.db):
+            dlg2 = asd.AddSourceDialog(
+                None, devices_connected=[DeviceInfo("mtp:ren3", "Sony FX3")])
+            row2 = dlg2._row_for_source("device", "mtp:ren3")
+            combo2 = dlg2.table.cellWidget(row2, 2)
+            self.assertEqual(combo2.lineEdit().text(), "RED Komodo 6K")
+            dlg2.close()
+
+    def test_auto_detect_saves_to_device_settings(self):
+        """La detección automática (modo auto) persiste la cámara detectada en
+        device_settings y en la sesión (I-14 + B-20)."""
+        from unittest.mock import patch
+        sid = self._session_with_device("S4", "mtp:auto1", self.src)
+        clip = os.path.join(self.src, "clip.mp4")
+        with open(clip, "wb") as f:
+            f.write(b"media")
+        self.window.project_camera_detection_mode = "auto"
+        self.window.project_camera_detection_timeout = 0
+        import app.ui.add_source_dialog as asd
+        with patch.object(asd, "db", self.db):
+            with patch.object(self.window, "_find_smallest_media",
+                              return_value=clip):
+                with patch.object(me_module.metadata_engine,
+                                  "get_video_metadata",
+                                  return_value={"camera_model": "Sony FX9"}):
+                    with patch.object(mw.QInputDialog, "getText",
+                                      return_value=("Sony FX9", True)):
+                        self.window._detect_camera_for_session(sid, self.src)
+                        # Esperar a que el hilo de scan complete (QTimer loop)
+                        for _ in range(200):
+                            QApplication.processEvents()
+                            time.sleep(0.01)
+                            if self.db.get_dispositivo_for_device("mtp:auto1"):
+                                break
+                        # Drenar el QTimer.singleShot(0) del prompt programado
+                        # por _apply_detection mientras QInputDialog está
+                        # mockeado; si no, dispara en el event loop de otro
+                        # test y abre un diálogo modal real (crash offscreen).
+                        for _ in range(50):
+                            QApplication.processEvents()
+                            time.sleep(0.01)
+                            if "Sony FX9" in self.window.ingest_status_label.text():
+                                break
+        self.assertEqual(self.db.get_dispositivo_for_device("mtp:auto1"),
+                         "Sony FX9")
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Sony FX9")
+
+
 class TestFreeSpace(unittest.TestCase):
     """Verifica _free_space maneja errores correctamente."""
 

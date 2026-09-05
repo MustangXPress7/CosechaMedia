@@ -2978,6 +2978,29 @@ class MainWindow(QMainWindow):
         self._refresh_sessions_combo()
         self.ingest_status_label.setText(self.tr("Dispositivo: %1").arg(new_name or self.tr("Sin nombre")))
 
+    def _on_dialog_camera_name_changed(self, device_id, nombre_dispositivo):
+        """Guarda el nombre editado en el diálogo «Añadir origen» (B-20).
+
+        Persiste el mapeo device_id→nombre en device_settings y sincroniza
+        las sesiones abiertas de ese dispositivo; los cambios se reflejan en
+        la lista de orígenes y en el combo de sesiones si la ventana está
+        visible (durante el diálogo modal no hace falta refrescar).
+        """
+        if not device_id or not nombre_dispositivo:
+            return
+        sane = db._sanitize_dispositivo_nombre(nombre_dispositivo)
+        if not sane:
+            return
+        db.save_dispositivo_config(device_id, sane)
+        if self.current_project_id is None:
+            return
+        for s in db.get_sessions(self.current_project_id):
+            if s.get("device_id") == device_id:
+                db.update_session_config(s["id"], nombre_dispositivo=sane)
+        if self.isVisible():
+            self._refresh_source_list()
+            self._refresh_sessions_combo()
+
     def _show_source_context_menu(self, pos):
         row = self.source_list.rowAt(pos.y())
         if row < 0:
@@ -3644,6 +3667,7 @@ class MainWindow(QMainWindow):
                                   on_delete=self._delete_saved_source,
                                   on_detect=self._detect_camera_for_source,
                                   on_qr=self._show_wifi_qr_for_sender,
+                                  on_camera_name_changed=self._on_dialog_camera_name_changed,
                                   camera_detection_mode=self.project_camera_detection_mode)
         if dialog.exec() != QDialog.Accepted:
             return None

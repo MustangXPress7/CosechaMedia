@@ -568,5 +568,88 @@ class _Device:
         self.assertEqual(sources[0]["camera"], "Keyboard Cam")
 
 
+class TestCameraNameChangedCallback(unittest.TestCase):
+    """B-20: el diálogo notifica ediciones de nombre de dispositivo al
+    llamador vía on_camera_name_changed(device_id, nombre)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _dialog(self, **kw):
+        return AddSourceDialog(None, **kw)
+
+    def test_edit_camera_fires_callback_for_device(self):
+        """Editar el combo de un dispositivo MTP dispara el callback con el
+        device_id real y el nuevo nombre."""
+        calls = []
+        dlg = self._dialog(
+            devices_connected=[DeviceInfo("dev-1", "Cámara MTP")],
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("device", "dev-1")
+        self.assertIsNotNone(row)
+        _set_camera(dlg, row, "Cámara A")
+        self.assertEqual(calls, [("dev-1", "Cámara A")])
+
+    def test_edit_camera_fires_callback_for_ftp(self):
+        """En filas FTP el device_id se construye con prefijo ftp:."""
+        class _FakeFtpBackend:
+            def list_profiles(self):
+                return [{"id": "ftp-1", "name": "Mi FTP", "host": "192.168.1.10"}]
+        calls = []
+        dlg = self._dialog(
+            ftp_backend=_FakeFtpBackend(),
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("ftp_profile", "ftp-1")
+        self.assertIsNotNone(row)
+        _set_camera(dlg, row, "Cámara FTP")
+        self.assertEqual(calls, [("ftp:ftp-1", "Cámara FTP")])
+
+    def test_no_callback_for_folder_rows(self):
+        """Las filas de carpeta (sin device_id) NO disparan el callback."""
+        calls = []
+        dlg = self._dialog(
+            folders=["E:\\DCIM"],
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("folder", "E:\\DCIM")
+        self.assertIsNotNone(row)
+        _set_camera(dlg, row, "Cámara X")
+        self.assertEqual(calls, [])
+
+    def test_placeholder_detectando_not_persisted(self):
+        """El placeholder 'Detectando…' no se guarda como nombre real."""
+        calls = []
+        dlg = self._dialog(
+            devices_connected=[DeviceInfo("dev-2", "Cámara B")],
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("device", "dev-2")
+        combo = dlg.table.cellWidget(row, 2)
+        combo.setEditText(dlg.tr("Detectando…"))
+        self.assertEqual(calls, [])
+
+    def test_placeholder_sin_nombre_not_persisted(self):
+        """El placeholder 'Sin nombre' no se guarda como nombre real."""
+        calls = []
+        dlg = self._dialog(
+            devices_connected=[DeviceInfo("dev-3", "Cámara C")],
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("device", "dev-3")
+        combo = dlg.table.cellWidget(row, 2)
+        combo.setEditText(dlg.tr("Sin nombre"))
+        self.assertEqual(calls, [])
+
+    def test_auto_detect_result_saved_via_callback(self):
+        """Al detectar automáticamente, el nombre resultante se escribe en la
+        celda Y se persiste vía el mismo callback (D-09 + B-20)."""
+        calls = []
+        dlg = self._dialog(
+            devices_connected=[DeviceInfo("dev-4", "Cámara D")],
+            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        row = dlg._row_for_source("device", "dev-4")
+        dlg._on_camera_detected(row, True, "RED V-Raptor")
+        self.assertEqual(_camera_text(dlg, row), "RED V-Raptor")
+        self.assertEqual(calls, [("dev-4", "RED V-Raptor")])
+
+
 if __name__ == "__main__":
     unittest.main()

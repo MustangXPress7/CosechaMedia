@@ -171,6 +171,22 @@ class TestDatabaseManager(unittest.TestCase):
         other = self.db.get_devices()
         self.assertTrue(all(d["device_id"] != "DEV1" for d in other))
 
+    def test_save_dispositivo_config_sanitizes_name(self):
+        """T-01.6.0-15: los nombres de dispositivo con caracteres de control
+        o más de 100 caracteres se limpian al persistir en device_settings."""
+        self.db.save_dispositivo_config("SAN1", "  Cámara\x07\nA  ")
+        self.assertEqual(self.db.get_dispositivo_for_device("SAN1"), "CámaraA")
+        # Longitud máxima 100 caracteres
+        self.db.save_dispositivo_config("SAN2", "A" * 150)
+        self.assertEqual(self.db.get_dispositivo_for_device("SAN2"), "A" * 100)
+
+    def test_save_dispositivo_sanitizes_name(self):
+        """T-01.6.0-15: sanitización también en el mapeo serial→sd_cards."""
+        self.db.save_dispositivo("SERIAL-SAN", "  X\x01Y\n")
+        self.assertEqual(self.db.get_dispositivo_for_card("SERIAL-SAN"), "XY")
+        self.db.save_dispositivo("SERIAL-LONG", "B" * 130)
+        self.assertEqual(self.db.get_dispositivo_for_card("SERIAL-LONG"), "B" * 100)
+
     def test_wifi_session_get_or_create(self):
         from app.core.db import WIFI_DEVICE_ID
         conn = self.db.get_connection()

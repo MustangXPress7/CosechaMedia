@@ -1076,8 +1076,22 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    @staticmethod
+    def _sanitize_dispositivo_nombre(name: str) -> str:
+        """Limpia un nombre de dispositivo antes de persistirlo (T-01.6.0-15).
+
+        Elimina caracteres de control (ord < 32), recorta espacios y limita
+        la longitud a 100 caracteres para proteger la UI y la exportación.
+        """
+        if not name:
+            return name
+        cleaned = "".join(ch for ch in name if ord(ch) >= 32)
+        cleaned = cleaned.strip()
+        return cleaned[:100]
+
     def save_dispositivo(self, volume_serial: str, nombre_dispositivo: str, brand: str = None, model: str = None):
         """Guarda o actualiza el mapeo serial→cámara para una tarjeta SD."""
+        nombre_dispositivo = self._sanitize_dispositivo_nombre(nombre_dispositivo)
         if not volume_serial or not nombre_dispositivo:
             return
         conn = self.get_connection()
@@ -1146,6 +1160,7 @@ class DatabaseManager:
 
     def save_dispositivo_config(self, device_id: str, nombre_dispositivo: str):
         """Guarda o actualiza el mapeo device_id→cámara para dispositivos MTP/FTP."""
+        nombre_dispositivo = self._sanitize_dispositivo_nombre(nombre_dispositivo)
         if not device_id or not nombre_dispositivo:
             return
         conn = self.get_connection()

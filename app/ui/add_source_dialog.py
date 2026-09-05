@@ -75,11 +75,15 @@ class AddSourceDialog(QDialog):
                  devices_missing=(), devices_connected=(),
                  mtp_backend=None, ftp_backend=None,
                  on_delete=None, on_detect=None, on_qr=None,
+                 on_camera_name_changed=None,
                  camera_detection_mode="auto"):
         super().__init__(parent)
         self.on_delete = on_delete      # on_delete(kind, value) -> bool
         self.on_detect = on_detect      # on_detect(kind, value) -> str (cámara)
         self.on_qr = on_qr              # on_qr(sender_name) -> None
+        self.on_camera_name_changed = on_camera_name_changed
+        # on_camera_name_changed(device_id, nombre) -> None: se invoca al
+        # editar el nombre de un dispositivo conocido (persistencia B-20).
         self._camera_detection_mode = camera_detection_mode
         self._mtp_backend = mtp_backend if mtp_backend is not None else mtp.WpdBackend()
         self._explicit_mtp = mtp_backend is not None
@@ -386,7 +390,43 @@ class AddSourceDialog(QDialog):
         combo.lineEdit().textChanged.connect(self._update_ok_state)
         combo.lineEdit().textChanged.connect(
             lambda text, r=row: self._update_camera_in_row(r, text))
+        if self.on_camera_name_changed is not None:
+            combo.lineEdit().textChanged.connect(
+                lambda text, r=row: self._on_camera_text_changed(r, text))
         return combo
+
+    def _on_camera_text_changed(self, row, text):
+        """Propaga el nombre editado al callback on_camera_name_changed.
+
+        B-20: al editar el combo de un dispositivo conocido (o al detectarlo
+        automáticamente), se notifica al llamador para persistir el nombre en
+        device_settings. Solo aplica a filas con device_id (MTP/FTP); los
+        textos de marcador de posición (Detectando/Sin nombre/Vacío) se
+        ignoran para no guardar estados transitorios.
+        """
+        if self.on_camera_name_changed is None:
+            return
+        src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
+        if not src:
+            return
+        kind = src.get("kind")
+        value = src.get("value")
+        if kind == "device":
+            device_id = value
+        elif kind == "ftp_profile":
+            device_id = f"ftp:{value}"
+        else:
+            return
+        if not device_id:
+            return
+        name = (text or "").strip()
+        if not name:
+            return
+        placeholders = (self.tr("Detectando…"), self.tr("Sin nombre"),
+                        self.tr("— Vacío —"))
+        if name in placeholders:
+            return
+        self.on_camera_name_changed(device_id, name)
 
     def _on_camera_combo_changed(self, row, index):
         if index < 0:
