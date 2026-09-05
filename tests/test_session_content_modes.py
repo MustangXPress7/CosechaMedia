@@ -271,30 +271,37 @@ class TestSessionDumpSwitch(unittest.TestCase):
         self.assertEqual(self.window.btn_session_dump_config.text(), before)
 
     def test_menu_window_accepted_persists_days(self):
-        """Menú de N días aceptado: persiste {window_days: N} sin cutoff congelado."""
+        """Menú de N días aceptado: persiste {window_days: N, window_value: N, window_unit: 'days'} sin cutoff congelado."""
         self.db.update_session_config(self.sid, content_mode="window",
                                       content_filter=json.dumps({"window_days": 9}))
         self.window._update_session_dump_switch()
-        with mock.patch.object(mw.QInputDialog, "getInt", return_value=(4, True)) as gi:
+        with mock.patch.object(mw.MainWindow, "_open_window_filter_dialog", return_value=(4, "days", True)) as gw:
             self.window.btn_session_dump_config.click()
-        gi.assert_called_once()
+        gw.assert_called_once()
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "window")
-        self.assertEqual(json.loads(sess["content_filter"]), {"window_days": 4})
-        self.assertNotIn("cutoff_date", json.loads(sess["content_filter"]))
+        filt = json.loads(sess["content_filter"])
+        self.assertEqual(filt["window_days"], 4)
+        self.assertEqual(filt["window_value"], 4)
+        self.assertEqual(filt["window_unit"], "days")
+        self.assertNotIn("cutoff_date", filt)
         self.assertEqual(self.window.btn_session_dump_config.text(),
                          self.window.tr("Últimos %1 días").arg(4))
 
     def test_menu_window_cancelled_keeps_days(self):
-        """Cancelar el diálogo de días conserva los días configurados."""
+        """Cancelar el diálogo de días conserva los días configurados (formato legacy)."""
         self.db.update_session_config(self.sid, content_mode="window",
                                       content_filter=json.dumps({"window_days": 9}))
         self.window._update_session_dump_switch()
-        with mock.patch.object(mw.QInputDialog, "getInt", return_value=(4, False)):
+        with mock.patch.object(mw.MainWindow, "_open_window_filter_dialog", return_value=(4, "days", False)):
             self.window.btn_session_dump_config.click()
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "window")
-        self.assertEqual(json.loads(sess["content_filter"]), {"window_days": 9})
+        filt = json.loads(sess["content_filter"])
+        # Formato legacy se mantiene al cancelar
+        self.assertEqual(filt["window_days"], 9)
+        self.assertNotIn("window_value", filt)
+        self.assertNotIn("window_unit", filt)
         self.assertEqual(self.window.btn_session_dump_config.text(),
                          self.window.tr("Últimos %1 días").arg(9))
 

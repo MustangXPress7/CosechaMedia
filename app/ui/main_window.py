@@ -4,12 +4,12 @@ import json
 import time
 from datetime import datetime
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                             QLabel, QPushButton, QLineEdit, QProgressBar, QTableWidget,
-                             QTableWidgetItem, QHeaderView, QFrame, QStackedWidget, QDateEdit,
-                             QComboBox, QMessageBox, QFileDialog, QMenuBar, QMenu, QCheckBox,
-                             QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
-                             QListWidget, QListWidgetItem, QInputDialog, QFormLayout, QDialog,
-                             QTextEdit, QSpinBox, QSizePolicy, QSplitter)
+                              QLabel, QPushButton, QLineEdit, QProgressBar, QTableWidget,
+                              QTableWidgetItem, QHeaderView, QFrame, QStackedWidget, QDateEdit,
+                              QComboBox, QMessageBox, QFileDialog, QMenuBar, QMenu, QCheckBox,
+                              QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
+                              QListWidget, QListWidgetItem, QInputDialog, QFormLayout, QDialog,
+                              QTextEdit, QSpinBox, QSizePolicy, QSplitter, QDialogButtonBox)
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap, QPainter
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
 from app.core.ingestor import Ingestor, DumpTarget
@@ -3216,14 +3216,42 @@ class MainWindow(QMainWindow):
         return mode, filt, restricted
 
     @staticmethod
-    def _window_days_from_filter(filt):
-        """Días de ventana del filtro (default 1; ignora cutoff_date legacy)."""
-        if isinstance(filt, dict):
+    def _window_value_unit_from_filter(filt):
+        """(valor, unidad) del filtro ventana; filtro legacy → (días, "days")."""
+        if not isinstance(filt, dict):
+            return 1, "days"
+        # Formato nuevo: window_value + window_unit
+        unit = filt.get("window_unit")
+        if unit in ("days", "weeks", "months"):
             try:
-                return int(filt.get("window_days", 1))
+                value = int(filt.get("window_value", 1))
             except (TypeError, ValueError):
-                pass
-        return 1
+                value = 1
+            return value, unit
+        # Formato legacy: solo window_days
+        try:
+            return int(filt.get("window_days", 1)), "days"
+        except (TypeError, ValueError):
+            return 1, "days"
+
+    @staticmethod
+    def _window_days_from_filter(filt):
+        """Días efectivos para el ingestor según la unidad (1/7/30)."""
+        value, unit = MainWindow._window_value_unit_from_filter(filt)
+        if unit == "weeks":
+            return value * 7
+        if unit == "months":
+            return value * 30
+        return value
+
+    def _window_filter_text(self, filt):
+        """Etiqueta unit-aware del botón de configuración: N días/semanas/meses."""
+        value, unit = self._window_value_unit_from_filter(filt)
+        if unit == "weeks":
+            return self.tr("Últimas %1 semanas").arg(value)
+        if unit == "months":
+            return self.tr("Últimos %1 meses").arg(value)
+        return self.tr("Últimos %1 días").arg(value)
 
     def _update_session_dump_switch(self):
         """Refresca el rotativo (icono del modo) y el botón de configuración.
@@ -3266,7 +3294,7 @@ class MainWindow(QMainWindow):
             cfg.setEnabled(True)
         elif mode == "window":
             icons.apply(btn, "timer", size=16)
-            cfg.setText(self.tr("Últimos %1 días").arg(self._window_days_from_filter(filt)))
+            cfg.setText(self._window_filter_text(filt))
             cfg.setEnabled(True)
         else:
             icons.apply(btn, "square", size=16)
@@ -3298,16 +3326,50 @@ class MainWindow(QMainWindow):
                     # El asistente persiste al aceptar; cancelar conserva el filtro.
                     self._open_content_filter(sid)
                 elif mode == "window":
-                    days = self._window_days_from_filter(filt)
-                    days, ok = QInputDialog.getInt(
-                        self, self.tr("Últimos N días"),
-                        self.tr("Número de días a volcar:"), days, 1, 3650)
+                    value, unit = self._window_value_unit_from_filter(filt)
+                    value, unit, ok = self._open_window_filter_dialog(value, unit)
                     if ok:
-                        # Sin cutoff congelado: se calcula al iniciar la ingesta.
+                        # Guardar valor + unidad; el ingestor usa días normalizados.
+                        days = value * (7 if unit == "weeks" else 30 if unit == "months" else 1)
                         db.update_session_config(
                             sid, content_mode="window",
-                            content_filter=json.dumps({"window_days": int(days)}))
+                            content_filter=json.dumps({
+                                "window_days": days,
+                                "window_value": int(value),
+                                "window_unit": unit,
+                            }))
         self._update_session_dump_switch()
+
+    def _open_window_filter_dialog(self, initial_value: int, initial_unit: str):
+        """Diálogo para configurar filtro ventana con selector de unidad (días/semanas/meses)."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Configurar últimos N días/semanas/meses"))
+        dialog.setModal(True)
+        layout = QFormLayout(dialog)
+
+        spin = QSpinBox()
+        spin.setRange(1, 3650)
+        spin.setValue(initial_value)
+        spin.setToolTip(self.tr("Cantidad de unidades hacia atrás"))
+        layout.addRow(self.tr("Valor:"), spin)
+
+        combo = QComboBox()
+        combo.addItems([self.tr("Días"), self.tr("Semanas"), self.tr("Meses")])
+        unit_map = {"days": 0, "weeks": 1, "months": 2}
+        combo.setCurrentIndex(unit_map.get(initial_unit, 0))
+        combo.setToolTip(self.tr("Unidad de tiempo para el filtro"))
+        layout.addRow(self.tr("Unidad:"), combo)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+
+        if dialog.exec() == QDialog.Accepted:
+            idx = combo.currentIndex()
+            unit = ["days", "weeks", "months"][idx]
+            return spin.value(), unit, True
+        return initial_value, initial_unit, False
 
     def _add_manual_session(self):
         if self.current_project_id is None:
