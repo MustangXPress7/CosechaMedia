@@ -75,13 +75,14 @@ class AddSourceDialog(QDialog):
                  devices_missing=(), devices_connected=(),
                  mtp_backend=None, ftp_backend=None,
                  on_delete=None, on_detect=None, on_qr=None,
-                 on_camera_name_changed=None,
+                 on_camera_name_changed=None, on_wifi_status=None,
                  camera_detection_mode="auto"):
         super().__init__(parent)
         self.on_delete = on_delete      # on_delete(kind, value) -> bool
         self.on_detect = on_detect      # on_detect(kind, value) -> str (cámara)
         self.on_qr = on_qr              # on_qr(sender_name) -> None
         self.on_camera_name_changed = on_camera_name_changed
+        self.on_wifi_status = on_wifi_status  # on_wifi_status(sender_id) -> bool
         # on_camera_name_changed(device_id, nombre) -> None: se invoca al
         # editar el nombre de un dispositivo conocido (persistencia B-20).
         self._camera_detection_mode = camera_detection_mode
@@ -228,12 +229,20 @@ class AddSourceDialog(QDialog):
         row = self._add_section(row, self.tr("WiFi / PairDrop"))
         for sender in senders:
             name = sender["name"]
+            sender_id = sender.get("id", name)  # Use unique ID if available
             used = sender.get("used")
             label = name + ("  " + self.tr("(ya asignado)") if used else "")
+            # Check WiFi server status if callback provided
+            wifi_connected = True
+            if self.on_wifi_status is not None:
+                try:
+                    wifi_connected = self.on_wifi_status(sender_id)
+                except Exception:
+                    wifi_connected = False
             row = self._add_source_row(
-                row, {"kind": "sender", "value": name, "camera": name,
-                      "enabled": True, "connected": True,
-                      "label": label, "type": "WiFi"})
+                row, {"kind": "sender", "value": sender_id, "camera": name,
+                      "enabled": True, "connected": wifi_connected,
+                      "label": label, "type": "WiFi", "sender_name": name})
 
         # Sección FTP
         row = self._add_section(row, self.tr("FTP"))
@@ -305,8 +314,8 @@ class AddSourceDialog(QDialog):
                 " color: %s; font-size: 11px; }"
                 "QPushButton:hover { color: %s; }"
                 % (theme.color("text_secondary"), theme.color("accent")))
-            # Connect QR button to callback
-            sender_name = src["value"]
+            # Connect QR button to callback - use sender_name for display, value is sender_id
+            sender_name = src.get("sender_name", src["value"])
             if self.on_qr is not None:
                 qr_btn.clicked.connect(
                     lambda _=False, name=sender_name: self.on_qr(name))
@@ -492,6 +501,11 @@ class AddSourceDialog(QDialog):
             "enabled": True, "connected": True,
             "label": path, "type": "FOLDER"},
             insert_before_row=self._section_start_row(1))
+        # Persist folder to known_devices for cross-project persistence
+        try:
+            db.upsert_known_device(path, "folder", name=path, last_camera=self.tr("Sin nombre"))
+        except Exception:
+            pass
         self._update_ok_state()
 
     def _section_start_row(self, section_index):
@@ -624,6 +638,11 @@ class AddSourceDialog(QDialog):
                 "enabled": True, "connected": True,
                 "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
                 insert_before_row=wifi_row)
+            # Persist MTP device to known_devices for cross-project persistence
+            try:
+                db.upsert_known_device(device_id, "mtp", name=name, last_camera=name)
+            except Exception:
+                pass
             wifi_row += 1
         for drive in utils.get_mounted_drives():
             drive_path = drive if isinstance(drive, str) else drive.get("path", "")
@@ -636,6 +655,11 @@ class AddSourceDialog(QDialog):
                     "enabled": True, "connected": True,
                     "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
                     insert_before_row=wifi_row)
+                # Persist USB drive to known_devices for cross-project persistence
+                try:
+                    db.upsert_known_device(drive_path, "usb", name=drive_path, last_camera=self.tr("Sin nombre"))
+                except Exception:
+                    pass
                 wifi_row += 1
         self._update_ok_state()
 
@@ -651,15 +675,22 @@ class AddSourceDialog(QDialog):
             return
         name = name.strip()
         try:
-            db.add_inbox_sender(name)
+            sender_id = db.add_inbox_sender(name)
         except Exception as e:
             QMessageBox.warning(self, self.tr("Error"),
                                 self.tr("No se pudo crear el remitente: %1").arg(str(e)))
             return
+        # Check WiFi server status if callback provided
+        wifi_connected = True
+        if self.on_wifi_status is not None:
+            try:
+                wifi_connected = self.on_wifi_status(sender_id)
+            except Exception:
+                wifi_connected = False
         row = self._append_raw_source({
-            "kind": "sender", "value": name, "camera": name,
-            "enabled": True, "connected": True,
-            "label": name, "type": "WiFi"},
+            "kind": "sender", "value": sender_id, "camera": name,
+            "enabled": True, "connected": wifi_connected,
+            "label": name, "type": "WiFi", "sender_name": name},
             insert_before_row=self._section_start_row(2))
         self._update_ok_state()
 

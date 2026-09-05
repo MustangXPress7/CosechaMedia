@@ -3724,9 +3724,11 @@ class MainWindow(QMainWindow):
                 folders.append(sp)
         used = {s.get("device_folder") for s in sessions
                 if (s.get("device_id") or "").startswith("wifi:")}
-        senders = [{"name": s["name"],
+        senders = [{"id": s["id"], "name": s["name"],
                     "used": inboxmod.sanitize_alias(s["name"]) in used}
                    for s in db.list_inbox_senders()]
+        # Ensure WiFi server is running so status is accurate
+        self._ensure_wifi_server()
         # Dispositivos conectados para la sección física (D-03)
         devices_connected = []
         try:
@@ -3740,6 +3742,7 @@ class MainWindow(QMainWindow):
                                   on_detect=self._detect_camera_for_source,
                                   on_qr=self._show_wifi_qr_for_sender,
                                   on_camera_name_changed=self._on_dialog_camera_name_changed,
+                                  on_wifi_status=lambda sender_id: self._wifi_server is not None and self._wifi_server.running,
                                   camera_detection_mode=self.project_camera_detection_mode)
         if dialog.exec() != QDialog.Accepted:
             return None
@@ -3775,16 +3778,21 @@ class MainWindow(QMainWindow):
             db.delete_ftp_profile(value)
             return True
         if kind == "sender":
+            # value is now sender_id (int), but handle name for backward compat
+            sender = None
+            for s in db.list_inbox_senders():
+                if str(s["id"]) == str(value) or s["name"] == value:
+                    sender = s
+                    break
+            if sender is None:
+                return False
             reply = QMessageBox.question(
                 self, self.tr("Eliminar remitente WiFi"),
-                self.tr("¿Eliminar el remitente WiFi '%1'?").arg(value),
+                self.tr("¿Eliminar el remitente WiFi '%1'?").arg(sender["name"]),
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply != QMessageBox.Yes:
                 return False
-            for s in db.list_inbox_senders():
-                if s["name"] == value:
-                    db.delete_inbox_sender(s["id"])
-                    break
+            db.delete_inbox_sender(sender["id"])
             self._sync_wifi_sessions()
             return True
         if kind == "device":
@@ -3997,7 +4005,7 @@ class MainWindow(QMainWindow):
                 self, self.tr("Origen gestionado"),
                 self.tr("No puedes usar una caché gestionada como origen manual."))
 
-    def _bind_wifi_sender(self, sender_name, session_id=None):
+    def _bind_wifi_sender(self, sender_id, session_id=None):
         """Convierte una sesión en la sesión gestionada de un remitente WiFi.
 
         El binding es aditivo: el mismo remitente puede volcar en varias
@@ -4007,8 +4015,15 @@ class MainWindow(QMainWindow):
         """
         if self.current_project_id is None:
             return
-        if sender_name not in {s["name"] for s in db.list_inbox_senders()}:
+        # Look up sender by ID (preferred) or name (fallback for backward compat)
+        sender = None
+        for s in db.list_inbox_senders():
+            if str(s["id"]) == str(sender_id) or s["name"] == sender_id:
+                sender = s
+                break
+        if sender is None:
             return
+        sender_name = sender["name"]
         alias = inboxmod.sanitize_alias(sender_name)
         cache = inboxmod.wifi_cache_dir(sender_name)
         sessions = db.get_sessions(self.current_project_id)
