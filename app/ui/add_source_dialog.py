@@ -726,16 +726,30 @@ class AddSourceDialog(QDialog):
             cam.setEnabled(True)
             cam.setText(result)
         self._update_ok_state()
+        # Persistir nombre detectado automáticamente a known_devices (REQ-09)
+        if ok and name and self.on_camera_name_changed:
+            src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
+            if src:
+                device_id = src.get("value")
+                if device_id:
+                    self.on_camera_name_changed(device_id, name)
 
     @staticmethod
     def _set_combo_text(combo, text):
-        """Escribe text en un combo editable sin disparar índices de disparo."""
+        """Escribe text en un combo editable sin disparar índices de disparo ni señales."""
+        combo.blockSignals(True)
+        le = combo.lineEdit()
+        if le:
+            le.blockSignals(True)
         idx = combo.findText(text)
         if idx >= 0:
             combo.setCurrentIndex(idx)
         else:
             combo.setEditText(text)
-        combo.lineEdit().setText(text)
+        if le:
+            le.setText(text)
+            le.blockSignals(False)
+        combo.blockSignals(False)
 
     # -- estado de aceptar -------------------------------------------------
 
