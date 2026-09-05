@@ -242,7 +242,6 @@ class MainWindow(QMainWindow):
         stored_mode = settings.value("camera_detection_mode", "manual")
         self.project_camera_detection_mode = stored_mode if stored_mode in ("manual", "auto") else "manual"
         self.project_camera_detection_timeout = settings.value("camera_detection_timeout", 5, type=int)
-        self._update_detect_button_state()
         geometry = settings.value("geometry", type=QByteArray)
         if geometry:
             self.restoreGeometry(geometry)
@@ -499,16 +498,6 @@ class MainWindow(QMainWindow):
             self._show_source_context_menu)
         self.source_list.installEventFilter(self)
         left_col.addWidget(self.source_list)
-
-        src_scan_row = QHBoxLayout()
-        self.btn_detect_drives = QPushButton(self.tr("Detectar"))
-        self.btn_detect_drives.setToolTip(self.tr("Detectar unidades extraíbles"))
-        icons.apply(self.btn_detect_drives, "refresh", size=14)
-        self.btn_detect_drives.clicked.connect(self._auto_detect_removable_drives)
-        src_scan_row.addWidget(self.btn_detect_drives)
-
-        src_scan_row.addStretch()
-        left_col.addLayout(src_scan_row)
 
         # --- Sessions ---
         sess_box = QGroupBox(self.tr("Sesiones"))
@@ -1394,7 +1383,6 @@ class MainWindow(QMainWindow):
         self._populate_source_paths_from_sessions()
         self._refresh_sessions_combo()
         self._refresh_source_list()
-        self._update_detect_button_state()
 
     def _set_project_description(self, text):
         """Muestra la descripción del proyecto bajo la header bar (R-10/B-03)."""
@@ -1466,10 +1454,6 @@ class MainWindow(QMainWindow):
             wizard.close()
             wizard.deleteLater()
         self._project_wizard = None
-
-    def _update_detect_button_state(self):
-        is_auto = self.project_camera_detection_mode == "auto"
-        self.btn_detect_drives.setEnabled(True)
 
     def _style_table_viewports(self):
         """Aplica el fondo semi-transparente a los viewports de las tablas."""
@@ -2963,6 +2947,12 @@ class MainWindow(QMainWindow):
         device_id = sess.get("device_id")
         if device_id and not str(device_id).startswith("wifi:"):
             db.save_dispositivo_config(device_id, nombre_dispositivo)
+            # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+            try:
+                device_type = "ftp" if str(device_id).startswith("ftp:") else "mtp"
+                db.upsert_known_device(device_id, device_type, name=nombre_dispositivo, last_camera=nombre_dispositivo)
+            except Exception:
+                pass
         else:
             serial = sd_reader.get_volume_serial(source_path)
             if serial:
@@ -2998,6 +2988,12 @@ class MainWindow(QMainWindow):
         if not sane:
             return
         db.save_dispositivo_config(device_id, sane)
+        # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+        try:
+            device_type = "ftp" if str(device_id).startswith("ftp:") else "mtp"
+            db.upsert_known_device(device_id, device_type, name=sane, last_camera=sane)
+        except Exception:
+            pass
         if self.current_project_id is None:
             return
         for s in db.get_sessions(self.current_project_id):
@@ -4517,6 +4513,9 @@ class MainWindow(QMainWindow):
         if device_id and device_name:
             try:
                 db.save_dispositivo_config(device_id, device_name)
+                # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+                device_type = "ftp" if str(device_id).startswith("ftp:") else "mtp"
+                db.upsert_known_device(device_id, device_type, name=device_name, last_camera=device_name)
             except Exception:
                 pass
         sessions = db.get_sessions(self.current_project_id)

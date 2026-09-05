@@ -350,10 +350,19 @@ class FtpBackend(MtpBackend):
     """Backend FTP que sigue la interfaz MtpBackend (staging incremental reutilizado)."""
 
     def list_devices(self) -> List[DeviceInfo]:
-        return [
-            DeviceInfo(device_key(p["id"]), p.get("name") or p.get("host") or "")
-            for p in db.list_ftp_profiles()
-        ]
+        devices = []
+        for p in db.list_ftp_profiles():
+            device_id = device_key(p["id"])
+            name = p.get("name") or p.get("host") or ""
+            devices.append(DeviceInfo(device_id, name))
+            # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+            try:
+                saved_camera = db.get_dispositivo_for_device(device_id)
+                meta = {"host": p.get("host"), "name": p.get("name")}
+                db.upsert_known_device(device_id, "ftp", name=name, last_camera=saved_camera, metadata=meta)
+            except Exception:
+                pass  # No bloquear la detección por fallo de BD
+        return devices
 
     def _open_session(self, device_id: str,
                       passive: Optional[bool] = None) -> FtpSession:
@@ -432,6 +441,19 @@ class FtpBackend(MtpBackend):
         """Staging incremental. Si una descarga o enumeración falla por pérdida
         de conexión, reabre la sesión una vez y reintenta; si vuelve a fallar,
         cambia de modo pasivo/activo y guarda el modo que funciona."""
+        # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+        try:
+            pid = profile_id_from_device_key(device_id)
+            if pid is not None:
+                row = db.get_ftp_profile(pid)
+                if row:
+                    name = row.get("name") or row.get("host") or ""
+                    saved_camera = db.get_dispositivo_for_device(device_id)
+                    meta = {"host": row.get("host"), "name": row.get("name")}
+                    db.upsert_known_device(device_id, "ftp", name=name, last_camera=saved_camera, metadata=meta)
+        except Exception:
+            pass  # No bloquear el staging por fallo de BD
+
         cache_dir = device_cache_dir(device_id, device_folder)
         os.makedirs(cache_dir, exist_ok=True)
         manifest = _load_manifest(cache_dir)

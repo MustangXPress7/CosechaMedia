@@ -32,6 +32,26 @@ class DatabaseManager:
     def __init__(self, db_path: str = None):
         self.db_path = db_path or _resolve_db_path()
         self.create_tables()
+        # Migración legacy device_settings -> known_devices (solo al arranque si hay datos legacy)
+        self._migrate_legacy_devices()
+
+    def _migrate_legacy_devices(self):
+        """Migra device_settings a known_devices si known_devices está vacía y hay datos legacy."""
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            # Verificar si known_devices ya tiene datos
+            cursor.execute('SELECT COUNT(*) FROM known_devices')
+            if cursor.fetchone()[0] > 0:
+                return
+            # Verificar si hay datos en device_settings para migrar
+            cursor.execute('SELECT COUNT(*) FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
+            if cursor.fetchone()[0] == 0:
+                return
+        finally:
+            conn.close()
+        # Ejecutar migración
+        self.sync_device_settings_to_known()
 
     def get_connection(self):
         conn = sqlite3.connect(self.db_path, check_same_thread=False, timeout=5)

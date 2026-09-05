@@ -488,7 +488,16 @@ class WpdBackend(MtpBackend):
                     name = buf.value
                 except Exception:
                     name = str(cur)
-                devices.append(DeviceInfo(device_id=str(cur), name=name or str(cur)))
+                device_id = str(cur)
+                devices.append(DeviceInfo(device_id=device_id, name=name or str(cur)))
+                # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
+                try:
+                    saved_camera = db.get_dispositivo_for_device(device_id)
+                    meta = {"name": name or device_id}
+                    db.upsert_known_device(device_id, "mtp", name=name or device_id,
+                                           last_camera=saved_camera, metadata=meta)
+                except Exception:
+                    pass  # No bloquear la detección por fallo de BD
             return devices
         finally:
             if not was_initialized:
