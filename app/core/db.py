@@ -395,7 +395,9 @@ class DatabaseManager:
                   "Proyecto creado automáticamente al primer arranque."))
 
         conn.commit()
+        # Migrar device_settings legacy a known_devices (idempotente)
         conn.close()
+        self.sync_device_settings_to_known()
 
     def create_project(self, name: str, root_path: str, description: str = "") -> int:
         """Crea un proyecto verificando duplicados de master_path ANTES de la transacción.
