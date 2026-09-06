@@ -594,12 +594,12 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def create_session(self, project_id: int, name: str, shoot_date: str = None, status: str = "pending", source_path: str = None, content_mode: str = "all"):
+    def create_session(self, project_id: int, name: str, shoot_date: str = None, status: str = "pending", source_path: str = None, content_mode: str = "all", device_id: str = None):
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO sessions (project_id, name, shoot_date, status, content_mode, source_path) VALUES (?, ?, ?, ?, ?, ?)',
-            (project_id, name, shoot_date, status, content_mode, source_path)
+            'INSERT INTO sessions (project_id, name, shoot_date, status, content_mode, source_path, device_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            (project_id, name, shoot_date, status, content_mode, source_path, device_id)
         )
         session_id = cursor.lastrowid
         conn.commit()
@@ -804,7 +804,7 @@ class DatabaseManager:
         """Elimina todas las sesiones (y sus archivos) asociadas a un dispositivo.
 
         También limpia el mapeo de cámara guardado del dispositivo
-        (device_settings), para que al volver a detectarlo no resucite un
+        (device_settings y known_devices), para que al volver a detectarlo no resucite un
         nombre de cámara que el usuario solicitó borrar (bug origen 1)."""
         conn = self.get_connection()
         cursor = conn.cursor()
@@ -821,6 +821,10 @@ class DatabaseManager:
         )
         cursor.execute(
             'DELETE FROM device_settings WHERE device_key = ?',
+            (device_id,)
+        )
+        cursor.execute(
+            'DELETE FROM known_devices WHERE device_id = ?',
             (device_id,)
         )
         conn.commit()

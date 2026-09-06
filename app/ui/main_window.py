@@ -3932,11 +3932,15 @@ class MainWindow(QMainWindow):
                             no_source[0]["id"], source_path=path, name=f"Auto ({base})")
                         sid = no_source[0]["id"]
                     else:
+                        # Para unidades USB extraíbles, asignar device_id basado en la ruta
+                        device_id = ""
+                        if is_removable_drive(path):
+                            device_id = f"usb:{path}"
                         sid = db.create_session(
                             self.current_project_id, f"Auto ({base})",
                             QDate.currentDate().toString("yyyy-MM-dd"), "active",
-                            source_path=path)
-                    self._detect_camera_for_session(sid, path, force_prompt=True)
+                            source_path=path, device_id=device_id)
+                        self._detect_camera_for_session(sid, path, force_prompt=True)
         self._repair_folder_device_id(path)
         self._refresh_source_list()
         self._refresh_sessions_combo()
@@ -4144,6 +4148,22 @@ class MainWindow(QMainWindow):
             folder_mode=folder_mode)
         try:
             self._wifi_server.start()
+            # Wait briefly for server to be ready to accept connections
+            import time
+            for _ in range(50):  # Up to 500ms
+                if self._wifi_server.running:
+                    try:
+                        # Test if we can connect to the server
+                        import socket
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(0.1)
+                        result = sock.connect_ex(('127.0.0.1', self._wifi_server.port))
+                        sock.close()
+                        if result == 0:
+                            break
+                    except Exception:
+                        pass
+                time.sleep(0.01)
         except OSError as e:
             QMessageBox.warning(
                 self, self.tr("WiFi"),
