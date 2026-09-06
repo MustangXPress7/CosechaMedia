@@ -4,11 +4,11 @@ import json
 import time
 from datetime import datetime
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-                              QLabel, QPushButton, QLineEdit, QProgressBar, QTableWidget,
-                              QTableWidgetItem, QHeaderView, QFrame, QStackedWidget, QDateEdit,
+                              QLabel, QPushButton, QProgressBar, QTableWidget,
+                              QTableWidgetItem, QHeaderView, QFrame, QStackedWidget,
                               QComboBox, QMessageBox, QFileDialog, QMenuBar, QMenu, QCheckBox,
-                              QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
-                              QListWidget, QListWidgetItem, QInputDialog, QFormLayout, QDialog,
+                              QGroupBox, QSplashScreen, QSystemTrayIcon,
+                              QListWidgetItem, QInputDialog, QFormLayout, QDialog,
                               QTextEdit, QSpinBox, QSizePolicy, QSplitter, QDialogButtonBox)
 from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
@@ -26,6 +26,10 @@ from app.core.translator import QtString
 from app.ui import theme
 from app.ui import icons
 from app.ui.about_dialog import AboutDialog
+from app.ui.project_settings_dialog import ProjectSettingsDialog
+from app.ui.camera_overrides_dialog import CameraOverridesDialog
+from app.ui.names_manager_dialog import NamesManagerDialog
+from app.ui.dump_locations_dialog import DumpLocationsDialog
 import app.ui.wheat_field as wheat_field
 from app.core import ftp, mtp
 from app.core import shoot_inbox as inboxmod
@@ -724,259 +728,10 @@ class MainWindow(QMainWindow, WifiMixin):
         self._splitter_restore_btn.hide()
 
     def _show_metadata_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Configuración"))
-        dialog.setMinimumWidth(620)
-        main_layout = QVBoxLayout(dialog)
-        main_layout.setSpacing(12)
-        main_layout.setContentsMargins(16, 12, 16, 12)
-
-        # --- Grupo Configuración general ---
-        gen_group = QGroupBox(self.tr("Configuración general"))
-        gen_grid = QGridLayout(gen_group)
-        gen_grid.setHorizontalSpacing(16)
-        gen_grid.setVerticalSpacing(8)
-
-        folder_input = QComboBox()
-        folder_input.setEditable(True)
-        folder_input.addItems(db.get_footage_folders())
-        folder_input.setCurrentText(self.project_folder_name or "Footage")
-        gen_grid.addWidget(QLabel(self.tr("Carpeta footage:")), 0, 0)
-        gen_grid.addWidget(folder_input, 0, 1)
-
-        org_combo = QComboBox()
-        org_combo.addItems([self.tr("Cámara / Fecha"), self.tr("Fecha / Cámara"), self.tr("Solo cámara"), self.tr("Sin subcarpetas")])
-        org_combo.setCurrentIndex(self.project_organization_type)
-        gen_grid.addWidget(QLabel(self.tr("Organización:")), 0, 2)
-        gen_grid.addWidget(org_combo, 0, 3)
-
-        date_mode_combo = QComboBox()
-        date_mode_combo.addItems([self.tr("Automática"), self.tr("Manual")])
-        date_mode_combo.setCurrentIndex(0 if self.project_date_mode == "auto" else 1)
-        gen_grid.addWidget(QLabel(self.tr("Modo de fechas:")), 1, 0)
-        gen_grid.addWidget(date_mode_combo, 1, 1)
-        btn_manage_overrides = QPushButton(self.tr("Gestionar overrides…"))
-        gen_grid.addWidget(btn_manage_overrides, 2, 2, 1, 2)
-        def _open_overrides():
-            self._show_camera_overrides_dialog()
-        btn_manage_overrides.clicked.connect(_open_overrides)
-
-        date_input = QDateEdit()
-        date_input.setCalendarPopup(True)
-        date_input.setDate(self.project_date)
-        date_input.setDisplayFormat("yyyy-MM-dd")
-        date_label = QLabel(self.tr("Fecha:"))
-        gen_grid.addWidget(date_label, 2, 0)
-        gen_grid.addWidget(date_input, 2, 1)
-
-        # Lógica de habilitación
-        def _update_ui_state():
-            uses_date = org_combo.currentIndex() in [0,1]
-            date_mode_combo.setEnabled(uses_date)
-            is_manual = date_mode_combo.currentIndex() == 1
-            btn_manage_overrides.setEnabled(uses_date)
-            date_input.setEnabled(uses_date and is_manual)
-            date_label.setEnabled(uses_date and is_manual)
-
-        date_mode_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
-        org_combo.currentIndexChanged.connect(lambda _: _update_ui_state())
-        _update_ui_state()
-
-        main_layout.addWidget(gen_group)
-
-        # --- Grupo Detección de cámara ---
-        cam_group = QGroupBox(self.tr("Detección de cámara"))
-        cam_layout = QFormLayout(cam_group)
-
-        cam_mode_combo = QComboBox()
-        cam_mode_combo.addItems([self.tr("Manual"), self.tr("Automático")])
-        cam_mode_combo.setCurrentIndex(0 if self.project_camera_detection_mode != "auto" else 1)
-        cam_layout.addRow(self.tr("Modo:"), cam_mode_combo)
-
-        cam_timeout_spin = QSpinBox()
-        cam_timeout_spin.setRange(1, 30)
-        cam_timeout_spin.setSuffix(" s")
-        cam_timeout_spin.setValue(self.project_camera_detection_timeout)
-        cam_timeout_spin.setEnabled(cam_mode_combo.currentIndex() == 1)
-        cam_layout.addRow(self.tr("Timeout:"), cam_timeout_spin)
-        cam_mode_combo.currentIndexChanged.connect(lambda i: cam_timeout_spin.setEnabled(i == 1))
-
-        main_layout.addWidget(cam_group)
-
-        # --- Grupo Proxies ---
-        prox_group = QGroupBox(self.tr("Proxies y rendimiento"))
-        prox_layout = QFormLayout(prox_group)
-
-        chk_gen_proxies = QCheckBox(self.tr("Generar proxies tras la ingesta"))
-        chk_gen_proxies.setChecked(self.project_generate_proxies)
-        prox_layout.addRow(chk_gen_proxies)
-
-        proxy_res_combo = QComboBox()
-        proxy_res_combo.addItems(["720p", "1080p"])
-        proxy_res_combo.setCurrentText(self.project_proxy_resolution)
-        proxy_res_combo.setEnabled(self.project_generate_proxies)
-        prox_layout.addRow(self.tr("Resolución proxy:"), proxy_res_combo)
-        chk_gen_proxies.toggled.connect(proxy_res_combo.setEnabled)
-
-        main_layout.addWidget(prox_group)
-
-        # --- Botones ---
-        btn_save = QPushButton(self.tr("Guardar"))
-        btn_save.setObjectName("PrimaryAction")
-
-        def _save():
-            self.project_folder_name = folder_input.currentText().strip() or "Footage"
-            self.project_organization_type = org_combo.currentIndex()
-            self.project_date_mode = "manual" if date_mode_combo.currentIndex() == 1 else "auto"
-            self.project_manual_date = date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else None
-            self.project_generate_proxies = chk_gen_proxies.isChecked()
-            self.project_proxy_resolution = proxy_res_combo.currentText()
-            self.project_camera_detection_mode = "auto" if cam_mode_combo.currentIndex() == 1 else "manual"
-            self.project_camera_detection_timeout = cam_timeout_spin.value()
-            if self.current_project_id is not None:
-                db.add_footage_folder(self.project_folder_name)
-                conn = db.get_connection()
-                cursor = conn.cursor()
-                cursor.execute(
-                    'UPDATE projects SET folder_name=?, organization_type=?, date_mode=?, manual_date=?, '
-                    'generate_proxies=?, proxy_resolution=?, '
-                    'camera_detection_mode=?, camera_detection_timeout=?, camera_date_overrides=? WHERE id=?',
-                    (self.project_folder_name, self.project_organization_type,
-                     self.project_date_mode, self.project_manual_date,
-                     int(self.project_generate_proxies), self.project_proxy_resolution,
-                     self.project_camera_detection_mode, self.project_camera_detection_timeout,
-                     self.project_camera_date_overrides,
-                     self.current_project_id)
-                )
-                conn.commit()
-                conn.close()
-            self._refresh_source_list()
-            dialog.accept()
-
-        btn_save.clicked.connect(_save)
-
-        btn_defaults = QPushButton(self.tr("Establecer como predeterminado"))
-        def _set_defaults():
-            settings = QSettings("Audiovisual Production", "CosechaMedia")
-            settings.setValue("default_folder_name", folder_input.currentText().strip() or "Footage")
-            settings.setValue("default_organization_type", org_combo.currentIndex())
-            settings.setValue("default_date_mode", "manual" if date_mode_combo.currentIndex() == 1 else "auto")
-            settings.setValue("default_manual_date", date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else "")
-            settings.setValue("default_camera_detection_mode", "auto" if cam_mode_combo.currentIndex() == 1 else "manual")
-            settings.setValue("camera_detection_timeout", cam_timeout_spin.value())
-            self.ingest_status_label.setText(self.tr("Valores guardados como predeterminados."))
-        btn_defaults.clicked.connect(_set_defaults)
-
-        btn_cancel = QPushButton(self.tr("Cancelar"))
-        btn_cancel.clicked.connect(dialog.reject)
-
-        btn_row = QHBoxLayout()
-        btn_row.addWidget(btn_defaults)
-        btn_row.addStretch()
-        btn_row.addWidget(btn_cancel)
-        btn_row.addWidget(btn_save)
-        main_layout.addLayout(btn_row)
-
-        dialog.exec()
+        ProjectSettingsDialog(self, open_overrides_cb=self._show_camera_overrides_dialog).exec()
 
     def _show_camera_overrides_dialog(self):
-        import json
-        from PySide6.QtWidgets import QHeaderView
-        from PySide6.QtCore import QDate, Qt
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Fechas por cámara"))
-        dialog.setMinimumWidth(640)
-        layout = QVBoxLayout(dialog)
-        table = QTableWidget(0, 3)
-        table.setHorizontalHeaderLabels([self.tr("Cámara"), self.tr("Modo"), self.tr("Fecha")])
-        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
-        table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Interactive)
-        table.setColumnWidth(2, 180)
-        # Cámaras de sesiones activas
-        active_cams = set()
-        if self.current_project_id is not None:
-            conn = db.get_connection()
-            cur = conn.cursor()
-            cur.execute("SELECT DISTINCT nombre_dispositivo FROM sessions WHERE project_id=? AND status IN ('active','pending') AND nombre_dispositivo IS NOT NULL", (self.current_project_id,))
-            active_cams = {r[0] for r in cur.fetchall()}
-            conn.close()
-        overrides = json.loads(self.project_camera_date_overrides or "{}")
-        # Mostrar cámaras activas con modo manual por defecto
-        for cam in sorted(active_cams):
-            r = table.rowCount()
-            table.insertRow(r)
-            item_cam = QTableWidgetItem(cam)
-            item_cam.setFlags(item_cam.flags() & ~Qt.ItemIsEditable)
-            table.setItem(r, 0, item_cam)
-
-            mode_combo = QComboBox()
-            mode_combo.addItems([self.tr("Manual"), self.tr("Automático")])
-            # Cargar modo/fecha existente
-            existing = overrides.get(cam, "")
-            if isinstance(existing, dict):
-                mode_val = existing.get("mode", "manual")
-                date_str = existing.get("date", "")
-                mode_idx = 0 if str(mode_val).lower() == "manual" else 1
-            elif isinstance(existing, str) and existing:
-                mode_idx = 0
-                date_str = existing
-            else:
-                mode_idx = 0
-                date_str = QDate.currentDate().toString("yyyy-MM-dd")
-            mode_combo.setCurrentIndex(mode_idx)
-
-            date_edit = QDateEdit()
-            date_edit.setCalendarPopup(True)
-            date_edit.setDisplayFormat("yyyy-MM-dd")
-            qdate = QDate.fromString(date_str, "yyyy-MM-dd")
-            if not qdate.isValid():
-                qdate = QDate.currentDate()
-            date_edit.setDate(qdate)
-            date_edit.setEnabled(mode_idx == 0)
-
-            def on_mode_changed(idx, de=date_edit):
-                de.setEnabled(idx == 0)
-
-            mode_combo.currentIndexChanged.connect(on_mode_changed)
-            table.setCellWidget(r, 1, mode_combo)
-            table.setCellWidget(r, 2, date_edit)
-
-        layout.addWidget(table)
-        btn_row = QHBoxLayout()
-        btn_save = QPushButton(self.tr("Guardar"))
-        btn_cancel = QPushButton(self.tr("Cancelar"))
-        btn_save.setObjectName("PrimaryAction")
-        btn_row.addStretch()
-        btn_row.addWidget(btn_cancel)
-        btn_row.addWidget(btn_save)
-        layout.addLayout(btn_row)
-
-        def save():
-            # Mantener overrides de cámaras no visibles y actualizar las activas
-            try:
-                existing_overrides = json.loads(self.project_camera_date_overrides or "{}")
-                if not isinstance(existing_overrides, dict):
-                    existing_overrides = {}
-            except Exception:
-                existing_overrides = {}
-            merged = dict(existing_overrides)
-            for r in range(table.rowCount()):
-                item_cam = table.item(r, 0)
-                if not item_cam:
-                    continue
-                cam = item_cam.text().strip()
-                mode_combo = table.cellWidget(r, 1)
-                date_edit = table.cellWidget(r, 2)
-                mode = "manual" if mode_combo.currentIndex() == 0 else "auto"
-                date_str = date_edit.date().toString("yyyy-MM-dd")
-                if cam:
-                    merged[cam] = {"mode": mode, "date": date_str}
-            self.project_camera_date_overrides = json.dumps(merged)
-            dialog.accept()
-
-        btn_save.clicked.connect(save)
-        btn_cancel.clicked.connect(dialog.reject)
+        dialog = CameraOverridesDialog(self)
         if dialog.exec():
             # Persistir al proyecto
             if self.current_project_id is not None:
@@ -987,226 +742,23 @@ class MainWindow(QMainWindow, WifiMixin):
                 conn.commit()
                 conn.close()
 
-    def _show_names_manager(self, title, getter, add_cb, rename_cb, delete_cb, duplicate_cb):
-        dialog = QDialog(self)
-        dialog.setWindowTitle(title)
-        dialog.setMinimumWidth(380)
-        dialog.setMinimumHeight(360)
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
-
-        hint = QLabel(
-            self.tr("Puedes añadir, duplicar, renombrar o eliminar nombres.")
-            if duplicate_cb is not None
-            else self.tr("Puedes añadir, renombrar o eliminar nombres.")
-        )
-        hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
-        layout.addWidget(hint)
-
-        search = QLineEdit()
-        search.setPlaceholderText(self.tr("Buscar..."))
-        layout.addWidget(search)
-
-        listw = QListWidget()
-        layout.addWidget(listw, 1)
-
-        self._names_manager = {"filter": "", "items": []}
-
-        def refresh():
-            listw.clear()
-            items = getter()
-            self._names_manager["items"] = list(items)
-            filter_text = self._names_manager["filter"].lower()
-            for name in items:
-                if not filter_text or filter_text in name.lower():
-                    listw.addItem(name)
-            if listw.count():
-                listw.setCurrentRow(0)
-
-        def on_search(text):
-            self._names_manager["filter"] = text
-            refresh()
-
-        search.textChanged.connect(on_search)
-        refresh()
-
-        def _selected():
-            item = listw.currentItem()
-            return item.text() if item else None
-
-        def _add():
-            name, ok = QInputDialog.getText(dialog, self.tr("Añadir"), self.tr("Nuevo nombre:"))
-            name = name.strip() if ok else ""
-            if name:
-                add_cb(name)
-                refresh()
-
-        def _dup():
-            name = _selected()
-            if not name:
-                return
-            duplicate_cb(name)
-            refresh()
-
-        def _ren():
-            name = _selected()
-            if not name:
-                return
-            new_name, ok = QInputDialog.getText(dialog, self.tr("Renombrar"), self.tr("Nuevo nombre:"), text=name)
-            new_name = new_name.strip() if ok else ""
-            if new_name and new_name != name:
-                rename_cb(name, new_name)
-                refresh()
-
-        def _del():
-            name = _selected()
-            if not name:
-                return
-            reply = QMessageBox.question(
-                dialog, self.tr("Eliminar"),
-                self.tr("¿Eliminar '%1'?").arg(name),
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No
-            )
-            if reply == QMessageBox.Yes:
-                delete_cb(name)
-                refresh()
-
-        btn_row = QHBoxLayout()
-        btn_add = QPushButton(self.tr("Añadir..."))
-        btn_ren = QPushButton(self.tr("Renombrar..."))
-        btn_del = QPushButton(self.tr("Eliminar"))
-        for b in (btn_add, btn_ren, btn_del):
-            btn_row.addWidget(b)
-        btn_dup = None
-        if duplicate_cb is not None:
-            btn_dup = QPushButton(self.tr("Duplicar"))
-            btn_row.addWidget(btn_dup)
-        btn_row.addStretch()
-        btn_close = QPushButton(self.tr("Cerrar"))
-        btn_row.addWidget(btn_close)
-        layout.addLayout(btn_row)
-
-        btn_add.clicked.connect(_add)
-        if btn_dup is not None:
-            btn_dup.clicked.connect(_dup)
-        btn_ren.clicked.connect(_ren)
-        btn_del.clicked.connect(_del)
-        btn_close.clicked.connect(dialog.accept)
-        dialog.exec()
-
     def _manage_footage_folders(self):
-        self._show_names_manager(
-            self.tr("Personalizar carpeta de footage"),
-            db.get_footage_folders,
-            db.add_footage_folder,
-            db.rename_footage_folder,
-            db.delete_footage_folder,
-            db.duplicate_footage_folder,
-        )
+        NamesManagerDialog(self, self.tr("Personalizar carpeta de footage"),
+                           db.get_footage_folders, db.add_footage_folder,
+                           db.rename_footage_folder, db.delete_footage_folder,
+                           db.duplicate_footage_folder).exec()
 
     def _manage_containers(self):
-        self._show_names_manager(
-            self.tr("Personalizar contenedores de archivos"),
-            db.get_containers,
-            db.add_container,
-            db.rename_container,
-            db.delete_container,
-            None,
-        )
+        NamesManagerDialog(self, self.tr("Personalizar contenedores de archivos"),
+                           db.get_containers, db.add_container, db.rename_container,
+                           db.delete_container, None).exec()
         metadata_engine.refresh_file_types()
 
     def _manage_dump_locations(self):
         if self.current_project_id is None:
             QMessageBox.information(self, self.tr("Sin proyecto"), self.tr("Selecciona un proyecto primero."))
             return
-        dialog = QDialog(self)
-        dialog.setWindowTitle(self.tr("Destinos de volcado"))
-        dialog.setMinimumSize(480, 340)
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(8)
-        layout.setContentsMargins(16, 12, 16, 12)
-
-        hint = QLabel(
-            self.tr("Los archivos se repartirán entre estos destinos por orden. Cuando uno esté lleno se pasará al siguiente. Deja vacío para usar la ruta maestra del proyecto.")
-        )
-        hint.setWordWrap(True)
-        hint.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
-        layout.addWidget(hint)
-
-        listw = QListWidget()
-        layout.addWidget(listw, 1)
-
-        def refresh():
-            listw.clear()
-            for loc in db.dump_locations(self.current_project_id):
-                include = []
-                if loc["include_date"]:
-                    include.append(self.tr("fecha"))
-                if loc["include_camera"]:
-                    include.append(self.tr("cámara"))
-                suffix = f"  [{', '.join(include)}]" if include else ""
-                listw.addItem(f"{loc['path']}{suffix}")
-
-        btn_row = QHBoxLayout()
-        btn_add = QPushButton(self.tr("Añadir..."))
-        btn_del = QPushButton(self.tr("Eliminar"))
-        btn_up = QPushButton(self.tr("Subir"))
-        btn_down = QPushButton(self.tr("Bajar"))
-        for b in (btn_add, btn_del, btn_up, btn_down):
-            btn_row.addWidget(b)
-        btn_row.addStretch()
-        layout.addLayout(btn_row)
-
-        def _add():
-            path = QFileDialog.getExistingDirectory(
-                dialog, self.tr("Seleccionar destino de volcado"), self.dest_root or os.path.expanduser("~")
-            )
-            if not path:
-                return
-            label, ok = QInputDialog.getText(dialog, self.tr("Destino de volcado"), self.tr("Etiqueta (opcional):"))
-            label = label.strip() if ok else None
-            db.add_dump_location(self.current_project_id, path, label or None)
-            refresh()
-
-        def _del():
-            row = listw.currentRow()
-            if row < 0:
-                return
-            locs = db.dump_locations(self.current_project_id)
-            db.delete_dump_location(locs[row]["id"])
-            refresh()
-
-        def _move(delta):
-            row = listw.currentRow()
-            if row < 0:
-                return
-            locs = db.dump_locations(self.current_project_id)
-            new_row = row + delta
-            if new_row < 0 or new_row >= len(locs):
-                return
-            locs[row], locs[new_row] = locs[new_row], locs[row]
-            db.reorder_dump_locations(
-                self.current_project_id, [l["id"] for l in locs]
-            )
-            refresh()
-            listw.setCurrentRow(new_row)
-
-        btn_add.clicked.connect(_add)
-        btn_del.clicked.connect(_del)
-        btn_up.clicked.connect(lambda: _move(-1))
-        btn_down.clicked.connect(lambda: _move(1))
-
-        btn_close = QPushButton(self.tr("Cerrar"))
-        btn_close.setObjectName("PrimaryAction")
-        bottom = QHBoxLayout()
-        bottom.addStretch()
-        bottom.addWidget(btn_close)
-        btn_close.clicked.connect(dialog.accept)
-        layout.addLayout(bottom)
-
-        refresh()
-        dialog.exec()
+        DumpLocationsDialog(self).exec()
 
     def closeEvent(self, event):
         self._stop_wifi_reception()
