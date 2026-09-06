@@ -21,6 +21,7 @@ from PySide6.QtWidgets import QApplication
 
 import app.ui.main_window as mw
 import app.ui.mixins.camera_mixin as camera_mixin_module
+import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.core.ingestor as ingestor_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
 from app.core.ingestor import Ingestor
@@ -50,8 +51,10 @@ class TestWindowCutoffCore(unittest.TestCase):
 
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "sessmode.db"))
         self._orig_db = ingestor_module.db
+        self._orig_sess_db = sessions_mixin_module.db
         self._orig_meta = ingestor_module.metadata_engine
         ingestor_module.db = self.db
+        sessions_mixin_module.db = self.db
         ingestor_module.metadata_engine = _FixedDateMeta("2024-01-02")
 
         conn = self.db.get_connection()
@@ -71,6 +74,7 @@ class TestWindowCutoffCore(unittest.TestCase):
             ing.stop()
             ing.executor.shutdown(wait=True)
         ingestor_module.db = self._orig_db
+        sessions_mixin_module.db = self._orig_sess_db
         ingestor_module.metadata_engine = self._orig_meta
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -151,11 +155,13 @@ class TestSessionDumpSwitch(unittest.TestCase):
 
         self._orig_db = mw.db
         self._orig_cam_db = camera_mixin_module.db
+        self._orig_sess_db = sessions_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "switch.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
+        sessions_mixin_module.db = self.db
         ingestor_module.db = self.db
 
         class StubNotif:
@@ -186,6 +192,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         self.window.close()
         mw.db = self._orig_db
         camera_mixin_module.db = self._orig_cam_db
+        sessions_mixin_module.db = self._orig_sess_db
         ingestor_module.db = self._orig_ing_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -246,7 +253,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         fake.content_filter = {"dates": ["2024-01-05"], "include_nodate": False}
         fake.content_mode = "interval"
         fake.content_text = "el 5-1-24"
-        with mock.patch.object(mw, "SelectiveDumpAssistant", return_value=fake) as MockDlg:
+        with mock.patch.object(sessions_mixin_module, "SelectiveDumpAssistant", return_value=fake) as MockDlg:
             self.window.btn_session_dump_config.click()
         kwargs = MockDlg.call_args.kwargs
         self.assertEqual(kwargs.get("mode"), "filter")
@@ -266,7 +273,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         before = self.window.btn_session_dump_config.text()
         fake = mock.Mock()
         fake.exec.return_value = mw.QDialog.Rejected
-        with mock.patch.object(mw, "SelectiveDumpAssistant", return_value=fake):
+        with mock.patch.object(sessions_mixin_module, "SelectiveDumpAssistant", return_value=fake):
             self.window.btn_session_dump_config.click()
         sess = self.db.get_session(self.sid)
         self.assertEqual(sess["content_mode"], "interval")

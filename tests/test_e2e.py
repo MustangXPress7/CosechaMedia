@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 
 import app.ui.main_window as mw
 import app.ui.mixins.camera_mixin as camera_mixin_module
+import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
@@ -43,6 +44,7 @@ class TestEndToEndIngest(unittest.TestCase):
 
         self._orig_db = mw.db
         self._orig_cam_db = camera_mixin_module.db
+        self._orig_sess_db = sessions_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self._orig_notif = mw.NotificationManager
@@ -50,6 +52,7 @@ class TestEndToEndIngest(unittest.TestCase):
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "e2e.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
+        sessions_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
         ingestor_module.data_dir = lambda: os.path.join(self.tmp, "resume")
@@ -96,6 +99,7 @@ class TestEndToEndIngest(unittest.TestCase):
         self.window.close()
         mw.db = self._orig_db
         camera_mixin_module.db = self._orig_cam_db
+        sessions_mixin_module.db = self._orig_sess_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         mw.NotificationManager = self._orig_notif
