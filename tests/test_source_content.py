@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QFileDialog, QHeaderView,
                               QLabel, QPushButton, QWidget)
 
 import app.ui.main_window as mw
+import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.core.ingestor as ingestor_module
 from app.core.db import DatabaseManager
 
@@ -41,10 +42,12 @@ class TestSourceContent(unittest.TestCase):
         os.makedirs(self.dest)
 
         self._orig_db = mw.db
+        self._orig_cam_db = camera_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "src.db"))
         mw.db = self.db
+        camera_mixin_module.db = self.db
         ingestor_module.db = self.db
 
         class StubNotif:
@@ -76,6 +79,7 @@ class TestSourceContent(unittest.TestCase):
     def tearDown(self):
         self.window.close()
         mw.db = self._orig_db
+        camera_mixin_module.db = self._orig_cam_db
         ingestor_module.db = self._orig_ing_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)

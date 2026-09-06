@@ -14,6 +14,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PySide6.QtWidgets import QApplication
 
 import app.ui.main_window as mw
+import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
@@ -41,12 +42,14 @@ class TestEndToEndIngest(unittest.TestCase):
             f.write("hoja de rodaje")
 
         self._orig_db = mw.db
+        self._orig_cam_db = camera_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self._orig_notif = mw.NotificationManager
         self._orig_data_dir = ingestor_module.data_dir
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "e2e.db"))
         mw.db = self.db
+        camera_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
         ingestor_module.data_dir = lambda: os.path.join(self.tmp, "resume")
@@ -92,6 +95,7 @@ class TestEndToEndIngest(unittest.TestCase):
             self.window._cam_timer.stop()
         self.window.close()
         mw.db = self._orig_db
+        camera_mixin_module.db = self._orig_cam_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         mw.NotificationManager = self._orig_notif
