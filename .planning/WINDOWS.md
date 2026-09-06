@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 2
+open_count: 3
 waived_count: 1
 fixed_count: 1
-total_count: 4
-last_updated: 2026-09-05T09:50:31.784Z
+total_count: 5
+last_updated: 2026-09-06T07:45:55.854Z
 ---
 
 # Broken Windows Ledger
@@ -19,6 +19,7 @@ last_updated: 2026-09-05T09:50:31.784Z
 | 2 | 01 | deviation | .planning/phases/01-auditor-a-ui-y-plan-de-reubicaci-n/baseline_git.txt |  | BOM UTF-8 eliminado para que el gate de conjuntos compare exacto (Rule 3 fix) | waived | Desviación aceptada: la eliminación del BOM fue necesaria para que el gate de conjuntos git del plan 03 comparara exacto (la codificación del archivo en disco tenía BOM, la lectura en memoria no). Sin impacto en los entregables; documentado en VERIFICATION.md §Anti-Patterns (Línea 161, WINDOWS.md id 2). | 2026-08-15T16:56:43.326Z | 2026-08-15T18:00:00.000Z |
 | 3 | 01.6.0 | deviation | tests/test_mtp.py |  | Flake por orden de suite (pre-existente): test_wpd_session_devicename_no_duplicate falla solo en suite completa; verificado en worktree limpio en HEAD 551e180 | open |  | 2026-09-05T09:50:31.420Z |  |
 | 4 | 01.6.0 | deviation | tests/test_e2e.py |  | Flake de timing bajo carga (pre-existente): e2e rotativo 'segunda ingesta no termino a tiempo' en suite completa; pasa aislado; disco C: con ~4,4 GB libres | open |  | 2026-09-05T09:50:31.784Z |  |
+| 5 | quick-260906-ci2 | unrun-verify | tests/test_mtp.py | 374 | test_wpd_session_devicename_no_duplicate falla solo en full-suite (pre-existente en HEAD, pasa aislado) | open |  | 2026-09-06T07:45:55.854Z |  |
 
 ````json
 [
@@ -68,6 +69,18 @@ last_updated: 2026-09-05T09:50:31.784Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-05T09:50:31.784Z",
+    "resolved_at": null
+  },
+  {
+    "id": 5,
+    "kind": "unrun-verify",
+    "phase": "quick-260906-ci2",
+    "file": "tests/test_mtp.py",
+    "line": 374,
+    "description": "test_wpd_session_devicename_no_duplicate falla solo en full-suite (pre-existente en HEAD, pasa aislado)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-06T07:45:55.854Z",
     "resolved_at": null
   }
 ]
