@@ -70,7 +70,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01.6.0 — COMPLETED
 Plan: 6 of 6
 Status: All plans verified
-Last activity: 2026-09-06 — Completed quick task 260906-ci2: Extraer el flujo WiFi/PairDrop de MainWindow a WifiMixin
+Last activity: 2026-09-06 — Completed quick 260906-epl (Bloque 1 reducción MainWindow): 4 diálogos de configuración extraídos a app/ui/, main_window 4589→4141 líneas
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -196,6 +196,7 @@ Recent decisions affecting current work:
 | 260904-dwm | Fix _browse_session_src unpacking error (ValueError) al elegir origen en el selector de sesión: _pick_source_entry devuelve lista de dicts, no tupla; despacho con binding de sesión + manejos device/usb/ftp_new/wifi | 2026-09-04 | 86a608a | Verified | [260904-dwm-fix-browse-session-src-unpacking-error-v](./quick/260904-dwm-fix-browse-session-src-unpacking-error-v/) |
 | 260904-eae | Fix on_file_finished UnboundLocalError (camera_item) al finalizar archivo con camera_model 'Unknown' + metadatos verificados (ingesta con dos sesiones mismo origen distinto destino): conserva el valor de la celda de cámara | 2026-09-04 | 1634091 | Verified | [260904-eae-fix-on-file-finished-unboundlocalerror-c](./quick/260904-eae-fix-on-file-finished-unboundlocalerror-c/) |
 | 260906-ci2 | Extraer el flujo WiFi/PairDrop de MainWindow a WifiMixin: 24 métodos WiFi verbatim a app/ui/mixins/wifi_mixin.py (composición MainWindow(QMainWindow, WifiMixin)), workers (_StageWorker/_TaskWorker/DashboardBackground) a mixins/workers.py, main_window ~4670→4159 líneas, tests wifi adaptados al singleton del mixin | 2026-09-06 | f574a76, 6e3fe5f | Verified | [260906-ci2-extraer-el-flujo-wifi-pairdrop-de-mainwi](./quick/260906-ci2-extraer-el-flujo-wifi-pairdrop-de-mainwi/) |
+| 260906-epl | Bloque 1 (reducción god object MainWindow): extraer los 4 diálogos de configuración inline a app/ui/ — ProjectSettingsDialog, CameraOverridesDialog, NamesManagerDialog, DumpLocationsDialog (patrón AboutDialog, QDialog + QtString wrapper, singleton db), 6 métodos de MainWindow convertidos en wrappers finos, main_window 4589→4141 líneas, suite 393 passed (único fail pre-existente order-dependent test_mtp) | 2026-09-06 | 8ffb70c | Verified | [260906-epl-bloque-1-extraer-los-4-di-logos-de-confi](./quick/260906-epl-bloque-1-extraer-los-4-di-logos-de-confi/) |
 
 ## Deferred Items
 
