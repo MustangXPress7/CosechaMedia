@@ -70,7 +70,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01.6.0 — COMPLETED
 Plan: 6 of 6
 Status: All plans verified
-Last activity: 2026-09-05 — Phase 01.6.0 complete
+Last activity: 2026-09-06 — Completed quick task 260906-ci2: Extraer el flujo WiFi/PairDrop de MainWindow a WifiMixin
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
