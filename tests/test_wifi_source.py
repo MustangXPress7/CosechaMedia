@@ -23,6 +23,7 @@ from PySide6.QtWidgets import QApplication, QPushButton, QTableWidgetItem
 import app.ui.main_window as mw
 import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.ui.mixins.sessions_mixin as sessions_mixin_module
+import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.core.ingestor as ingestor_module
 import app.ui.mixins.wifi_mixin as wifi_mixin_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
@@ -41,6 +42,7 @@ class TestWifiSource(unittest.TestCase):
         self._orig_db = mw.db
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
+        self._orig_sources_db = sources_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_wifi_db = wifi_mixin_module.db
         self._orig_notif = mw.NotificationManager
@@ -48,6 +50,7 @@ class TestWifiSource(unittest.TestCase):
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
+        sources_mixin_module.db = self.db
         ingestor_module.db = self.db
         wifi_mixin_module.db = self.db
 
@@ -100,6 +103,7 @@ class TestWifiSource(unittest.TestCase):
         mw.db = self._orig_db
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
+        sources_mixin_module.db = self._orig_sources_db
         ingestor_module.db = self._orig_ing_db
         wifi_mixin_module.db = self._orig_wifi_db
         mw.NotificationManager = self._orig_notif
