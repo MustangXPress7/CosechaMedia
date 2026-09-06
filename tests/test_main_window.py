@@ -22,6 +22,7 @@ import app.ui.main_window as mw
 import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.ui.mixins.sources_mixin as sources_mixin_module
+import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
@@ -43,6 +44,7 @@ class TestCameraDetectionToken(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "cam.db"))
@@ -50,6 +52,7 @@ class TestCameraDetectionToken(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -75,6 +78,7 @@ class TestCameraDetectionToken(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -129,6 +133,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "marker.db"))
@@ -136,6 +141,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -161,6 +167,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -244,6 +251,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "term.db"))
@@ -251,6 +259,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -276,6 +285,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -314,12 +324,14 @@ class TestCameraPersistence(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -343,6 +355,7 @@ class TestCameraPersistence(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -413,12 +426,14 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -452,6 +467,7 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -522,12 +538,14 @@ class TestDisconnectedDeviceStatus(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -561,6 +579,7 @@ class TestDisconnectedDeviceStatus(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -657,6 +676,7 @@ class TestForcePromptI14(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "test.db"))
@@ -664,6 +684,7 @@ class TestForcePromptI14(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
         conn = self.db.get_connection()
@@ -683,6 +704,7 @@ class TestForcePromptI14(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -819,12 +841,14 @@ class TestRenameDialogPersistence(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -852,6 +876,7 @@ class TestRenameDialogPersistence(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -996,6 +1021,7 @@ class TestIntegrityReport(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "report.db"))
@@ -1003,6 +1029,7 @@ class TestIntegrityReport(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -1033,6 +1060,7 @@ class TestIntegrityReport(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1132,6 +1160,7 @@ class TestSessionCRUD(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
@@ -1139,6 +1168,7 @@ class TestSessionCRUD(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -1161,6 +1191,7 @@ class TestSessionCRUD(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1245,17 +1276,20 @@ class TestProjectWizard(unittest.TestCase):
         self._orig_db = mw.db
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "wiz.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
 
     def tearDown(self):
         mw.db = self._orig_db
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -1307,6 +1341,7 @@ class TestAccentSwitch(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "accent.db"))
@@ -1314,6 +1349,7 @@ class TestAccentSwitch(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
         self.window = mw.MainWindow()
@@ -1328,6 +1364,7 @@ class TestAccentSwitch(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1361,6 +1398,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "autosync.db"))
@@ -1368,6 +1406,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -1398,6 +1437,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -1466,6 +1506,7 @@ class TestCleanupMenu(unittest.TestCase):
         self._orig_cam_db = camera_mixin_module.db
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_sources_db = sources_mixin_module.db
+        self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
@@ -1473,6 +1514,7 @@ class TestCleanupMenu(unittest.TestCase):
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         sources_mixin_module.db = self.db
+        project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
 
@@ -1495,6 +1537,7 @@ class TestCleanupMenu(unittest.TestCase):
         camera_mixin_module.db = self._orig_cam_db
         sessions_mixin_module.db = self._orig_sess_db
         sources_mixin_module.db = self._orig_sources_db
+        project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
         shutil.rmtree(self.tmp, ignore_errors=True)
