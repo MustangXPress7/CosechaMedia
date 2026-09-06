@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                               QGroupBox, QGridLayout, QSplashScreen, QSystemTrayIcon,
                               QListWidget, QListWidgetItem, QInputDialog, QFormLayout, QDialog,
                               QTextEdit, QSpinBox, QSizePolicy, QSplitter, QDialogButtonBox)
-from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap, QPainter
+from PySide6.QtGui import QAction, QActionGroup, QIcon, QFont, QColor, QPixmap
 from PySide6.QtCore import Qt, QThread, QObject, Signal, QDate, QTimer, QSize, QPropertyAnimation, QSettings, QByteArray
 from app.core.ingestor import Ingestor, DumpTarget
 from app.core.watcher import FileSystemWatcher
@@ -26,7 +26,6 @@ from app.core.translator import QtString
 from app.ui import theme
 from app.ui import icons
 from app.ui.about_dialog import AboutDialog
-from app.ui.wheat_field import paint_wheat_field
 import app.ui.wheat_field as wheat_field
 from app.core import ftp, mtp
 from app.core import shoot_inbox as inboxmod
@@ -38,6 +37,7 @@ from app.ui.selective_dump import SelectiveDumpAssistant, content_summary
 from app.ui.add_source_dialog import AddSourceDialog
 from app.ui.wifi_panel import SenderEditDialog, ShootInboxPanel
 from app.ui.mixins.wifi_mixin import WifiMixin
+from app.ui.mixins.workers import _StageWorker, DashboardBackground, _TaskWorker
 
 ORG_TYPE_MAP = {
     0: "camera_first",
@@ -89,64 +89,6 @@ def _reorganize_worker(progress, ingestors):
     # worker queda como no-op hasta sustituirse por el diálogo nuevo.
     progress.emit(translator.tr("La reorganización por metadatos se ha movido al diálogo 'Reorganizar footage...'."))
     return True
-
-class _StageWorker(QObject):
-    """Staging incremental de una carpeta de dispositivo MTP en QThread."""
-    progress = Signal(str)
-    done = Signal(bool, object)
-
-    def __init__(self, backend, device_id, device_folder):
-        super().__init__()
-        self._backend = backend
-        self._device_id = device_id
-        self._device_folder = device_folder
-        self._cancel = False
-
-    def cancel(self):
-        self._cancel = True
-
-    def run(self):
-        try:
-            def on_progress(name, current, total):
-                self.progress.emit(
-                    translator.tr("Sincronizando %1 (%2/%3)…").arg(name).arg(current).arg(total)
-                )
-            result = self._backend.stage(
-                self._device_id,
-                self._device_folder,
-                on_progress=on_progress,
-                cancel=lambda: self._cancel,
-            )
-            self.done.emit(True, result)
-        except Exception as e:
-            self.done.emit(False, str(e))
-
-class DashboardBackground(QWidget):
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(self.rect(), QColor(theme.tinted_bg()))
-        paint_wheat_field(painter, self.width(), self.height(), theme.get_theme(), theme.get_accent())
-        painter.end()
-
-class _TaskWorker(QObject):
-    """Ejecuta una función en un QThread y notifica por señales Qt (cola segura)."""
-    progress = Signal(str)
-    finished = Signal(bool, object)
-
-    def __init__(self, fn, *args, **kwargs):
-        super().__init__()
-        self._fn = fn
-        self._args = args
-        self._kwargs = kwargs
-
-    def run(self):
-        try:
-            result = self._fn(self.progress, *self._args, **self._kwargs)
-            self.finished.emit(True, result)
-        except Exception as e:
-            print(f"Background task error: {e}")
-            self.finished.emit(False, e)
 
 
 def _probe_device_connectivity(sessions):
