@@ -8,6 +8,7 @@ from PySide6.QtGui import QColor
 from app.core.db import db, WIFI_DEVICE_ID
 from app.core.metadata_engine import metadata_engine, _is_system_entry
 from app.core import ftp, mtp
+import app.core.utils as utils
 import app.core.shoot_inbox as inboxmod
 from app.core import translator
 from app.ui import theme
@@ -135,6 +136,10 @@ class SourcesMixin:
         if device_id == WIFI_DEVICE_ID:
             connected = bool(
                 self._wifi_server is not None and self._wifi_server.running)
+        elif device_id.startswith("usb:"):
+            # Unidad USB extraíble: conectada si sigue montada (y es un medio real).
+            path = device_id[len("usb:"):]
+            connected = bool(utils.is_true_removable_drive(path))
         else:
             connected = bool(self._connectivity.get(device_id))
         lbl = QLabel(self.tr("Conectado") if connected else self.tr("Desconectado"))

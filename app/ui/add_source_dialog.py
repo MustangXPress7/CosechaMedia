@@ -237,10 +237,18 @@ class AddSourceDialog(QDialog):
             device_id = dev["id"]
             saved_camera = db.get_dispositivo_for_device(device_id)
             name = saved_camera or dev.get("name") or device_id
-            row = self._add_source_row(
-                row, {"kind": "device", "value": device_id, "camera": name,
-                      "enabled": False, "connected": False,
-                      "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
+            if device_id.startswith("usb:"):
+                # Unidad USB masiva guardada: etiqueta/estilo propios, no [MTP]
+                row = self._add_source_row(
+                    row, {"kind": "usb", "value": device_id[len("usb:"):],
+                          "camera": name, "enabled": False, "connected": False,
+                          "label": self.tr("[USB] %1").arg(device_id[len("usb:"):]),
+                          "type": "USB"})
+            else:
+                row = self._add_source_row(
+                    row, {"kind": "device", "value": device_id, "camera": name,
+                          "enabled": False, "connected": False,
+                          "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
 
         # Sección WiFi
         row = self._add_section(row, self.tr("WiFi / PairDrop"))
@@ -759,11 +767,19 @@ class AddSourceDialog(QDialog):
             if self._row_for_source("device", did) is not None:
                 continue
             name = d.get("name") or did
-            self._append_raw_source(
-                {"kind": "device", "value": did, "camera": name,
-                 "enabled": False, "connected": False,
-                 "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
-                insert_before_row=wifi_row)
+            if did.startswith("usb:"):
+                self._append_raw_source(
+                    {"kind": "usb", "value": did[len("usb:"):], "camera": name,
+                     "enabled": False, "connected": False,
+                     "label": self.tr("[USB] %1").arg(did[len("usb:"):]),
+                     "type": "USB"},
+                    insert_before_row=wifi_row)
+            else:
+                self._append_raw_source(
+                    {"kind": "device", "value": did, "camera": name,
+                     "enabled": False, "connected": False,
+                     "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
+                    insert_before_row=wifi_row)
             wifi_row += 1
 
     def _export_json(self):

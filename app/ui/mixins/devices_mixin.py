@@ -16,6 +16,12 @@ from app.core.mtp import DeviceInfo
 from app.ui.mixins.workers import _StageWorker
 
 
+def _is_usb_mounted(did, mounted):
+    """Una clave usb:<ruta> está montada si su unidad sigue como medio real."""
+    path = did[len("usb:"):]
+    return path in mounted and utils.is_true_removable_drive(path)
+
+
 class DevicesMixin:
     """Métodos de registro de dispositivos y staging MTP/FTP extraídos de MainWindow (quick 260906-bloque6-devicesmixin)."""
 
@@ -111,9 +117,21 @@ class DevicesMixin:
                     known[did] = name
         finally:
             conn.close()
-        # Devolver solo los que están desconectados (o FTP que siempre se listan)
-        return [{"id": did, "name": known[did] or did}
-                for did in sorted(known) if did.startswith("ftp:") or did not in current]
+        # Devolver solo los que están desconectados (o FTP que siempre se listan).
+        # Las unidades USB extraíbles se excluyen si siguen montadas como medio
+        # real: no son «desconectadas» (evita el MTP fantasma por re-Render).
+        mounted = set()
+        try:
+            mounted = {d["path"] for d in utils.get_mounted_drives()}
+        except Exception:
+            mounted = set()
+        out = []
+        for did in sorted(known):
+            if did.startswith("usb:") and _is_usb_mounted(did, mounted):
+                continue
+            if did.startswith("ftp:") or did not in current:
+                out.append({"id": did, "name": known[did] or did})
+        return out
 
     def _register_device_source_from_picker(self, device_id, device_folder,
                                             device_name, backend):
@@ -156,8 +174,9 @@ class DevicesMixin:
                         sid = no_source[0]["id"]
                     else:
                         # Para unidades USB extraíbles, asignar device_id basado en la ruta
+                        # (solo si es una extraíble real, con filtro de falso positivo).
                         device_id = ""
-                        if utils.is_removable_drive(path):
+                        if utils.is_true_removable_drive(path):
                             device_id = f"usb:{path}"
                         sid = db.create_session(
                             self.current_project_id, f"Auto ({base})",

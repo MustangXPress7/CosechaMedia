@@ -182,3 +182,13 @@ def is_removable_drive(path: str) -> bool:
     if sys.platform == "darwin":
         return norm == "/Volumes" or norm.startswith("/Volumes/")
     return norm.startswith("/media/") or norm.startswith("/run/media/") or norm.startswith("/mnt/")
+
+
+def is_true_removable_drive(path: str) -> bool:
+    """Removible descartando falsos positivos de disco de sistema.
+
+    Aplica el filtro de `_is_false_positive_drive` (SSD/NVMe que reportan
+    GetDriveType=REMOVABLE con etiqueta vacía + carpetas de sistema). Es el
+    criterio que usa `get_mounted_drives()` para listar unidades.
+    """
+    return is_removable_drive(path) and not _is_false_positive_drive(get_drive_label(path), path)

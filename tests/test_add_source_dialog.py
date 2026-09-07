@@ -184,6 +184,20 @@ class TestAddSourceDialog(unittest.TestCase):
         cam = dlg.table.cellWidget(row, 2)
         self.assertFalse(cam.isEnabled())
 
+    def test_usb_missing_renders_as_usb_row_not_mtp(self):
+        """Bug 3: una unidad USB guardada (clave ``usb:<ruta>``) desconectada
+        debe renderizarse como ``kind=usb`` con etiqueta [USB], nunca como MTP."""
+        dlg = self._dialog(devices_missing=[{"id": "usb:E:\\", "name": "Sony"}])
+        row = dlg._row_for_source("usb", "E:\\")
+        self.assertIsNotNone(row)
+        self.assertIsNone(dlg._row_for_source("device", "usb:E:\\"))
+        lbl = dlg.table.cellWidget(row, 1)
+        text = " ".join(ch.text() for ch in lbl.findChildren(QLabel))
+        self.assertIn("[USB]", text)
+        # No seleccionable (desconectado) y no habilitado
+        cb = _checkbox(dlg, row)
+        self.assertFalse(cb.isEnabled())
+
     # -- papelera borrar (D-11) -------------------------------------------
 
     def test_delete_triggers_callback(self):

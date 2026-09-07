@@ -191,22 +191,25 @@ class TestWifiSource(unittest.TestCase):
         El flujo como WiFi: el USB se guarda globalmente (known_devices /
         device_settings con clave unificada ``usb:<ruta>``) y,
         aunque se borre la sesión del proyecto, sigue apareciendo en
-        ``_disconnected_devices``.
+        ``_disconnected_devices``. La ruta se fuerza NO montada para que el
+        USB cuente como desconectado (env-independiente).
         """
-        usb_path = "E:\\"
+        usb_path = "K:\\"
         did = f"usb:{usb_path}"
         cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
         os.makedirs(cache, exist_ok=True)
         # Sesión creada como _assign_folder_source hace para un USB extraíble
-        sid = self.db.create_session(self.pid, "Auto (E:\\)", "2026-01-01",
+        sid = self.db.create_session(self.pid, "Auto (K:\\)", "2026-01-01",
                                      "active", source_path=usb_path, device_id=did)
         # La cámara se persistió globalmente (persistencia cross-proyecto)
         self.db.save_dispositivo_config(did, "Sony A7")
         self.db.upsert_known_device(did, "usb", name="Sony A7",
                                     last_camera="Sony A7")
 
-        # Mientras la sesión existe, el dispositivo aparece
-        with mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
+        # Mientras la sesión existe, el dispositivo aparece (K:\ no montado)
+        with mock.patch.object(devices_mixin_module.utils, "get_mounted_drives",
+                               return_value=[]), \
+             mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
             backend.return_value.list_devices.return_value = []
             ids = {d["id"] for d in self.window._disconnected_devices()}
         self.assertIn(did, ids)
@@ -215,11 +218,31 @@ class TestWifiSource(unittest.TestCase):
         self.db.delete_session(sid)
 
         # El USB debe seguir visible en «Añadir origen»
-        with mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
+        with mock.patch.object(devices_mixin_module.utils, "get_mounted_drives",
+                               return_value=[]), \
+             mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
             backend.return_value.list_devices.return_value = []
             ids = {d["id"] for d in self.window._disconnected_devices()}
         self.assertIn(did, ids)
         self.assertEqual(self.db.get_devices(), [])
+
+    def test_mounted_usb_excluded_from_disconnected_devices(self):
+        """Un USB extraíble aún montado NO es un dispositivo desconectado
+        (bug 3: reabrir «Añadir origen» mostraba un MTP fantasma «[MTP] F:\»)."""
+        usb_path = "E:\\"
+        did = f"usb:{usb_path}"
+        self.db.save_dispositivo_config(did, "Sony A7")
+        self.db.upsert_known_device(did, "usb", name="Sony A7",
+                                    last_camera="Sony A7")
+        # E: se simula montada como medio remueble real
+        with mock.patch.object(devices_mixin_module.utils, "get_mounted_drives",
+                               return_value=[{"path": "E:\\", "type": "removable", "label": ""}]), \
+             mock.patch.object(devices_mixin_module.utils,
+                               "is_true_removable_drive", return_value=True), \
+             mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
+            backend.return_value.list_devices.return_value = []
+            ids = {d["id"] for d in self.window._disconnected_devices()}
+        self.assertNotIn(did, ids)
 
     def test_panel_is_non_modal_window(self):
         from app.ui.wifi_panel import ShootInboxPanel
