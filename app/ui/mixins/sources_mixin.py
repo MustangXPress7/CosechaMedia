@@ -499,7 +499,15 @@ class SourcesMixin:
         elif kind == "sender":
             self._bind_wifi_sender(value)
         elif kind == "ftp_profile":
-            self._pick_ftp_source(preset_profile_id=value)
+            # Registrar directamente el perfil FTP sin reabrir el selector
+            profile_id = int(value)
+            from app.core import ftp
+            profile = db.get_ftp_profile(profile_id)
+            device_id = f"ftp:{profile_id}"
+            device_folder = (profile.get("base_folder") or "") if profile else ""
+            device_name = camera or (profile.get("name") if profile else "")
+            self._register_device_source_from_picker(
+                device_id, device_folder, device_name, backend=ftp.FtpBackend())
         elif kind == "device":
             # value es el device_id; necesitamos obtener folder y nombre
             # Para MTP, el diálogo no selecciona carpeta; usamos la raíz del dispositivo

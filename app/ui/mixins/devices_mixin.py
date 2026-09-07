@@ -19,7 +19,7 @@ from app.ui.mixins.workers import _StageWorker
 def _is_usb_mounted(did, mounted):
     """Una clave usb:<ruta> está montada si su unidad sigue como medio real."""
     path = did[len("usb:"):]
-    return path in mounted and utils.is_true_removable_drive(path)
+    return path in mounted
 
 
 class DevicesMixin:
