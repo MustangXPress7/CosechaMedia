@@ -373,13 +373,24 @@ class SessionsMixin:
             elif kind == "sender":
                 self._bind_wifi_sender(value, session_id=self.current_session_id)
             elif kind == "ftp_profile":
-                self._pick_ftp_source(preset_profile_id=value)
+                raw = value
+                if isinstance(raw, str) and raw.startswith("ftp:"):
+                    profile_id = int(raw.split(":",1)[1])
+                else:
+                    profile_id = int(raw)
+                profile = db.get_ftp_profile(profile_id)
+                device_id = f"ftp:{profile_id}"
+                device_folder = (profile.get("base_folder") or "") if profile else ""
+                device_name = camera or (profile.get("name") if profile else "")
+                self._register_device_source_from_picker(
+                    device_id, device_folder, device_name, backend=ftp.FtpBackend())
             elif kind == "device":
                 device_id = value
                 device_folder = ""
                 device_name = camera or "Dispositivo"
+                backend = ftp.FtpBackend() if str(device_id).startswith("ftp:") else mtp.WpdBackend()
                 self._register_device_source_from_picker(
-                    device_id, device_folder, device_name, backend=mtp.WpdBackend())
+                    device_id, device_folder, device_name, backend=backend)
             elif kind == "usb":
                 self._assign_session_folder(self.current_session_id, value)
             elif kind == "ftp_new":
