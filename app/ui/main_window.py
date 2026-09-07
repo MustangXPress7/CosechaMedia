@@ -161,7 +161,6 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._source_paths = []
         self._processed_count = 0
         self._total_files = 0
-        self._source_paths = []
         self._unknown_cameras = set()
         self._ingested_videos = []
         self._background_tasks = []
@@ -621,6 +620,15 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._build_action_buttons()
         self._build_progress_area()
         self._build_files_table()
+
+        # Sesiones + Acciones post-ingesta lado a lado
+        sess_post_row = QHBoxLayout()
+        sess_post_row.setSpacing(10)
+        self._sess_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sess_post_row.addWidget(self._sess_box, 1)
+        self._post_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sess_post_row.addWidget(self._post_box, 1)
+        self.left_col.addLayout(sess_post_row)
 
         self.left_col.addStretch()
 
