@@ -546,7 +546,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
 
         action_row.addWidget(self.btn_start)
         action_row.addWidget(self.btn_stop)
-        self.left_col.addLayout(action_row)
+        self._action_row = action_row  # guardamos para ensamblar abajo
 
         self.ingest_status_label = QLabel("")
         self.ingest_status_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-style: italic; font-size: 10px; padding: 4px 10px;")
@@ -559,7 +559,6 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.progress_bar.setMinimumHeight(18)
         # Sin texto hasta que la ingesta termina (el total solo se conoce al final).
         self.progress_bar.setFormat("")
-        self.left_col.addWidget(self.progress_bar)
 
         stats_row = QHBoxLayout()
         self.lbl_files_processed = QLabel(self.tr("0 procesados"))
@@ -572,7 +571,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         stats_row.addWidget(self.lbl_files_pending)
         stats_row.addWidget(self.lbl_files_errors)
         stats_row.addStretch()
-        self.left_col.addLayout(stats_row)
+        self._stats_row = stats_row  # guardamos para ensamblar abajo
 
     def _build_files_table(self):
         """Construye table (6 cols, sorting, context menu, styled viewport)."""
@@ -627,9 +626,11 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         sess_post_row.addWidget(self._post_box, 1)
         self.left_col.addLayout(sess_post_row)
 
+        self._build_files_table()
+
+        # Barra inferior izquierda: botones acción, progreso, stats, estado
         self._build_action_buttons()
         self._build_progress_area()
-        self._build_files_table()
 
         self.left_col.addStretch()
 
