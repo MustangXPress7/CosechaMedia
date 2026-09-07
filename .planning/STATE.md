@@ -6,9 +6,9 @@ current_phase: 01.6.0
 current_phase_name: Añadir origen + Reorganizador + Bugs + DeviceRegistry
 status: completed
 stopped_at: Completed quick-01-PLAN.md (IngestMixin extraction)
-last_updated: "2026-09-07T08:55:22.379Z"
-last_activity: 2026-09-06
-last_activity_desc: Phase 01.6.0 complete - all 7 plans executed and verified
+last_updated: "2026-09-07T19:30:00.000Z"
+last_activity: 2026-09-07
+last_activity_desc: Completed 9 bloques reducción MainWindow (4589→961 líneas, 8 mixins, 394 tests pass)
 state_head: f075c601442b9f5e29293d76c2a1abe224cda94f
 progress:
   total_phases: 1
@@ -70,7 +70,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01.6.0 — COMPLETED
 Plan: 6 of 6
 Status: All plans verified
-Last activity: 2026-09-06 — Completed quick 260906-fgl (Bloque 3 reducción MainWindow): CameraMixin con detección/nombrado de cámara + lectura SD, main_window 4141→3750 líneas
+Last activity: 2026-09-07 — Completed 9 bloques reducción MainWindow (4589→961 líneas, 8 mixins + WifiMixin, suite 394 passed, único fail pre-existente test_mtp)
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -203,6 +203,13 @@ Recent decisions affecting current work:
 | 260906-ci2 | Extraer el flujo WiFi/PairDrop de MainWindow a WifiMixin: 24 métodos WiFi verbatim a app/ui/mixins/wifi_mixin.py (composición MainWindow(QMainWindow, WifiMixin)), workers (_StageWorker/_TaskWorker/DashboardBackground) a mixins/workers.py, main_window ~4670→4159 líneas, tests wifi adaptados al singleton del mixin | 2026-09-06 | f574a76, 6e3fe5f | Verified | [260906-ci2-extraer-el-flujo-wifi-pairdrop-de-mainwi](./quick/260906-ci2-extraer-el-flujo-wifi-pairdrop-de-mainwi/) |
 | 260906-epl | Bloque 1 (reducción god object MainWindow): extraer los 4 diálogos de configuración inline a app/ui/ — ProjectSettingsDialog, CameraOverridesDialog, NamesManagerDialog, DumpLocationsDialog (patrón AboutDialog, QDialog + QtString wrapper, singleton db), 6 métodos de MainWindow convertidos en wrappers finos, main_window 4589→4141 líneas, suite 393 passed (único fail pre-existente order-dependent test_mtp) | 2026-09-06 | 8ffb70c | Verified | [260906-epl-bloque-1-extraer-los-4-di-logos-de-confi](./quick/260906-epl-bloque-1-extraer-los-4-di-logos-de-confi/) |
 | 260906-fgl | Bloque 3 (reducción god object MainWindow): extraer detección/nombrado de cámara + lectura SD a CameraMixin (app/ui/mixins/camera_mixin.py) — 16 métodos verbatim (camera rename, prompt nombre dispositivo, mapping, _detect_sd_card, auto-detect drives, _drive_label/_find_smallest_media), composición MainWindow(QMainWindow, WifiMixin, CameraMixin), parche paralelo db en 18 setUps de 5 ficheros test, main_window 4141→3750 líneas, suite 393 passed | 2026-09-06 | bc650bf | Verified | [260906-fgl-bloque-3-extraer-la-deteccion-nombrado-d](./quick/260906-fgl-bloque-3-extraer-la-deteccion-nombrado-d/) |
+| 260906-i6a | Bloque 2 (reducción god object MainWindow): extraer gestión de sesiones a SessionsMixin (app/ui/mixins/sessions_mixin.py) — 18 métodos verbatim (combo sesiones, modos vuelco, filtros, _populate_source_paths_from_sessions, _open_content_filter), composición + SessionsMixin, parche db en 18 setUps, main_window 3750→3337 líneas, suite 393 passed | 2026-09-07 | fa43085 | Verified | [260906-i6a-bloque-2-extraer-la-gestion-de-sesiones-](./quick/260906-i6a-bloque-2-extraer-la-gestion-de-sesiones-/) |
+| 260906-01 | Bloque 4 (reducción god object MainWindow): extraer tabla de fuentes + menús a SourcesMixin (app/ui/mixins/sources_mixin.py) — 30 métodos verbatim (tabla, widgets, context menus, entry helpers), composición + SourcesMixin, parche db en 18 setUps, main_window 3337→2721 líneas, suite 393 passed | 2026-09-07 | 487db42 | Verified | [260906-sources-mixin/260906-01-PLAN.md](./quick/260906-sources-mixin/) |
+| 260906-01 | Bloque 5 (reducción god object MainWindow): extraer ciclo de proyecto a ProjectMixin (app/ui/mixins/project_mixin.py) — 21 métodos verbatim (create/load/close/delete/duplicate/rename/root change), composición + ProjectMixin, parche db en 18 setUps, main_window 2721→2143 líneas, suite 393 passed | 2026-09-07 | 1c5770d | Verified | [260906-project-mixin/260906-01-PLAN.md](./quick/260906-project-mixin/) |
+| 260906-01 | Bloque 6 (reducción god object MainWindow): extraer registro dispositivos + staging MTP/FTP a DevicesMixin (app/ui/mixins/devices_mixin.py) — 18 métodos verbatim (device pickers, folder assign, MTP/FTP staging, COM reset), composición + DevicesMixin, parche db, main_window 2143→~1973 líneas, suite 393 passed | 2026-09-07 | 6bddf94 | Verified | [260906-bloque6-devicesmixin/260906-01-PLAN.md](./quick/260906-bloque6-devicesmixin/) |
+| 260906-01 | Bloque 7 (reducción god object MainWindow): extraer menú + language switch a MenuMixin (app/ui/mixins/menu_mixin.py) — 2 métodos verbatim (build_menu, _switch_language), composición + MenuMixin, parche db, main_window ~1973→~1800 líneas, suite 393 passed | 2026-09-07 | 4dcabaf | Verified | [260906-menu-mixin/260906-01-PLAN.md](./quick/260906-menu-mixin/) |
+| 260906-01 | Bloque 8 (reducción god object MainWindow): extraer pipeline ingesta + post-actions a IngestMixin (app/ui/mixins/ingest_mixin.py) — 29 métodos verbatim (start/stop_ingest, on_file_*, _finalize_ingest, format/proxies/report/shutdown), composición + IngestMixin, parche db + ingest_mixin_module.db fixes, main_window ~1800→~1200 líneas, suite 393 passed | 2026-09-07 | f075c60/d66ad05 | Verified | [260906-ingest-mixin-extraction/260906-01-PLAN.md](./quick/260906-ingest-mixin-extraction/) |
+| 260906-bloque9 | Bloque 9 (reducción god object MainWindow): descomponer setup_views en 8 helpers + limpieza (elimina _reorganize_worker dead code), main_window ~1200→961 líneas, suite 394 passed (1 pre-existente test_mtp) | 2026-09-07 | 7598f5d | Verified | [260906-bloque9-setup-views-decomposition/260906-bloque9-PLAN.md](./quick/260906-bloque9-setup-views-decomposition/) |
 
 ## Deferred Items
 
@@ -220,8 +227,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-07T08:55:22.259Z
-Stopped at: Completed quick-01-PLAN.md (IngestMixin extraction)
+Last session: 2026-09-07T19:30:00.000Z
+Stopped at: Completed 9 bloques reducción MainWindow (4589→961 líneas, 8 mixins, 394 tests pass)
 Resume file: None
 
 ## Operator Next Steps
