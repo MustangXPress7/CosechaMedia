@@ -176,17 +176,55 @@ class SourcesMixin:
         cb.setChecked(checked)
         cb.stateChanged.connect(lambda state, r=row, p=path: self._on_source_widget_check_changed(r, p, state))
         lay.addWidget(cb)
-        lbl = QLabel(path)
+        device_id = (session or {}).get("device_id") or ""
+        # Mostrar etiqueta amigable para orígenes gestionados (WiFi/FTP/MTP)
+        display_text = path
+        tooltip_text = path
+        if session and self._is_managed_source_path(path):
+            name = (session.get("nombre_dispositivo") or "").strip()
+            if device_id.startswith("ftp:"):
+                # Mostrar dirección FTP
+                try:
+                    pid = int(device_id.split(":", 1)[1])
+                    prof = db.get_ftp_profile(pid)
+                    if prof:
+                        host = prof.get("host") or ""
+                        port = prof.get("port") or 21
+                        display_text = f"FTP {host}:{port}"
+                        if name:
+                            display_text = f"{name} [{display_text}]"
+                except Exception:
+                    display_text = name or f"FTP {device_id}"
+            elif device_id.startswith("wifi:"):
+                # WiFi: mostrar alias/remitente
+                if name:
+                    display_text = f"WiFi {name}"
+                else:
+                    display_text = "WiFi"
+            else:
+                # MTP/otros gestionados: usar nombre dispositivo
+                display_text = name or path
+        elif device_id.startswith("ftp:"):
+            # Origen FTP no gestionado (por si acaso)
+            try:
+                pid = int(device_id.split(":", 1)[1])
+                prof = db.get_ftp_profile(pid)
+                if prof:
+                    host = prof.get("host") or ""
+                    port = prof.get("port") or 21
+                    display_text = f"FTP {host}:{port}"
+            except Exception:
+                pass
+        lbl = QLabel(display_text)
         # Origen deshabilitado (D-12): el label se atenúa
         if not checked:
             lbl.setStyleSheet(
                 f"font-size: 11px; color: {theme.color('text_disabled')};")
         else:
             lbl.setStyleSheet(f"font-size: 11px;")
-        lbl.setToolTip(path)
+        lbl.setToolTip(tooltip_text)
         lbl.setSizePolicy(QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
         lay.addWidget(lbl, 1)
-        device_id = (session or {}).get("device_id") or ""
         is_wifi = bool(session) and device_id == WIFI_DEVICE_ID
         if is_wifi:
             # Solo QR para WiFi (D-06)
@@ -203,6 +241,19 @@ class SourcesMixin:
             qr_btn.clicked.connect(
                 lambda _=False, n=sender_name: self._show_wifi_qr_for_sender(n))
             lay.addWidget(qr_btn)
+        elif device_id.startswith("ftp:"):
+            # Botón Ping/Config para FTP
+            ftp_btn = QPushButton(self.tr("Ping"))
+            ftp_btn.setToolTip(self.tr("Probar conexión FTP / reconfigurar perfil"))
+            ftp_btn.setCursor(Qt.PointingHandCursor)
+            ftp_btn.setStyleSheet(
+                "QPushButton { border: none; text-align: left; padding: 2px 6px;"
+                " color: %s; font-size: 11px; }"
+                "QPushButton:hover { color: %s; }"
+                % (theme.color("text_secondary"), theme.color("accent")))
+            ftp_btn.clicked.connect(
+                lambda _=False, sid=device_id: self._handle_ftp_button(sid))
+            lay.addWidget(ftp_btn)
         return widget
 
     def _disable_source_in_project(self, session_id):
@@ -596,7 +647,35 @@ class SourcesMixin:
                         self.tr("La carpeta '%1' está asignada a una sesión; "
                                 "elimínala desde la lista de orígenes.")
                         .arg(value))
-                    return False
+        return False
+
+    def _handle_ftp_button(self, device_id):
+        """Ping o reconfigurar perfil FTP."""
+        try:
+            pid = int(device_id.split(":", 1)[1])
+        except Exception:
+            QMessageBox.warning(self, self.tr("FTP"), self.tr("Identificador FTP inválido"))
+            return
+        from app.ui.ftp_picker import FtpPickerDialog
+        dlg = FtpPickerDialog(self)
+        if hasattr(dlg, "set_profile_id"):
+            dlg.set_profile_id(pid)
+        elif hasattr(dlg, "profile_id"):
+            dlg.profile_id = pid
+        # Mostrar diálogo de ping/configuración
+        if dlg.exec() != QDialog.Accepted:
+            # Si canceló, probar ping rápido
+            from app.core import ftp
+            backend = ftp.FtpBackend()
+            reachable = backend.is_reachable(device_id, timeout=3.0)
+            msg = self.tr("Conectado") if reachable else self.tr("No responde")
+            QMessageBox.information(self, self.tr("Estado FTP"), msg)
+            return
+        # Si aceptó, el diálogo ya guardó cambios en el perfil
+        # Refrescar UI
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
+        QMessageBox.information(self, self.tr("FTP"), self.tr("Perfil actualizado"))
             db.remove_recent_path(value)
             return True
         if kind == "ftp_profile":

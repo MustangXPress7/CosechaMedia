@@ -235,8 +235,8 @@ class AddSourceDialog(QDialog):
         # Desconectados (D-03/D-12): filas atenuadas, no seleccionables
         for dev in devices_missing:
             device_id = dev["id"]
-            # Los dispositivos FTP se gestionan en su propia sección; no mostrarlos aquí
-            if device_id.startswith("ftp:"):
+            # Los dispositivos WiFi y FTP se gestionan en su propia sección; no mostrarlos aquí
+            if device_id.startswith("ftp:") or device_id.startswith("wifi:"):
                 continue
             saved_camera = db.get_dispositivo_for_device(device_id)
             name = saved_camera or dev.get("name") or device_id
