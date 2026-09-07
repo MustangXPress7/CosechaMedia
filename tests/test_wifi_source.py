@@ -184,6 +184,43 @@ class TestWifiSource(unittest.TestCase):
         dfp.assert_called_once_with(pid)
         self.assertEqual(self.db.get_devices(), [])
 
+    def test_usb_survives_session_deletion_in_disconnected_devices(self):
+        """Bug: borrar un origen USB de la tabla de orígenes no debe eliminarlo
+        de «Añadir origen».
+
+        El flujo como WiFi: el USB se guarda globalmente (known_devices /
+        device_settings con clave unificada ``usb:<ruta>``) y,
+        aunque se borre la sesión del proyecto, sigue apareciendo en
+        ``_disconnected_devices``.
+        """
+        usb_path = "E:\\"
+        did = f"usb:{usb_path}"
+        cache = os.path.join(self.tmp, "device_cache", "abc123", "DCIM")
+        os.makedirs(cache, exist_ok=True)
+        # Sesión creada como _assign_folder_source hace para un USB extraíble
+        sid = self.db.create_session(self.pid, "Auto (E:\\)", "2026-01-01",
+                                     "active", source_path=usb_path, device_id=did)
+        # La cámara se persistió globalmente (persistencia cross-proyecto)
+        self.db.save_dispositivo_config(did, "Sony A7")
+        self.db.upsert_known_device(did, "usb", name="Sony A7",
+                                    last_camera="Sony A7")
+
+        # Mientras la sesión existe, el dispositivo aparece
+        with mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
+            backend.return_value.list_devices.return_value = []
+            ids = {d["id"] for d in self.window._disconnected_devices()}
+        self.assertIn(did, ids)
+
+        # Eliminar el origen desde la tabla de orígenes (borra solo la sesión)
+        self.db.delete_session(sid)
+
+        # El USB debe seguir visible en «Añadir origen»
+        with mock.patch.object(devices_mixin_module.mtp, "WpdBackend") as backend:
+            backend.return_value.list_devices.return_value = []
+            ids = {d["id"] for d in self.window._disconnected_devices()}
+        self.assertIn(did, ids)
+        self.assertEqual(self.db.get_devices(), [])
+
     def test_panel_is_non_modal_window(self):
         from app.ui.wifi_panel import ShootInboxPanel
         panel = ShootInboxPanel(self.window)

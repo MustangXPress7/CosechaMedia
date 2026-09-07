@@ -15,8 +15,8 @@ from concurrent.futures import ThreadPoolExecutor
 from PySide6.QtCore import Qt, QObject, Signal
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
-    QLineEdit, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
-    QWidget,
+    QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
+    QVBoxLayout, QWidget,
 )
 
 from app.core import utils
@@ -147,6 +147,17 @@ class AddSourceDialog(QDialog):
         self.btn_new_ftp.clicked.connect(self._add_ftp_row)
         actions.addWidget(self.btn_new_ftp)
         actions.addStretch()
+
+        self.btn_import = QPushButton(self.tr("Importar JSON"))
+        self.btn_import.setToolTip(self.tr("Importar dispositivos conocidos desde un archivo JSON"))
+        self.btn_import.clicked.connect(self._import_json)
+        actions.addWidget(self.btn_import)
+
+        self.btn_export = QPushButton(self.tr("Exportar JSON"))
+        self.btn_export.setToolTip(self.tr("Exportar dispositivos conocidos a un archivo JSON"))
+        self.btn_export.clicked.connect(self._export_json)
+        actions.addWidget(self.btn_export)
+
         layout.addLayout(actions)
 
         # fila de botones Aceptar/Cancelar
@@ -526,9 +537,11 @@ class AddSourceDialog(QDialog):
         else:
             self._row_sources.append(src)
         # reutilizamos _add_source_row sobre la fila recién creada no es trivial;
-        # hacemos el render directo
+        # hacemos el render directo (equivalente a _add_source_row)
         cb = QCheckBox()
         cb.setChecked(False)
+        if not src.get("enabled") or not src.get("connected"):
+            cb.setEnabled(False)
         cb.stateChanged.connect(self._update_ok_state)
         cb_wrap = QWidget()
         cb_lay = QHBoxLayout(cb_wrap)
@@ -539,13 +552,24 @@ class AddSourceDialog(QDialog):
         pw = QWidget()
         pl = QHBoxLayout(pw)
         pl.setContentsMargins(4, 0, 4, 0)
-        pl.addWidget(QLabel(src["label"]), 1)
+        lbl = QLabel(src["label"])
+        if not src.get("connected"):
+            lbl.setStyleSheet(
+                "color: {}; font-size: 11px;".format(theme.color("text_secondary")))
+        pl.addWidget(lbl, 1)
         self.table.setCellWidget(row, 1, pw)
         cam = self._build_camera_combo(row, src)
+        if not src.get("connected"):
+            cam.setEnabled(False)
         self.table.setCellWidget(row, 2, cam)
-        status = QLabel(self.tr("Conectado"))
+        if src.get("connected"):
+            status = QLabel(self.tr("Conectado"))
+            color = theme.color("success")
+        else:
+            status = QLabel(self.tr("Desconectado"))
+            color = theme.color("danger")
         status.setStyleSheet(
-            "color: {}; font-size: 11px;".format(theme.color("success")))
+            "color: {}; font-size: 11px;".format(color))
         self.table.setCellWidget(row, 3, status)
         trash = QPushButton()
         trash.setObjectName("IconButton")
@@ -657,11 +681,98 @@ class AddSourceDialog(QDialog):
                     insert_before_row=wifi_row)
                 # Persist USB drive to known_devices for cross-project persistence
                 try:
-                    db.upsert_known_device(drive_path, "usb", name=drive_path, last_camera=self.tr("Sin nombre"))
+                    db.upsert_known_device(f"usb:{drive_path}", "usb",
+                                           name=drive_path,
+                                           last_camera=self.tr("Sin nombre"))
                 except Exception:
                     pass
                 wifi_row += 1
         self._update_ok_state()
+
+    def _import_json(self):
+        """Importa dispositivos conocidos desde un archivo JSON (backup/restore)."""
+        import json
+        path, _ = QFileDialog.getOpenFileName(
+            self, self.tr("Importar dispositivos conocidos"),
+            "", self.tr("JSON (*.json)"))
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, list):
+                raise ValueError(self.tr("El JSON debe ser una lista de dispositivos"))
+            count = 0
+            for d in data:
+                if not all(k in d for k in ("device_id", "device_type")):
+                    continue
+                db.upsert_known_device(
+                    d["device_id"], d["device_type"],
+                    d.get("name"), d.get("serial"),
+                    d.get("last_camera"), d.get("metadata"))
+                count += 1
+            # Mostrar los importados como filas desconectadas si no están ya.
+            self._sync_imported_devices(data)
+            QMessageBox.information(
+                self, self.tr("Importación completada"),
+                self.tr("Se importaron %1 dispositivos.").arg(count))
+        except Exception as e:
+            QMessageBox.critical(
+                self, self.tr("Error"),
+                self.tr("No se pudo importar: %1").arg(str(e)))
+
+    def _sync_imported_devices(self, data):
+        """Añade como filas «Desconectado» los dispositivos importados que
+        no aparecen ya en la tabla (MTP/USB; WiFi va por senders, FTP por
+        perfiles). Evita repoblar toda la tabla para no perder selecciones."""
+        wifi_row = self._section_start_row(1)
+        for d in data:
+            did = d.get("device_id") or ""
+            dtype = d.get("device_type") or ""
+            if not did:
+                continue
+            if dtype in ("wifi", "folder") or did.startswith("wifi:"):
+                continue
+            if self._row_for_source("device", did) is not None:
+                continue
+            name = d.get("name") or did
+            self._append_raw_source(
+                {"kind": "device", "value": did, "camera": name,
+                 "enabled": False, "connected": False,
+                 "label": self.tr("[MTP] %1").arg(name), "type": "MTP"},
+                insert_before_row=wifi_row)
+            wifi_row += 1
+
+    def _export_json(self):
+        """Exporta dispositivos conocidos a un archivo JSON (backup)."""
+        import json
+        path, _ = QFileDialog.getSaveFileName(
+            self, self.tr("Exportar dispositivos conocidos"),
+            "known_devices.json", self.tr("JSON (*.json)"))
+        if not path:
+            return
+        try:
+            devices = db.list_known_devices()
+            export_data = []
+            for d in devices:
+                export_data.append({
+                    "device_id": d["device_id"],
+                    "device_type": d["device_type"],
+                    "name": d["name"],
+                    "serial": d["serial"],
+                    "last_camera": d["last_camera"],
+                    "last_seen": d["last_seen"],
+                    "metadata": d["metadata"],
+                })
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(export_data, f, ensure_ascii=False, indent=2)
+            QMessageBox.information(
+                self, self.tr("Exportación completada"),
+                self.tr("Se exportaron %1 dispositivos.").arg(len(export_data)))
+        except Exception as e:
+            QMessageBox.critical(
+                self, self.tr("Error"),
+                self.tr("No se pudo exportar: %1").arg(str(e)))
 
     def _add_wifi_row(self):
         """Crea un nuevo remitente WiFi real (no placeholder)."""

@@ -2,7 +2,7 @@ import os
 import json
 from PySide6.QtWidgets import (QMessageBox, QFileDialog, QMenu, QCheckBox, QLabel,
                                QWidget, QHBoxLayout, QPushButton, QSizePolicy,
-                               QTableWidgetItem)
+                               QTableWidgetItem, QDialog)
 from PySide6.QtCore import Qt, QDate, QTimer
 from PySide6.QtGui import QColor
 from app.core.db import db, WIFI_DEVICE_ID
@@ -12,6 +12,8 @@ import app.core.shoot_inbox as inboxmod
 from app.core import translator
 from app.ui import theme
 from app.ui import icons
+from app.ui.add_source_dialog import AddSourceDialog
+from app.ui.ftp_status import FtpStatusDialog
 
 
 class SourcesMixin:
@@ -503,8 +505,9 @@ class SourcesMixin:
             self._register_device_source_from_picker(
                 device_id, device_folder, device_name, backend=mtp.WpdBackend())
         elif kind == "usb":
-            # USB masivo: se trata como carpeta local
-            self._assign_folder_source(value)
+            # USB masivo: se trata como carpeta local, conservando el nombre
+            # de cámara elegido en el diálogo (si lo hay)
+            self._assign_folder_source(value, camera=camera)
         elif kind == "ftp_new":
             profile_id, device_id, device_folder, device_name = value
             self._register_device_source_from_picker(
@@ -616,6 +619,24 @@ class SourcesMixin:
                 if pid is not None:
                     db.delete_ftp_profile(pid)
             db.delete_device(value)
+            self._populate_source_paths_from_sessions()
+            self._refresh_source_list()
+            self._refresh_sessions_combo()
+            self.update_start_button_state()
+            return True
+        if kind == "usb":
+            # El diálogo guarda unidades USB con clave usb:<ruta> (igual que las
+            # sesiones). value es la ruta cruda (E:\).
+            device_id = value if str(value).startswith("usb:") else f"usb:{value}"
+            reply = QMessageBox.question(
+                self, self.tr("Eliminar unidad USB guardada"),
+                self.tr("¿Eliminar esta unidad USB guardada y sus sesiones?\n"
+                        "Los archivos en disco se conservan.\n"
+                        "Esta acción no se puede deshacer."),
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return False
+            db.delete_device(device_id)
             self._populate_source_paths_from_sessions()
             self._refresh_source_list()
             self._refresh_sessions_combo()

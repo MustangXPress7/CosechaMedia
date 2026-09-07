@@ -95,15 +95,11 @@ class MenuMixin:
 
         m_tools = menu_bar.addMenu(self.tr("&Herramientas"))
 
-        act_known_devices = QAction(self.tr("Dispositivos &conocidos…"), self)
-        act_known_devices.triggered.connect(self._open_known_devices)
-        m_tools.addAction(act_known_devices)
-
-        act_del_devices = QAction(self.tr("Borrar dispositivos &guardados…"), self)
+        act_del_devices = QAction(self.tr("Borrar &dispositivos guardados…"), self)
         act_del_devices.triggered.connect(self._delete_all_saved_devices)
         m_tools.addAction(act_del_devices)
 
-        act_del_cameras = QAction(self.tr("Borrar dispositivos &conocidos…"), self)
+        act_del_cameras = QAction(self.tr("Borrar &nombres de dispositivos…"), self)
         act_del_cameras.triggered.connect(self._delete_all_known_cameras)
         m_tools.addAction(act_del_cameras)
 

@@ -23,8 +23,8 @@ class DevicesMixin:
         """Borra todos los dispositivos guardados (known_devices, inbox_senders, perfiles FTP)."""
         reply = QMessageBox.question(
             self, self.tr("Borrar dispositivos guardados"),
-            self.tr("Esto eliminará todos los dispositivos conocidos, "
-                    "remitentes WiFi y perfiles FTP guardados.\n"
+            self.tr("Esto eliminará todos los dispositivos guardados: "
+                    "dispositivos conocidos, remitentes WiFi y perfiles FTP.\n"
                     "Esta acción no se puede deshacer.\n\n"
                     "¿Continuar?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
@@ -39,12 +39,14 @@ class DevicesMixin:
             self.tr("Todos los dispositivos guardados han sido eliminados."))
 
     def _delete_all_known_cameras(self):
-        """Borra la cache de dispositivos conocidos y nombres en DB."""
+        """Borra la cache de detección y los nombres de dispositivo en DB.
+        No toca los dispositivos en sí (sesiones, perfiles FTP, remitentes)."""
         reply = QMessageBox.question(
-            self, self.tr("Borrar dispositivos conocidos"),
-            self.tr("Esto limpiará la cache de detección de dispositivos y "
-                    "los nombres de dispositivo guardados en archivos.\n"
-                    "La próxima ingesta volverá a detectar dispositivos automáticamente.\n\n"
+            self, self.tr("Borrar nombres de dispositivos"),
+            self.tr("Esto limpiará la cache de detección y los nombres de "
+                    "cámara guardados para los dispositivos.\n"
+                    "Los dispositivos en sí no se eliminan.\n"
+                    "La próxima ingesta volverá a detectar los nombres automáticamente.\n\n"
                     "¿Continuar?"),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply != QMessageBox.Yes:
@@ -52,22 +54,18 @@ class DevicesMixin:
         metadata_engine.clear_cache()
         db.delete_all_known_cameras()
         self.ingest_status_label.setText(
-            self.tr("Dispositivos conocidos eliminados. La detección se reiniciará."))
-
-    def _open_known_devices(self):
-        """Abre el diálogo de dispositivos conocidos (Herramientas → Dispositivos conocidos)."""
-        from app.ui.device_registry import DeviceRegistryDialog
-        dlg = DeviceRegistryDialog(self)
-        dlg.exec()
-        # Al cerrar, refrescar la lista de orígenes por si cambió algo
-        self._refresh_source_list()
+            self.tr("Nombres de dispositivos eliminados. La detección se reiniciará."))
 
     def _disconnected_devices(self):
-        """Dispositivos MTP/FTP desconectados y perfiles FTP con sesiones en el
-        proyecto, para poder borrarlos desde el diálogo unificado (D-12).
-        También incluye dispositivos guardados globalmente (device_settings) que
-        no tienen sesiones en el proyecto actual, para que permanezcan visibles
-        en 'Añadir origen' aunque se borren todas las sesiones del proyecto."""
+        """Dispositivos MTP/USB/FTP desconectados y perfiles FTP para poder
+        borrarlos desde el diálogo unificado (D-12).
+
+        También incluye dispositivos guardados globalmente (known_devices y el
+        legacy device_settings) que no tienen sesiones en el proyecto actual,
+        para que permanezcan visibles en 'Añadir origen' aunque se borren todas
+        las sesiones del proyecto. Sin esto, borrar el origen de un USB de la
+        tabla de orígenes lo hacía desaparecer también del diálogo (a diferencia
+        de WiFi, que persiste vía inbox_senders)."""
         if self.current_project_id is None:
             return []
         try:
@@ -82,8 +80,26 @@ class DevicesMixin:
                 known.setdefault(did, s.get("nombre_dispositivo") or "")
             elif did and not did.startswith("wifi:"):
                 known.setdefault(did, s.get("nombre_dispositivo") or "")
-        # 2. Dispositivos guardados globalmente (device_settings) que no están
-        # en el proyecto actual pero deberían seguir apareciendo
+        # 2. Dispositivos guardados globalmente (known_devices; tabla unificada).
+        #    Excluimos wifi (va por inbox_senders) y carpetas locales (van por
+        #    la lista de carpetas), que no son dispositivos.
+        for kd in db.list_known_devices():
+            did = kd.get("device_id") or ""
+            if not did:
+                continue
+            dtype = kd.get("device_type") or ""
+            if dtype in ("wifi", "folder") or did.startswith("wifi:"):
+                continue
+            # Normalizar claves legacy de USB: el diálogo guardaba la ruta cruda
+            # (E:\) mientras las sesiones/device_settings usan usb:E:\. Al unificar
+            # la identidad evitamos duplicados y que delete_device no encuentre
+            # las sesiones por usar una clave distinta.
+            if dtype == "usb" and not did.startswith("usb:"):
+                did = f"usb:{did}"
+            if kd.get("name"):
+                known.setdefault(did, kd["name"])
+        # 3. Legacy device_settings (fuente histórica; redundante con
+        #    known_devices, pero se mantiene hasta completar la migración).
         conn = db.get_connection()
         try:
             cursor = conn.cursor()
@@ -117,8 +133,12 @@ class DevicesMixin:
         self._register_device_source(
             cache_dir, device_id, device_folder, device_name, backend=backend)
 
-    def _assign_folder_source(self, path):
-        """Asigna un folder real como nuevo origen (nunca una caché gestionada)."""
+    def _assign_folder_source(self, path, camera=None):
+        """Asigna un folder real como nuevo origen (nunca una caché gestionada).
+
+        Si se pasa ``camera`` (p. ej. el nombre elegido en «Añadir origen»), se
+        usa ese nombre como dispositivo en lugar de lanzar detección/prompt.
+        """
         if self._is_managed_source_path(path):
             self._warn_managed_source(path)
             return
@@ -143,7 +163,13 @@ class DevicesMixin:
                             self.current_project_id, f"Auto ({base})",
                             QDate.currentDate().toString("yyyy-MM-dd"), "active",
                             source_path=path, device_id=device_id)
-                        self._detect_camera_for_session(sid, path, force_prompt=True)
+                    cam = (camera or "").strip()
+                    if cam and cam not in (self.tr("Sin nombre"),):
+                        db.update_session_config(sid, nombre_dispositivo=cam)
+                        self._persist_camera_mapping(sid, path, cam)
+                        self._set_camera_cell_text(path, cam)
+                    else:
+                        self._detect_camera_for_session(sid, path, force_prompt=not camera)
         self._repair_folder_device_id(path)
         self._refresh_source_list()
         self._refresh_sessions_combo()

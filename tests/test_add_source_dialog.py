@@ -12,6 +12,7 @@ diálogos/backends se reemplazan con fakes o se ejercitan métodos internos.
 import os
 import time
 import unittest
+import json
 from unittest import mock
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -423,6 +424,106 @@ class TestAddSourceDialog(unittest.TestCase):
         self.assertEqual(calls, [("device", "MTP9")])
         self.assertEqual(dlg.table.rowCount(), before - 1)
         self.assertIsNone(dlg._row_for_source("device", "MTP9"))
+
+
+# -- importar/exportar JSON (device registry consolidado) -------------
+
+    def test_import_export_buttons_exist(self):
+        """El diálogo tiene botones Importar JSON y Exportar JSON."""
+        dlg = self._dialog()
+        buttons = dlg.findChildren(QPushButton)
+        texts = {b.text() for b in buttons}
+        self.assertIn(dlg.tr("Importar JSON"), texts)
+        self.assertIn(dlg.tr("Exportar JSON"), texts)
+
+    def test_export_json_writes_valid_file(self):
+        """_export_json escribe un JSON con los dispositivos conocidos."""
+        import app.ui.add_source_dialog as dlg_mod
+        with mock.patch.object(dlg_mod.db, "list_known_devices") as m_list, \
+             mock.patch.object(dlg_mod.QMessageBox, "information") as m_info, \
+             mock.patch("app.ui.add_source_dialog.QFileDialog.getSaveFileName",
+                        return_value=(os.path.join(
+                            os.environ.get("TEMP", "."), "kd_export_test.json"), True)):
+            m_list.return_value = [
+                {"device_id": "mtp:PNP1", "device_type": "mtp", "name": "Cam A",
+                 "serial": "S1", "last_camera": "Cam A", "last_seen": "2026-09-06",
+                 "metadata": {}},
+            ]
+            dlg = self._dialog()
+            dlg._export_json()
+            m_info.assert_called_once()
+        path = os.path.join(os.environ.get("TEMP", "."), "kd_export_test.json")
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.assertEqual(len(data), 1)
+            self.assertEqual(data[0]["device_id"], "mtp:PNP1")
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_import_json_adds_disconnected_rows(self):
+        """_import_json persiste en known_devices y añade filas desconectadas."""
+        import app.ui.add_source_dialog as dlg_mod
+        payload = [
+            {"device_id": "mtp:PNP_X", "device_type": "mtp", "name": "Cam Import",
+             "serial": "SX", "last_camera": "Cam Import", "metadata": {}},
+        ]
+        path = os.path.join(os.environ.get("TEMP", "."), "kd_import_test.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(payload, f)
+        try:
+            imported = []
+            def _fake_upsert(*a, **kw):
+                imported.append(a[0])
+                return 1
+            with mock.patch.object(dlg_mod.db, "upsert_known_device",
+                                   side_effect=_fake_upsert), \
+                 mock.patch.object(dlg_mod.QMessageBox, "information"), \
+                 mock.patch("app.ui.add_source_dialog.QFileDialog.getOpenFileName",
+                            return_value=(path, True)):
+                dlg = self._dialog()
+                dlg._import_json()
+            self.assertIn("mtp:PNP_X", imported)
+            # La fila desconectada MTP se añadió a la tabla
+            row = dlg._row_for_source("device", "mtp:PNP_X")
+            self.assertIsNotNone(row)
+            cam = dlg.table.cellWidget(row, 2)
+            self.assertFalse(cam.isEnabled())
+        finally:
+            if os.path.exists(path):
+                os.remove(path)
+
+    def test_import_json_skips_wifi_and_folders(self):
+        """WiFi/folder importados no se añaden como filas MTP desconectadas."""
+        import app.ui.add_source_dialog as dlg_mod
+        payload = [
+            {"device_id": "wifi:pairdrop", "device_type": "wifi", "name": "WiFi",
+             "metadata": {}},
+            {"device_id": "folder:/tmp/x", "device_type": "folder", "name": "Carpeta",
+             "metadata": {}},
+        ]
+        with mock.patch.object(dlg_mod.db, "upsert_known_device",
+                               return_value=1), \
+             mock.patch.object(dlg_mod.QMessageBox, "information"), \
+             mock.patch("app.ui.add_source_dialog.QFileDialog.getOpenFileName",
+                        return_value=("whatever.json", True)), \
+             mock.patch("builtins.open",
+                        mock.mock_open(read_data=json.dumps(payload))):
+            dlg = self._dialog()
+            dlg._import_json()
+        self.assertIsNone(dlg._row_for_source("device", "wifi:pairdrop"))
+        self.assertIsNone(dlg._row_for_source("device", "folder:/tmp/x"))
+
+    def test_import_json_cancel_noop(self):
+        """Cancelar el diálogo de archivo no hace nada."""
+        import app.ui.add_source_dialog as dlg_mod
+        with mock.patch("app.ui.add_source_dialog.QFileDialog.getOpenFileName",
+                        return_value=("", False)):
+            dlg = self._dialog()
+            dlg._import_json()
+        # Sin filas añadidas por import
+        self.assertIsNone(dlg._row_for_source("device", "mtp:PNP_X"))
 
 
 class _Device:

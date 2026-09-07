@@ -264,6 +264,14 @@ class CameraMixin:
             pass
         return ""
 
+    def _device_type_for_id(self, device_id):
+        """Tipo known_devices para un device_id (ftp:/usb:/resto → mtp)."""
+        if str(device_id).startswith("ftp:"):
+            return "ftp"
+        if str(device_id).startswith("usb:"):
+            return "usb"
+        return "mtp"
+
     def _persist_camera_mapping(self, session_id, source_path, nombre_dispositivo):
         """Persiste el mapeo cámara→dispositivo en sd_cards o device_settings (I-03)."""
         if not nombre_dispositivo:
@@ -276,7 +284,7 @@ class CameraMixin:
             db.save_dispositivo_config(device_id, nombre_dispositivo)
             # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
             try:
-                device_type = "ftp" if str(device_id).startswith("ftp:") else "mtp"
+                device_type = self._device_type_for_id(device_id)
                 db.upsert_known_device(device_id, device_type, name=nombre_dispositivo, last_camera=nombre_dispositivo)
             except Exception:
                 pass
@@ -317,7 +325,7 @@ class CameraMixin:
         db.save_dispositivo_config(device_id, sane)
         # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
         try:
-            device_type = "ftp" if str(device_id).startswith("ftp:") else "mtp"
+            device_type = self._device_type_for_id(device_id)
             db.upsert_known_device(device_id, device_type, name=sane, last_camera=sane)
         except Exception:
             pass
