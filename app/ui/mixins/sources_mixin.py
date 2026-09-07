@@ -500,7 +500,11 @@ class SourcesMixin:
             self._bind_wifi_sender(value)
         elif kind == "ftp_profile":
             # Registrar directamente el perfil FTP sin reabrir el selector
-            profile_id = int(value)
+            raw = value
+            if isinstance(raw, str) and raw.startswith("ftp:"):
+                profile_id = int(raw.split(":",1)[1])
+            else:
+                profile_id = int(raw)
             from app.core import ftp
             profile = db.get_ftp_profile(profile_id)
             device_id = f"ftp:{profile_id}"
@@ -601,7 +605,10 @@ class SourcesMixin:
                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
             if reply != QMessageBox.Yes:
                 return False
-            db.delete_ftp_profile(value)
+            raw = value
+            if isinstance(raw, str) and raw.startswith("ftp:"):
+                raw = int(raw.split(":",1)[1])
+            db.delete_ftp_profile(int(raw))
             return True
         if kind == "sender":
             # value is now sender_id (int), but handle name for backward compat
