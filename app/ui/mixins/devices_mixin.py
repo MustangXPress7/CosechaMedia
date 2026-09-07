@@ -377,6 +377,19 @@ class DevicesMixin:
     def _stage_device_in_background(self, device_id, device_folder, session_id, cache_dir,
                                     backend=None, silent=False):
         backend = backend or mtp.WpdBackend()
+        # Evita bloqueo si el servidor FTP está desconectado
+        if str(device_id).startswith("ftp:"):
+            try:
+                if not hasattr(backend, "is_reachable"):
+                    backend = ftp.FtpBackend()
+                if not backend.is_reachable(device_id, timeout=3.0):
+                    if not silent:
+                        self.ingest_status_label.setText(self.tr("Servidor FTP no disponible"))
+                    return
+            except Exception:
+                if not silent:
+                    self.ingest_status_label.setText(self.tr("Servidor FTP no disponible"))
+                return
         worker = _StageWorker(backend, device_id, device_folder)
         thread = QThread(self)
         worker.moveToThread(thread)
@@ -405,7 +418,14 @@ class DevicesMixin:
                     self.tr("No se pudo sincronizar el dispositivo: %1").arg(str(res)),
                 )
                 self.ingest_status_label.setText(self.tr("Listo"))
-            thread.quit()
+            # Detener y limpiar hilo para evitar QObject::setParent en otro hilo
+            try:
+                thread.quit()
+                thread.wait(2000)
+            except Exception:
+                pass
+            worker.deleteLater()
+            thread.deleteLater()
             return
         staged = res.get("staged", 0)
         skipped = res.get("skipped", 0)
@@ -419,3 +439,9 @@ class DevicesMixin:
         )
         self._detect_camera_for_session(session_id, cache_dir)
         thread.quit()
+        try:
+            thread.wait(2000)
+        except Exception:
+            pass
+        worker.deleteLater()
+        thread.deleteLater()
