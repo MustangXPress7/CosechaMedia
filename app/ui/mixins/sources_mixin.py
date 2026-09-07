@@ -522,6 +522,9 @@ class SourcesMixin:
         con kind, value, camera, enabled) o ``None`` si se cancela.
         """
         if self.current_project_id is None:
+            QMessageBox.information(
+                self, self.tr("Proyecto requerido"),
+                self.tr("Debes seleccionar o crear un proyecto antes de añadir un origen."))
             return None
         sessions = db.get_sessions(self.current_project_id)
         folders = []
