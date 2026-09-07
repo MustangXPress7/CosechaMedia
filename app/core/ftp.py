@@ -409,7 +409,15 @@ class FtpBackend(MtpBackend):
         profile = FtpProfile.from_db(row)
         if passive is not None:
             profile.passive = bool(passive)
-        return FtpSession(profile)
+        try:
+            return FtpSession(profile)
+        except (OSError, ftplib.error_temp) as e:
+            # Error de conexión: propagar con contexto host:puerto. Antes el
+            # usuario solo veía "timed out" sin saber a qué equipo iba dirigido.
+            raise OSError(
+                f"{tr('No se pudo conectar al servidor FTP')} "
+                f"{profile.host}:{int(profile.port or 21)}"
+                f" — {e}") from e
 
     def _flip_passive(self, device_id: str) -> None:
         """Cambia el modo pasivo guardado del perfil (para perseguir el modo

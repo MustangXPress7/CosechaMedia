@@ -427,5 +427,51 @@ class TestLocalIp(unittest.TestCase):
         self.assertNotIn("192.168.1.0", sub)
 
 
+class TestFtpOpenSessionError(unittest.TestCase):
+    """Al abrir una sesión contra un servidor caído, el error debe incluir
+    host:puerto para que el usuario pueda diagnosticar el timeout (bug FTP)."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ftp_opensess_")
+        self._old_db_path = db.db_path
+        db.db_path = os.path.join(self.tmp, "db.sqlite")
+        db.create_tables()
+        self.profile_id = db.add_ftp_profile("Dead Phone", "192.0.2.55", 2121)
+        self.device_id = ftpmod.device_key(self.profile_id)
+
+    def tearDown(self):
+        db.db_path = self._old_db_path
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_open_session_wraps_timeout_with_host_and_port(self):
+        backend = ftpmod.FtpBackend()
+        with mock.patch.object(ftpmod.ftplib, "FTP",
+                               side_effect=socket.timeout("timed out")):
+            with self.assertRaises(OSError) as ctx:
+                backend._open_session(self.device_id)
+        msg = str(ctx.exception)
+        self.assertIn("192.0.2.55", msg)
+        self.assertIn("2121", msg)
+
+    def test_open_session_wraps_refused(self):
+        backend = ftpmod.FtpBackend()
+        with mock.patch.object(ftpmod.ftplib, "FTP",
+                               side_effect=ConnectionRefusedError("refused")):
+            with self.assertRaises(OSError) as ctx:
+                backend._open_session(self.device_id)
+        self.assertIn("192.0.2.55", str(ctx.exception))
+        self.assertIn("2121", str(ctx.exception))
+
+    def test_open_session_still_works_on_healthy_server(self):
+        backend = ftpmod.FtpBackend()
+        conn = FakeFtpConnection(_tree())
+        with mock.patch.object(ftpmod.ftplib, "FTP", lambda: conn):
+            sess = backend._open_session(self.device_id)
+            try:
+                self.assertIn("IMG_1.jpg", [f.name for f in sess.children("Internal/DCIM")])
+            finally:
+                sess.close()
+
+
 if __name__ == "__main__":
     unittest.main()
