@@ -1,7 +1,7 @@
 import json
 import os
 from datetime import datetime
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QSettings, QDate
 from PySide6.QtWidgets import QMessageBox, QInputDialog, QFileDialog, QDialog, QSpinBox, QComboBox, QDialogButtonBox, QFormLayout
 from app.core.db import db
 from app.core.metadata_engine import metadata_engine
