@@ -339,8 +339,12 @@ class AddSourceDialog(QDialog):
             pl.addWidget(qr_btn)
         self.table.setCellWidget(row, 1, path_widget)
 
-        # Col 2: nombre de cámara (editable o combo con conocidas, CHG-5/CHG-6)
-        cam = self._build_camera_combo(row, src)
+        # Col 2: nombre de cámara (editable o combo con conocidas, CHG-5/CHG-6);
+        # para remitentes WiFi/FTP el nombre es fijo (bug 7).
+        if src["type"] in ("WiFi", "FTP"):
+            cam = self._build_fixed_name_widget(src)
+        else:
+            cam = self._build_camera_combo(row, src)
         if not src.get("connected"):
             cam.setEnabled(False)
         self.table.setCellWidget(row, 2, cam)
@@ -561,7 +565,12 @@ class AddSourceDialog(QDialog):
                 "color: {}; font-size: 11px;".format(theme.color("text_secondary")))
         pl.addWidget(lbl, 1)
         self.table.setCellWidget(row, 1, pw)
-        cam = self._build_camera_combo(row, src)
+        if src.get("kind") in ("sender", "ftp_profile"):
+            # Bug 7: el nombre de WiFi/FTP es fijo (viene de la BD); un combo
+            # con las cámaras USB/MTP confundiría al operador.
+            cam = self._build_fixed_name_widget(src)
+        else:
+            cam = self._build_camera_combo(row, src)
         if not src.get("connected"):
             cam.setEnabled(False)
         self.table.setCellWidget(row, 2, cam)
@@ -589,6 +598,17 @@ class AddSourceDialog(QDialog):
             self._on_delete_clicked(k, v))
         self.table.setCellWidget(row, 4, trash)
         return row
+
+    def _build_fixed_name_widget(self, src):
+        """Widget de solo lectura para nombres fijos (remitentes WiFi / FTP).
+
+        Estos orígenes no permiten rebautizar: el nombre viene de la BD
+        (inbox_senders/ftp_profiles) y no debe confundirse con un combo.
+        """
+        edit = QLineEdit(src.get("camera") or src.get("label") or "")
+        edit.setReadOnly(True)
+        edit.setToolTip(self.tr("Nombre fijo"))
+        return edit
 
     def _detect_devices(self):
         """Re-enumera dispositivos MTP y unidades USB (D-08)."""

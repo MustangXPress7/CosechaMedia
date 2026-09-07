@@ -777,19 +777,28 @@ class TestCameraNameChangedCallback(unittest.TestCase):
         _set_camera(dlg, row, "Cámara A")
         self.assertEqual(calls, [("dev-1", "Cámara A")])
 
-    def test_edit_camera_fires_callback_for_ftp(self):
-        """En filas FTP el device_id se construye con prefijo ftp:."""
+    def test_ftp_row_has_fixed_readonly_name(self):
+        """Bug 7: la cámara de una fila FTP es fija (solo lectura), no un combo."""
         class _FakeFtpBackend:
             def list_profiles(self):
                 return [{"id": "ftp-1", "name": "Mi FTP", "host": "192.168.1.10"}]
-        calls = []
-        dlg = self._dialog(
-            ftp_backend=_FakeFtpBackend(),
-            on_camera_name_changed=lambda did, name: calls.append((did, name)))
+        dlg = self._dialog(ftp_backend=_FakeFtpBackend())
         row = dlg._row_for_source("ftp_profile", "ftp-1")
         self.assertIsNotNone(row)
-        _set_camera(dlg, row, "Cámara FTP")
-        self.assertEqual(calls, [("ftp:ftp-1", "Cámara FTP")])
+        cam = dlg.table.cellWidget(row, 2)
+        self.assertIsInstance(cam, QLineEdit)
+        self.assertTrue(cam.isReadOnly())
+        self.assertEqual(cam.text(), "Mi FTP")
+
+    def test_sender_row_has_fixed_readonly_name(self):
+        """Bug 7: la cámara de una fila de remitente WiFi es fija (solo lectura)."""
+        dlg = self._dialog(senders=[{"name": "Alice", "used": False}])
+        row = dlg._row_for_source("sender", "Alice")
+        self.assertIsNotNone(row)
+        cam = dlg.table.cellWidget(row, 2)
+        self.assertIsInstance(cam, QLineEdit)
+        self.assertTrue(cam.isReadOnly())
+        self.assertEqual(cam.text(), "Alice")
 
     def test_no_callback_for_folder_rows(self):
         """Las filas de carpeta (sin device_id) NO disparan el callback."""
