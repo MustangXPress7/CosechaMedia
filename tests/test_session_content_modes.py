@@ -26,6 +26,7 @@ import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
 import app.ui.mixins.devices_mixin as devices_mixin_module
+import app.ui.mixins.ingest_mixin as ingest_mixin_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
 from app.core.ingestor import Ingestor
 
@@ -165,6 +166,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         self._orig_sources_db = sources_mixin_module.db
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
+        self._orig_ingest_mixin_db = ingest_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "switch.db"))
         mw.db = self.db
@@ -173,6 +175,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         sources_mixin_module.db = self.db
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
+        ingest_mixin_module.db = self.db
 
         class StubNotif:
             def notify_ingest_complete(self, stats): pass
@@ -206,6 +209,7 @@ class TestSessionDumpSwitch(unittest.TestCase):
         sources_mixin_module.db = self._orig_sources_db
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
+        ingest_mixin_module.db = self._orig_ingest_mixin_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 

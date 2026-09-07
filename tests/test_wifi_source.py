@@ -28,6 +28,7 @@ import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
 import app.ui.mixins.wifi_mixin as wifi_mixin_module
 import app.ui.mixins.devices_mixin as devices_mixin_module
+import app.ui.mixins.ingest_mixin as ingest_mixin_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
 
 
@@ -49,6 +50,7 @@ class TestWifiSource(unittest.TestCase):
         self._orig_ing_db = ingestor_module.db
         self._orig_wifi_db = wifi_mixin_module.db
         self._orig_devices_db = devices_mixin_module.db
+        self._orig_ingest_db = ingest_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "wifisrc.db"))
         mw.db = self.db
@@ -59,6 +61,7 @@ class TestWifiSource(unittest.TestCase):
         ingestor_module.db = self.db
         wifi_mixin_module.db = self.db
         devices_mixin_module.db = self.db
+        ingest_mixin_module.db = self.db
 
         # La caché WiFi resuelve contra la misma DB que el resto del test.
         from app.core import shoot_inbox as inboxmod
@@ -114,6 +117,7 @@ class TestWifiSource(unittest.TestCase):
         ingestor_module.db = self._orig_ing_db
         wifi_mixin_module.db = self._orig_wifi_db
         devices_mixin_module.db = self._orig_devices_db
+        ingest_mixin_module.db = self._orig_ingest_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -418,13 +422,13 @@ class TestWifiSource(unittest.TestCase):
                                source_path=manual)
         self.window._populate_source_paths_from_sessions()
         cache = inboxmod.wifi_cache_dir("Alice", db=self.db)
-        with mock.patch.object(mw, "is_removable_drive",
+        with mock.patch("app.core.utils.is_removable_drive",
                                side_effect=lambda p: p == manual):
             candidates = self.window._format_candidate_paths()
             self.assertEqual(candidates, [manual])
             self.assertNotIn(cache, candidates)
         # Solo-WiFi (nada extraíble): el checkbox queda deshabilitado.
-        with mock.patch.object(mw, "is_removable_drive", return_value=False):
+        with mock.patch("app.core.utils.is_removable_drive", return_value=False):
             self.window._update_format_sources_state()
             self.assertFalse(self.window.chk_format_sources.isEnabled())
             self.assertFalse(self.window.combo_format_mode.isEnabled())
@@ -435,7 +439,7 @@ class TestWifiSource(unittest.TestCase):
         self.db.create_session(self.pid, "Manual", "2026-01-01", "active",
                                source_path=manual)
         self.window._populate_source_paths_from_sessions()
-        with mock.patch.object(mw, "is_removable_drive", return_value=True):
+        with mock.patch("app.core.utils.is_removable_drive", return_value=True):
             self.window._update_format_sources_state()
             self.assertTrue(self.window.chk_format_sources.isEnabled())
 

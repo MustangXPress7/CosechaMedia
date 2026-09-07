@@ -14,7 +14,7 @@ from app.core.metadata_engine import metadata_engine, _is_system_entry
 from app.core.notifications import NotificationManager
 from app.core.ffmpeg_utils import ffmpeg
 from app.core.sd_reader import sd_reader
-from app.core.utils import is_removable_drive, resource_path
+import app.core.utils as utils
 from app.core import translator
 from app.core.translator import QtString
 from app.ui import theme, icons
@@ -506,7 +506,7 @@ class IngestMixin:
         if self.current_project_id is None:
             return []
         return [p for p in self._source_paths
-                if is_removable_drive(p) and not self._is_managed_source_path(p)]
+                if utils.is_removable_drive(p) and not self._is_managed_source_path(p)]
 
     def _update_format_sources_state(self):
         """Desactiva «Formatear orígenes» cuando no hay ninguna unidad extraíble
