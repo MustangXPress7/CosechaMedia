@@ -1626,7 +1626,8 @@ class TestCleanupMenu(unittest.TestCase):
         """CHG-1/CHG-2: las acciones del menú Herramientas existen."""
         text_dev = self.window.tr("Borrar dispositivos &guardados…")
         text_cam = self.window.tr("Borrar dispositivos &conocidos…")
-        actions = self.window.findChildren(mw.QAction)
+        from PySide6.QtGui import QAction
+        actions = self.window.findChildren(QAction)
         labels = {a.text() for a in actions}
         self.assertIn(text_dev, labels)
         self.assertIn(text_cam, labels)
