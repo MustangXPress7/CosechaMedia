@@ -235,6 +235,9 @@ class AddSourceDialog(QDialog):
         # Desconectados (D-03/D-12): filas atenuadas, no seleccionables
         for dev in devices_missing:
             device_id = dev["id"]
+            # Los dispositivos FTP se gestionan en su propia sección; no mostrarlos aquí
+            if device_id.startswith("ftp:"):
+                continue
             saved_camera = db.get_dispositivo_for_device(device_id)
             name = saved_camera or dev.get("name") or device_id
             if device_id.startswith("usb:"):
@@ -244,12 +247,6 @@ class AddSourceDialog(QDialog):
                           "camera": name, "enabled": False, "connected": False,
                           "label": self.tr("[USB] %1").arg(device_id[len("usb:"):]),
                           "type": "USB"})
-            elif device_id.startswith("ftp:"):
-                # Dispositivo FTP desconectado: etiqueta propia
-                row = self._add_source_row(
-                    row, {"kind": "device", "value": device_id, "camera": name,
-                          "enabled": False, "connected": False,
-                          "label": self.tr("[FTP] %1").arg(name), "type": "FTP"})
             else:
                 row = self._add_source_row(
                     row, {"kind": "device", "value": device_id, "camera": name,
