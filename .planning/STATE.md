@@ -5,14 +5,14 @@ milestone_name: Verificación avanzada + Reorganizador de footage
 current_phase: 01.6.0
 current_phase_name: Añadir origen + Reorganizador + Bugs + DeviceRegistry
 status: completed
-stopped_at: Completed 01.6.0-07-PLAN.md (DeviceRegistry write path)
-last_updated: "2026-09-05T15:22:30.356Z"
-last_activity: 2026-09-05
+stopped_at: Completed quick-01-PLAN.md (IngestMixin extraction)
+last_updated: "2026-09-07T08:55:22.379Z"
+last_activity: 2026-09-06
 last_activity_desc: Phase 01.6.0 complete - all 7 plans executed and verified
-state_head: 487578753606c85f0fe69456061c5f37b83dc03f
+state_head: f075c601442b9f5e29293d76c2a1abe224cda94f
 progress:
   total_phases: 1
-  completed_phases: 1
+  completed_phases: 0
   total_plans: 7
   completed_plans: 7
 ---
@@ -123,6 +123,7 @@ Use `/gsd-plan-phase 1.6.0` to break down into concrete plans.
 | 01.6.0-03 (Reorganizador) | 25m | 3 tasks | 4 files (2 new, 1 mod) |
 | Phase 01.6.0 P05 | 31 | 2 tasks | 7 files |
 | Phase 01.6.0 P07 | 75 | 3 tasks | 8 files |
+| Phase quick P01 | 45 | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,10 @@ Recent decisions affecting current work:
 - [Phase 01.6.0]: Legacy device_settings migration to known_devices runs idempotently at startup via _migrate_legacy_devices()
 - [Phase 01.6.0]: Cross-project device persistence: known_devices table + delete_all_known_cameras/delete_all_saved_devices kill-switches clear known_devices
 - [Phase 01.6.0]: Removed btn_detect_drives from main_window (replaced by auto-detection D-09); upsert_known_device in save_dispositivo_config paths
+- [Phase 01.6.0]: IngestMixin placed last in MRO (after WifiMixin, CameraMixin) to access their methods
+- [Phase 01.6.0]: Worker functions (_format_sources_worker, _generate_proxies_worker, _reorganize_worker, _probe_device_connectivity) kept at module level in main_window.py
+- [Phase 01.6.0]: ORG_TYPE_MAP duplicated in ingest_mixin.py for module independence
+- [Phase 01.6.0]: Parallel db patching extended to ingest_mixin_module across 16 test classes (mirroring CameraMixin pattern)
 
 ### Roadmap Evolution
 
@@ -215,8 +220,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-05T15:22:11.679Z
-Stopped at: Completed 01.6.0-07-PLAN.md (DeviceRegistry write path)
+Last session: 2026-09-07T08:55:22.259Z
+Stopped at: Completed quick-01-PLAN.md (IngestMixin extraction)
 Resume file: None
 
 ## Operator Next Steps

@@ -218,7 +218,7 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Auditoría UI y Plan de Reubicación | 4/4 | Complete | 2026-08-29 |
+| 1. Auditoría UI y Plan de Reubicación | 4/5 | In Progress|  |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
 | 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 6/6 | Complete | 2026-09-05 |
 | 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
