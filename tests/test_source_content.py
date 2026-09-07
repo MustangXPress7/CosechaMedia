@@ -16,7 +16,9 @@ import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
+import app.ui.mixins.ingest_mixin as ingest_mixin_module
 import app.core.ingestor as ingestor_module
+import app.core.watcher as watcher_module
 import app.ui.mixins.devices_mixin as devices_mixin_module
 from app.core.db import DatabaseManager
 
@@ -52,6 +54,7 @@ class TestSourceContent(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_devices_db = devices_mixin_module.db
+        self._orig_ingest_mixin_db = ingest_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "src.db"))
         mw.db = self.db
@@ -61,6 +64,7 @@ class TestSourceContent(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         devices_mixin_module.db = self.db
+        ingest_mixin_module.db = self.db
 
         class StubNotif:
             def notify_ingest_complete(self, stats):
@@ -97,6 +101,7 @@ class TestSourceContent(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         devices_mixin_module.db = self._orig_devices_db
+        ingest_mixin_module.db = self._orig_ingest_mixin_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -261,8 +266,10 @@ class TestSourceContent(unittest.TestCase):
         self.window._save_session_override()
         self.assertIsNone(self.db.get_session(self.sid)["destination_override"])
 
-    @mock.patch.object(mw, "FileSystemWatcher")
-    @mock.patch.object(mw, "Ingestor")
+    import app.ui.mixins.ingest_mixin as ingest_mixin_module
+
+    @mock.patch.object(ingest_mixin_module, "FileSystemWatcher")
+    @mock.patch.object(ingest_mixin_module, "Ingestor")
     def test_start_ingest_passes_content_filter(self, MockIngestor, MockWatcher):
         self.db.update_session_config(
             self.sid, content_filter=json.dumps({"dates": ["2024-01-02"], "include_nodate": True}))
