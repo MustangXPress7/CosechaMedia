@@ -378,8 +378,9 @@ class SessionsMixin:
                 device_id = value
                 device_folder = ""
                 device_name = camera or "Dispositivo"
+                backend = ftp.FtpBackend() if str(device_id).startswith("ftp:") else mtp.WpdBackend()
                 self._register_device_source_from_picker(
-                    device_id, device_folder, device_name, backend=mtp.WpdBackend())
+                    device_id, device_folder, device_name, backend=backend)
             elif kind == "usb":
                 self._assign_session_folder(self.current_session_id, value)
             elif kind == "ftp_new":

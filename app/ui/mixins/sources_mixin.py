@@ -519,8 +519,9 @@ class SourcesMixin:
             # Buscar en devices_connected o usar valores por defecto
             device_folder = ""
             device_name = camera or "Dispositivo"
+            backend = ftp.FtpBackend() if str(device_id).startswith("ftp:") else mtp.WpdBackend()
             self._register_device_source_from_picker(
-                device_id, device_folder, device_name, backend=mtp.WpdBackend())
+                device_id, device_folder, device_name, backend=backend)
         elif kind == "usb":
             # USB masivo: se trata como carpeta local, conservando el nombre
             # de cámara elegido en el diálogo (si lo hay)
