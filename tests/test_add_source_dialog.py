@@ -669,6 +669,38 @@ class _Device:
         self.assertEqual(sources[0]["camera"], "Keyboard Cam")
 
 
+    def test_dialog_init_purges_folder_known_devices(self):
+        """Bug 5: al abrir el diálogo se limpian las carpetas legacy persistidas
+        como 'folder' en known_devices."""
+        from app.core.db import db
+        with mock.patch.object(db, "delete_known_devices_by_type", return_value=0) as m:
+            self._dialog()
+        m.assert_called_once_with("folder")
+
+    def test_browse_folder_no_longer_upserts_known_device(self):
+        """Bug 5: añadir una carpeta local no debe persistirla en known_devices
+        (no es un dispositivo; ya vive en recent_paths)."""
+        import app.ui.add_source_dialog as dlgmod
+        dlg = self._dialog()
+        calls = []
+        orig = dlgmod.db.upsert_known_device
+
+        def _spy(*a, **k):
+            calls.append(a)
+            return 0
+
+        dlgmod.db.upsert_known_device = _spy
+        try:
+            with mock.patch.object(dlgmod.QFileDialog, "getExistingDirectory",
+                                   return_value="C:/carpeta-test"):
+                dlg._browse_folder()
+        finally:
+            dlgmod.db.upsert_known_device = orig
+        args_list = [a for a in calls if len(a) > 1 and a[1] == "folder"]
+        self.assertEqual(args_list, [])
+        self.assertEqual(len([s for s in dlg._row_sources if s and s["kind"] == "folder"]), 1)
+
+
 class TestCameraNameChangedCallback(unittest.TestCase):
     """B-20: el diálogo notifica ediciones de nombre de dispositivo al
     llamador vía on_camera_name_changed(device_id, nombre)."""

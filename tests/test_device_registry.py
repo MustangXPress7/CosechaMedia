@@ -18,6 +18,23 @@ class TestDeviceRegistry(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
+    def test_delete_known_devices_by_type_removes_only_folder(self):
+        self.db.upsert_known_device("mtp:A", "mtp", "Cam A")
+        self.db.upsert_known_device("usb:C", "usb", "USB C")
+        self.db.upsert_known_device("C:/x", "folder", "C:/x")
+        self.db.upsert_known_device("D:/y", "folder", "D:/y")
+
+        removed = self.db.delete_known_devices_by_type("folder")
+
+        self.assertEqual(removed, 2)
+        self.assertIsNone(self.db.get_known_device("C:/x"))
+        self.assertIsNone(self.db.get_known_device("D:/y"))
+        self.assertIsNotNone(self.db.get_known_device("mtp:A"))
+        self.assertIsNotNone(self.db.get_known_device("usb:C"))
+
+    def test_delete_known_devices_by_type_missing_returns_zero(self):
+        self.assertEqual(self.db.delete_known_devices_by_type("folder"), 0)
+
     def test_known_devices_crud(self):
         # Upsert
         did1 = self.db.upsert_known_device("mtp:PNP123", "mtp", "Mi Cámara", "SN123", "Canon C300", {"model": "C300"})

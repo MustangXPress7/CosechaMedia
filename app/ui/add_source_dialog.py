@@ -93,6 +93,12 @@ class AddSourceDialog(QDialog):
         self._cam_executor = ThreadPoolExecutor(max_workers=1)
         self._cam_worker = None
         self._accepted = None   # None=sin decidir, True=aceptado, False=cancelado
+        # Limpieza one-shot de carpetas locales persistidas como dispositivos
+        # (bug 5): las carpetas ya viven en recent_paths y no son dispositivos.
+        try:
+            db.delete_known_devices_by_type("folder")
+        except Exception:
+            pass
 
         self.setWindowTitle(self.tr("Añadir origen"))
         self.setMinimumSize(800, 500)
@@ -512,11 +518,6 @@ class AddSourceDialog(QDialog):
             "enabled": True, "connected": True,
             "label": path, "type": "FOLDER"},
             insert_before_row=self._section_start_row(1))
-        # Persist folder to known_devices for cross-project persistence
-        try:
-            db.upsert_known_device(path, "folder", name=path, last_camera=self.tr("Sin nombre"))
-        except Exception:
-            pass
         self._update_ok_state()
 
     def _section_start_row(self, section_index):

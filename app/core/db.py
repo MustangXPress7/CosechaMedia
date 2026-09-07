@@ -1031,6 +1031,21 @@ class DatabaseManager:
         finally:
             conn.close()
 
+    def delete_known_devices_by_type(self, device_type: str) -> int:
+        """Elimina todos los dispositivos conocidos de un tipo (p. ej. 'folder').
+
+        Devuelve el número de filas borradas.
+        """
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                'DELETE FROM known_devices WHERE device_type = ?', (device_type,))
+            conn.commit()
+            return cursor.rowcount
+        finally:
+            conn.close()
+
     def sync_device_settings_to_known(self):
         """Migra datos de device_settings a known_devices (idempotente)."""
         conn = self.get_connection()
