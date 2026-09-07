@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Dict, List, Optional
@@ -161,6 +162,12 @@ _manager_local = threading.local()
 # esta llamada (patrón reentrante) sin desbalancear el apartamento cuando el
 # hilo ya tenía COM activo.
 _com_owner = threading.local()
+# Caché de detección MTP para evitar listar el hardware dos veces seguidas
+# al abrir/cerrar los paneles y evitar el parpadeo “Desconectado / Conectado”.
+_DEVICES_CACHE_TTL = 2.0
+_devices_cache_lock = threading.Lock()
+_devices_cache_ts: float = 0.0
+_devices_cache_result: Optional[List["DeviceInfo"]] = None
 
 
 def _ensure_types():
@@ -460,6 +467,13 @@ class WpdBackend(MtpBackend):
     """Backend MTP vía Windows Portable Devices."""
 
     def list_devices(self) -> List[DeviceInfo]:
+        global _devices_cache_ts, _devices_cache_result
+        now = time.monotonic()
+        with _devices_cache_lock:
+            if _devices_cache_result is not None and (now - _devices_cache_ts) < _DEVICES_CACHE_TTL:
+                # Devolver la copia cached para no disparar CoInitialize otra vez.
+                return list(_devices_cache_result)
+
         import ctypes
         import comtypes
         _ensure_types()
@@ -479,48 +493,41 @@ class WpdBackend(MtpBackend):
             count = ctypes.pointer(ctypes.c_ulong(0))
             DM.GetDevices(ctypes.POINTER(ctypes.c_wchar_p)(), count)
             if count.contents.value == 0:
-                return []
-            ids = (ctypes.c_wchar_p * count.contents.value)()
-            DM.GetDevices(ctypes.cast(ids, ctypes.POINTER(ctypes.c_wchar_p)), count)
-            devices: List[DeviceInfo] = []
-            for cur in ids:
-                if not cur:
-                    continue
-                # WPD también enumera las unidades USB de almacenamiento masivo
-                # (lectores de tarjetas SD, discos externos) vía wpdbusenum#
-                # _??_usbstor#disk#... Aunque reporten DRIVE_REMOVABLE, son
-                # discos, no dispositivos MTP reales: se filtran aquí porque ya
-                # se muestran como unidades USB en su propia sección. De lo
-                # contrario aparecen como dispositivos MTP fantasma (bug 2).
-                if "usbstor" in str(cur).lower():
-                    continue
-                nlen = ctypes.pointer(ctypes.c_ulong(0))
-                try:
-                    DM.GetDeviceFriendlyName(cur, ctypes.POINTER(ctypes.c_ushort)(), nlen)
-                    buf = ctypes.create_unicode_buffer(nlen.contents.value)
-                    DM.GetDeviceFriendlyName(cur, ctypes.cast(buf, ctypes.POINTER(ctypes.c_ushort)), nlen)
-                    name = buf.value
-                except Exception:
-                    name = str(cur)
-                device_id = str(cur)
-                devices.append(DeviceInfo(device_id=device_id, name=name or str(cur)))
-                # Upsert a known_devices para persistencia cross-proyecto (REQ-09)
-                try:
-                    saved_camera = db.get_dispositivo_for_device(device_id)
-                    display_name = name or device_id
-                    meta = {"name": display_name}
-                    # Default last_camera para dispositivos nuevos sin nombre guardado
-                    last_camera = saved_camera if saved_camera else tr("Sin nombre")
-                    db.upsert_known_device(device_id, "mtp", name=display_name,
-                                           last_camera=last_camera, metadata=meta)
-                except Exception:
-                    pass  # No bloquear la detección por fallo de BD
+                devices: List[DeviceInfo] = []
+            else:
+                ids = (ctypes.c_wchar_p * count.contents.value)()
+                DM.GetDevices(ctypes.cast(ids, ctypes.POINTER(ctypes.c_wchar_p)), count)
+                devices = []
+                for cur in ids:
+                    if not cur:
+                        continue
+                    if "usbstor" in str(cur).lower():
+                        continue
+                    nlen = ctypes.pointer(ctypes.c_ulong(0))
+                    try:
+                        DM.GetDeviceFriendlyName(cur, ctypes.POINTER(ctypes.c_ushort)(), nlen)
+                        buf = ctypes.create_unicode_buffer(nlen.contents.value)
+                        DM.GetDeviceFriendlyName(cur, ctypes.cast(buf, ctypes.POINTER(ctypes.c_ushort)), nlen)
+                        name = buf.value
+                    except Exception:
+                        name = str(cur)
+                    device_id = str(cur)
+                    devices.append(DeviceInfo(device_id=device_id, name=name or str(cur)))
+                    try:
+                        saved_camera = db.get_dispositivo_for_device(device_id)
+                        display_name = name or device_id
+                        meta = {"name": display_name}
+                        last_camera = saved_camera if saved_camera else tr("Sin nombre")
+                        db.upsert_known_device(device_id, "mtp", name=display_name,
+                                                last_camera=last_camera, metadata=meta)
+                    except Exception:
+                        pass
+            with _devices_cache_lock:
+                _devices_cache_result = list(devices)
+                _devices_cache_ts = now
             return devices
         finally:
             if not was_initialized:
-                # El manager muere con el apartamento que se cierra: si queda
-                # cacheado, la siguiente detección del hilo crashearía al
-                # reutilizar el objeto COM (Windows fatal exception).
                 _manager_local.device_manager = None
                 try:
                     comtypes.CoUninitialize()

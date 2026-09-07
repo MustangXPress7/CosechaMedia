@@ -17,6 +17,7 @@ Requisitos del servidor (las apps de servidor FTP de móviles lo cumplen):
 import ftplib
 import os
 import socket
+import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -91,44 +92,216 @@ def _utc_to_local(dt: datetime) -> datetime:
 # --------------------------------------------------------------------------
 
 def _default_route_ip() -> Optional[str]:
-    """IPv4 de la interfaz con ruta por defecto (heurístico, sin enviar datos)."""
+    """IPv4 de la interfaz con ruta por defecto (heurístico, sin enviar datos).
+
+    Primero el truco clásico UDP (conecta a 8.8.8.8:80 sin enviar nada); si
+    no hay ruta por defecto alcanzable, cae al helper win32
+    `_win_default_route_ip` (GetAdaptersAddresses) que busca la única interfaz
+    con un gateway IPv4 configurado. Devuelve ``None`` solo si nada encaja.
+    """
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
         return s.getsockname()[0]
     except OSError:
+        if sys.platform == "win32":
+            return _win_default_route_ip()
         return None
     finally:
         s.close()
 
 
-def local_ips() -> List[str]:
-    """Todas las IPv4 locales no-loopback (determinista y sin depender de Internet).
+def _win_default_route_ip() -> Optional[str]:
+    """IPv4 de la interfaz Windows cuyo gateway por defecto está activo.
 
-    Se usa para el código QR WiFi y el escaneo de subredes: nunca debe
-    anunciar ``127.0.0.1``. Combina la resolución del hostname (todas las
-    NICs) con la interfaz de ruta por defecto como respaldo.
+    Usa ``GetAdaptersAddresses`` (ctypes) filtrando: interfaz UP, IPv4
+    (no tunnel/loopback) y con al menos un gateway IPv4 configurado. Evita
+    las IP de adaptadores virtuales (VMware/Hyper-V/VPN), que no tienen
+    gateway y no son alcanzables desde el móvil (bug QR inalcanzable).
     """
-    ips = set()
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        AF_INET = 2
+        GAA_FLAG_INCLUDE_GATEWAYS = 0x00000080
+        ERROR_BUFFER_OVERFLOW = 111
+
+        class _SockAddrStorage(ctypes.Structure):
+            _fields_ = [("ss_family", ctypes.c_ushort),
+                        ("_data", ctypes.c_ubyte * 126)]
+
+        class _IpAdapterAddressLh(ctypes.Structure):
+            pass
+
+        _IpAdapterAddressLh._fields_ = [
+            ("Length", ctypes.c_ulong),
+            ("Flags", wintypes.DWORD),
+            ("Next", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("Address", _SockAddrStorage),
+        ]
+
+        class _IpAdapterUnicastAddressXp(ctypes.Structure):
+            pass
+
+        _IpAdapterUnicastAddressXp._fields_ = [
+            ("Length", ctypes.c_ulong),
+            ("Flags", wintypes.DWORD),
+            ("Next", ctypes.POINTER(_IpAdapterUnicastAddressXp)),
+            ("Address", _SockAddrStorage),
+        ]
+
+        class _IpAdapterAddressesLh(ctypes.Structure):
+            pass
+
+        _IpAdapterAddressesLh._fields_ = [
+            ("Length", ctypes.c_ulong),
+            ("IfIndex", wintypes.DWORD),
+            ("Next", ctypes.POINTER(_IpAdapterAddressesLh)),
+            ("AdapterName", wintypes.LPWSTR),
+            ("FirstUnicastAddress", ctypes.POINTER(_IpAdapterUnicastAddressXp)),
+            ("FirstAnycastAddress", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("FirstMulticastAddress", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("FirstDnsServerAddress", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("DnsSuffix", wintypes.LPWSTR),
+            ("Description", wintypes.LPWSTR),
+            ("FriendlyName", wintypes.LPWSTR),
+            ("PhysicalAddress", ctypes.c_ubyte * 8),
+            ("PhysicalAddressLength", wintypes.DWORD),
+            ("Flags", wintypes.DWORD),
+            ("Mtu", wintypes.DWORD),
+            ("IfType", wintypes.DWORD),
+            ("OperStatus", ctypes.c_int),
+            ("Ipv6IfIndex", wintypes.DWORD),
+            ("ZoneIndices", wintypes.DWORD * 16),
+            ("FirstPrefix", ctypes.POINTER(_IpAdapterUnicastAddressXp)),
+            ("TransmitLinkSpeed", ctypes.c_ulonglong),
+            ("ReceiveLinkSpeed", ctypes.c_ulonglong),
+            ("FirstWinsServerAddress", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("FirstGatewayAddress", ctypes.POINTER(_IpAdapterAddressLh)),
+            ("Ipv4Metric", wintypes.DWORD),
+            ("Ipv6Metric", wintypes.DWORD),
+            ("Luid", ctypes.c_ulonglong),
+            ("Dhcpv4Server", _SockAddrStorage),
+            ("CompartmentId", wintypes.DWORD),
+            ("NetworkGuid", ctypes.c_ubyte * 16),
+            ("ConnectionType", ctypes.c_int),
+            ("TunnelType", ctypes.c_int),
+            ("Dhcpv6Server", _SockAddrStorage),
+            ("Dhcpv6ClientDuid", ctypes.c_ubyte * 130),
+            ("Dhcpv6ClientDuidLength", wintypes.DWORD),
+            ("Dhcpv6Iaid", wintypes.DWORD),
+            ("FirstDnsSuffix", ctypes.POINTER(_IpAdapterAddressLh)),
+        ]
+
+        # Dos pasadas: dimensionar y luego fill.
+        buf_size = ctypes.c_ulong(16 * 1024)
+        buf = ctypes.create_string_buffer(buf_size.value)
+        func = getattr(ctypes.windll.iphlpapi, "GetAdaptersAddresses")
+        func.argtypes = [ctypes.c_ulong, ctypes.c_ulong, ctypes.c_void_p,
+                         ctypes.c_void_p, ctypes.POINTER(ctypes.c_ulong)]
+        func.restype = wintypes.DWORD
+
+        res = func(AF_INET, GAA_FLAG_INCLUDE_GATEWAYS, None, buf, ctypes.byref(buf_size))
+        if res == ERROR_BUFFER_OVERFLOW:
+            buf = ctypes.create_string_buffer(buf_size.value)
+            res = func(AF_INET, GAA_FLAG_INCLUDE_GATEWAYS, None, buf, ctypes.byref(buf_size))
+        if res != 0:
+            return None
+        head = ctypes.cast(buf, ctypes.POINTER(_IpAdapterAddressesLh))
+        p = head if head else None
+        while p:
+            ad = p.contents
+            # Only IPv4, interface up, not tunnel/loopback
+            if (ad.OperStatus == 1 and ad.IfType not in (24, 131, 130)
+                    and ad.FirstGatewayAddress and ad.FirstUnicastAddress):
+                gw = ad.FirstGatewayAddress.contents
+                uni = ad.FirstUnicastAddress.contents
+                # Just need a gateway present; return the unicast IPv4.
+                if gw.Address.ss_family == AF_INET:
+                    return _sockaddr_to_ipv4(uni.Address)
+            p = ad.Next
+        return None
+    except Exception:
+        return None
+
+
+def _sockaddr_to_ipv4(addr) -> str:
+    """Extrae la IPv4 de un SOCKADDR_IN (los 4 bytes tras ss_family)."""
+    raw = bytes(addr._data[:4]) if hasattr(addr, "_data") else bytes(addr)[4:8]
+    return ".".join(str(b) for b in raw)
+
+
+def _local_ips_from_addrinfo() -> List[str]:
+    """IPv4 locales por resolución del hostname (todas las NICs)."""
+    ips: set = set()
     try:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
             ip = info[4][0] if info and len(info) >= 4 else None
-            if ip and not ip.startswith("127."):
+            if ip:
                 ips.add(ip)
     except OSError:
         pass
-    def_ip = _default_route_ip()
-    if def_ip:
-        ips.add(def_ip)
     return sorted(ips)
 
 
+def _is_useful_ipv4(ip: str) -> bool:
+    """IPv4 anunciable/escaneable: descarta loopback, link-local (APIPA),
+    multicast y direcciones de red/broadcast. Es el filtro que evita anunciar
+    adaptadores virtuales (169.254.x.x) en el QR del WiFi."""
+    try:
+        octets = [int(o) for o in ip.split(".")]
+    except (ValueError, AttributeError):
+        return False
+    if len(octets) != 4:
+        return False
+    if octets[0] == 127:
+        return False
+    if octets[0] == 169 and octets[1] == 254:
+        return False
+    if octets[0] < 224 or (octets[0] in (255, 0)):
+        return True
+    return False
+
+
+def _rfc1918_key(ip: str) -> tuple:
+    """Preferencia de orden para IPv4: primero redes privadas 192.168/10/172.16-31
+    (las subredes típicas de LAN), luego el resto útil (p. ej. bridged)."""
+    octets = [int(o) for o in ip.split(".")]
+    if octets[0] == 10:
+        return (0, 0, octets[1], octets[2])
+    if octets[0] == 172 and 16 <= octets[1] <= 31:
+        return (0, 1, octets[1], octets[2])
+    if octets[0] == 192 and octets[1] == 168:
+        return (0, 2, octets[2], octets[3])
+    return (1, *octets)
+
+
+def local_ips() -> List[str]:
+    """Todas las IPv4 locales anunciables (determinista y sin Internet).
+
+    Se usa para el QR WiFi y el escaneo de subredes: nunca anunciar loopback,
+    link-local (adaptadores virtuales/APIPA) ni multicast. Combina la
+    resolución del hostname con la interfaz de ruta por defecto como respaldo.
+    """
+    ips = set(_local_ips_from_addrinfo())
+    def_ip = _default_route_ip()
+    if def_ip:
+        ips.add(def_ip)
+    useful = [ip for ip in ips if _is_useful_ipv4(ip)]
+    if not useful:
+        # Sin ninguna IP útil (red rara): volver solo a no-loopback.
+        useful = [ip for ip in ips if not ip.startswith("127.")]
+    return sorted(useful, key=_rfc1918_key)
+
+
 def local_ip() -> Optional[str]:
-    """IPv4 anunciable: ruta por defecto, o la primera local no-loopback.
+    """IPv4 anunciable: ruta por defecto, o la primera IP «útil».
 
     Antes dependía solo de la ruta a Internet (8.8.8.8); sin ella devolvía
     ``None`` y los QR del WiFi acababan en ``127.0.0.1`` (bug: el móvil
-    intentaba su propio loopback). Ahora cae a cualquier IP local.
+    intentaba su propio loopback). Ahora cae a cualquier IP local filtrada,
+    prefiriendo redes privadas RFC1918 sobre adaptadores virtuales.
     """
     return _default_route_ip() or (local_ips()[0] if local_ips() else None)
 

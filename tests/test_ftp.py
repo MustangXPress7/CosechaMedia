@@ -426,6 +426,48 @@ class TestLocalIp(unittest.TestCase):
         self.assertIn("10.0.0.9", sub)
         self.assertNotIn("192.168.1.0", sub)
 
+    def test_local_ips_excludes_link_local_and_multicast(self):
+        """Bug QR inalcanzable: los adaptadores virtuales (169.254.x.x / APIPA)
+        y multicast no deben anunciarse ni escanearse."""
+        getaddr = [
+            self._addr("192.168.1.50"),
+            self._addr("169.254.10.5"),   # vEthernet / adaptador virtual sin DHCP
+            self._addr("127.0.0.1"),
+            self._addr("224.0.0.1"),      # multicast
+        ]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value=None):
+            self.assertEqual(ftpmod.local_ips(), ["192.168.1.50"])
+
+    def test_local_ip_prefers_rfc1918_over_non_private(self):
+        """local_ip() sin ruta por defecto debe elegir la privada 192.168/10
+        de local_ips() en vez de una IP pública/virtual."""
+        getaddr = [self._addr("203.0.113.9"), self._addr("192.168.1.50")]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value=None):
+            self.assertEqual(ftpmod.local_ip(), "192.168.1.50")
+
+    def test_default_route_ip_falls_back_to_win_gateway(self):
+        """_default_route_ip() sin ruta UDP alcanzable cae al helper win32."""
+        fake = mock.MagicMock()
+        fake.connect.side_effect = OSError("no route")
+        with mock.patch.object(ftpmod.socket, "socket", return_value=fake), \
+                mock.patch.object(ftpmod, "sys") as m_sys:
+            m_sys.platform = "win32"
+            with mock.patch.object(ftpmod, "_win_default_route_ip",
+                                   return_value="192.168.1.1"):
+                self.assertEqual(ftpmod._default_route_ip(), "192.168.1.1")
+        fake.close.assert_called_once()
+
+    def test_win_default_route_ip_non_win_platform_skipped(self):
+        """En no-Windows, _default_route_ip no consulta GetAdaptersAddresses."""
+        fake = mock.MagicMock()
+        fake.connect.side_effect = OSError("no route")
+        with mock.patch.object(ftpmod.socket, "socket", return_value=fake), \
+                mock.patch.object(ftpmod, "sys") as m_sys:
+            m_sys.platform = "linux"
+            self.assertIsNone(ftpmod._default_route_ip())
+
 
 class TestFtpOpenSessionError(unittest.TestCase):
     """Al abrir una sesión contra un servidor caído, el error debe incluir

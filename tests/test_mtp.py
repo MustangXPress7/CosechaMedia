@@ -252,6 +252,10 @@ class TestThreadLocalManager(unittest.TestCase):
         mtp._ensure_types = lambda: None
         # El thread-local persiste entre tests del mismo hilo: reset.
         mtp._manager_local = threading.local()
+        # Limpiar caché MTP entre tests para no falsear las expectativas de
+        # re-creación de manager COM.
+        mtp._devices_cache_result = None
+        mtp._devices_cache_ts = 0.0
 
     def tearDown(self):
         mtp._ensure_types = self._orig_ensure_types
@@ -355,12 +359,14 @@ class TestThreadLocalManager(unittest.TestCase):
             count.contents.value = 0
 
         def detect():
+            mtp._devices_cache_result = None
+            mtp._devices_cache_ts = 0.0
             backend = mtp.WpdBackend()
             with mock.patch("comtypes.client.CreateObject", side_effect=fake_create), \
-                 mock.patch("comtypes.CoInitialize"), \
-                 mock.patch("comtypes.CoUninitialize"), \
-                 mock.patch.dict(sys.modules, {
-                     "comtypes.gen.PortableDeviceApiLib": mock.MagicMock()}):
+                  mock.patch("comtypes.CoInitialize"), \
+                  mock.patch("comtypes.CoUninitialize"), \
+                  mock.patch.dict(sys.modules, {
+                      "comtypes.gen.PortableDeviceApiLib": mock.MagicMock()}):
                 return backend.list_devices()
 
         self.assertEqual(detect(), [])
