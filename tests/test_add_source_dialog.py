@@ -701,6 +701,59 @@ class _Device:
         self.assertEqual(len([s for s in dlg._row_sources if s and s["kind"] == "folder"]), 1)
 
 
+class TestCameraVacioDefault(unittest.TestCase):
+    """Bug 6: «— Vacío —» existe en modo manual y automático y es la opción
+    predeterminada cuando la fila no tiene cámara."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def _combo(self, mode="auto", camera=""):
+        dlg = AddSourceDialog(None, camera_detection_mode=mode)
+        src = {"kind": "device", "value": "PNP1", "camera": camera,
+               "enabled": True, "connected": True}
+        dlg._row_sources = [None, src]
+        with mock.patch.object(AddSourceDialog, "_known_camera_names",
+                               return_value=["Canon C300", "Sony FX6"]):
+            combo = dlg._build_camera_combo(1, src)
+        return dlg, combo
+
+    def test_auto_mode_has_vacio_and_is_default(self):
+        dlg, combo = self._combo("auto")
+        texts = [combo.itemText(i) for i in range(combo.count())]
+        self.assertIn(dlg.tr("— Vacío —"), texts)
+        self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
+        self.assertEqual(combo.itemData(combo.currentIndex()), "VACIO")
+        self.assertEqual(combo.lineEdit().text(), "")
+
+    def test_manual_mode_has_vacio_and_is_default(self):
+        dlg, combo = self._combo("manual")
+        texts = [combo.itemText(i) for i in range(combo.count())]
+        self.assertIn(dlg.tr("— Vacío —"), texts)
+        self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
+        self.assertEqual(combo.lineEdit().text(), "")
+
+    def test_auto_mode_still_offers_detect_trigger(self):
+        from app.ui.add_source_dialog import TRIGGER_DETECT
+        dlg, combo = self._combo("auto")
+        self.assertIs(combo.itemData(combo.count() - 1), TRIGGER_DETECT)
+
+    def test_known_camera_still_selected_when_present(self):
+        dlg, combo = self._combo("auto", camera="Sony FX6")
+        self.assertEqual(combo.currentText(), "Sony FX6")
+        self.assertNotEqual(combo.currentIndex(), dlg._vacio_trigger_index)
+
+    def test_selecting_vacio_clears_camera_text(self):
+        dlg, combo = self._combo("auto", camera="Sony FX6")
+        dlg._row_sources = [None, {"kind": "device", "value": "PNP1",
+                                   "camera": "Sony FX6", "connected": True}]
+        dlg.table.setCellWidget(1, 2, combo)
+        combo.setCurrentIndex(dlg._vacio_trigger_index)
+        self.assertEqual(combo.lineEdit().text(), "")
+        self.assertEqual(dlg._row_sources[1]["camera"], "")
+
+
 class TestCameraNameChangedCallback(unittest.TestCase):
     """B-20: el diálogo notifica ediciones de nombre de dispositivo al
     llamador vía on_camera_name_changed(device_id, nombre)."""

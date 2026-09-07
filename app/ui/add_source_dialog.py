@@ -387,19 +387,19 @@ class AddSourceDialog(QDialog):
         combo.setInsertPolicy(QComboBox.NoInsert)
         known = self._known_camera_names()
         combo.addItems(known)
-        self._detect_trigger_index = len(known)
-        # En modo manual, mostrar "Vacío" en lugar de detección automática
-        if self._camera_detection_mode == "manual":
-            combo.addItem(self.tr("— Vacío —"))
-            self._vacio_trigger_index = self._detect_trigger_index
-        else:
+        # Bug 6: en ambos modos existe «— Vacío —» y es el estado por defecto
+        # cuando la fila no tiene cámara; en auto va seguido del disparador de
+        # detección.
+        self._vacio_trigger_index = len(known)
+        combo.addItem(self.tr("— Vacío —"))
+        self._detect_trigger_index = self._vacio_trigger_index + 1
+        if self._camera_detection_mode == "auto":
             combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
         # Datos: -1 = normal (editable), índice de disparo especial
         for i in range(len(known)):
             combo.setItemData(i, i)
-        if self._camera_detection_mode == "manual":
-            combo.setItemData(self._vacio_trigger_index, "VACIO")
-        else:
+        combo.setItemData(self._vacio_trigger_index, "VACIO")
+        if self._camera_detection_mode == "auto":
             combo.setItemData(self._detect_trigger_index, TRIGGER_DETECT)
         # Seleccionar el nombre actual si está en la lista; si no, escribirlo
         current = (src.get("camera") or "").strip()
@@ -409,7 +409,9 @@ class AddSourceDialog(QDialog):
         elif current:
             combo.setEditText(current)
         else:
-            combo.setCurrentIndex(-1)
+            combo.setCurrentIndex(self._vacio_trigger_index)
+            # El campo queda vacío (la cámara no tiene nombre); el ítem
+            # «— Vacío —» queda seleccionado de cara al desplegable.
             combo.setEditText("")
         combo.currentIndexChanged.connect(
             lambda i, r=row: self._on_camera_combo_changed(r, i))
