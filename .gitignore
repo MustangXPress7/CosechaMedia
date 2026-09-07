@@ -23,6 +23,28 @@ Footage/
 # Herramientas locales
 .opencode/
 graphify-out/
+.gsd/
+
+# Scratch de agentes (debug_test*.py, fix_*.py, *_diff.txt, temp_*.txt)
+debug_test*.py
+debug_test2.py
+debug_test3.py
+debug_test4.py
+debug_test5.py
+debug_test6.py
+debug_test7.py
+debug_test8.py
+fix_*.py
+check_sender.py
+current_method.txt
+sender_block.txt
+temp_out.txt
+temp_test.txt
+test_output.txt
+test_wifi_source_original.py
+main_window_diff.txt
+tests_diff.txt
+patch_tests.py
 
 # Sistema
 Thumbs.db
