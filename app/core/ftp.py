@@ -90,8 +90,8 @@ def _utc_to_local(dt: datetime) -> datetime:
 # Descubrimiento en la red local
 # --------------------------------------------------------------------------
 
-def local_ip() -> Optional[str]:
-    """Dirección IPv4 de la interfaz que sale a Internet (ruta por defecto)."""
+def _default_route_ip() -> Optional[str]:
+    """IPv4 de la interfaz con ruta por defecto (heurístico, sin enviar datos)."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
@@ -102,15 +102,46 @@ def local_ip() -> Optional[str]:
         s.close()
 
 
+def local_ips() -> List[str]:
+    """Todas las IPv4 locales no-loopback (determinista y sin depender de Internet).
+
+    Se usa para el código QR WiFi y el escaneo de subredes: nunca debe
+    anunciar ``127.0.0.1``. Combina la resolución del hostname (todas las
+    NICs) con la interfaz de ruta por defecto como respaldo.
+    """
+    ips = set()
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            ip = info[4][0] if info and len(info) >= 4 else None
+            if ip and not ip.startswith("127."):
+                ips.add(ip)
+    except OSError:
+        pass
+    def_ip = _default_route_ip()
+    if def_ip:
+        ips.add(def_ip)
+    return sorted(ips)
+
+
+def local_ip() -> Optional[str]:
+    """IPv4 anunciable: ruta por defecto, o la primera local no-loopback.
+
+    Antes dependía solo de la ruta a Internet (8.8.8.8); sin ella devolvía
+    ``None`` y los QR del WiFi acababan en ``127.0.0.1`` (bug: el móvil
+    intentaba su propio loopback). Ahora cae a cualquier IP local.
+    """
+    return _default_route_ip() or (local_ips()[0] if local_ips() else None)
+
+
 def local_subnet_ips() -> List[str]:
-    """Las 254 direcciones de la subred /24 local, excluyendo la propia."""
-    ip = local_ip()
-    if not ip:
-        return []
-    parts = ip.split(".")
-    if len(parts) != 4:
-        return []
-    return [f"{parts[0]}.{parts[1]}.{parts[2]}.{i}" for i in range(1, 255)]
+    """Las 254 direcciones de cada subred /24 local, excluyendo las propias."""
+    out = []
+    for ip in local_ips():
+        parts = ip.split(".")
+        if len(parts) != 4:
+            continue
+        out.extend(f"{parts[0]}.{parts[1]}.{parts[2]}.{i}" for i in range(1, 255))
+    return out
 
 
 def probe_ftp_banner(host: str, port: int, timeout: float = 0.5) -> Optional[str]:

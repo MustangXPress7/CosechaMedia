@@ -7,6 +7,7 @@ import socket
 import tempfile
 import time
 import unittest
+from unittest import mock
 from urllib.request import Request, urlopen, HTTPError
 
 from app.core import shoot_inbox as inboxmod
@@ -194,6 +195,12 @@ class TestShootInboxServer(unittest.TestCase):
         url = self.server.url_for_sender("Alice")
         self.assertIn("src=Alice", url)
         self.assertIn(f"token={self.alice['token']}", url)
+
+    def test_url_for_sender_uses_lan_ip_not_loopback(self):
+        with mock.patch.object(inboxmod, "local_ip", return_value="192.168.1.50"):
+            url = self.server.url_for_sender("Alice")
+        self.assertIn("http://192.168.1.50", url)
+        self.assertNotIn("127.0.0.1", url)
 
     def test_server_socket_has_keepalive(self):
         """Anti-hang (T-01.6.0-12): SO_KEEPALIVE activo en el socket de escucha."""

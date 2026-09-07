@@ -385,5 +385,47 @@ class TestNetworkScan(unittest.TestCase):
         self.assertEqual(results, [])
 
 
+class TestLocalIp(unittest.TestCase):
+    """local_ip()/local_ips()/local_subnet_ips(): sin dependencia de Internet
+    y nunca anunciar loopback (bug WiFi QR)."""
+
+    def _addr(self, ip):
+        return (2, 1, 6, "", (ip, 0))
+
+    def test_local_ips_excludes_loopback(self):
+        getaddr = [self._addr("192.168.1.50"), self._addr("127.0.0.1")]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value=None):
+            self.assertEqual(ftpmod.local_ips(), ["192.168.1.50"])
+
+    def test_local_ips_uses_default_route_as_backup(self):
+        with mock.patch.object(ftpmod.socket, "getaddrinfo",
+                               side_effect=OSError("no hostname")), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value="10.0.0.5"):
+            self.assertEqual(ftpmod.local_ips(), ["10.0.0.5"])
+
+    def test_local_ip_falls_back_without_route(self):
+        getaddr = [self._addr("192.168.1.50")]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value=None):
+            self.assertEqual(ftpmod.local_ip(), "192.168.1.50")
+
+    def test_local_ip_prefers_default_route(self):
+        getaddr = [self._addr("192.168.1.50")]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value="10.0.0.5"):
+            self.assertEqual(ftpmod.local_ip(), "10.0.0.5")
+
+    def test_local_subnet_ips_covers_all_nics(self):
+        getaddr = [self._addr("192.168.1.50"), self._addr("10.0.0.9")]
+        with mock.patch.object(ftpmod.socket, "getaddrinfo", return_value=getaddr), \
+                mock.patch.object(ftpmod, "_default_route_ip", return_value=None):
+            sub = ftpmod.local_subnet_ips()
+        self.assertEqual(len(sub), 2 * 254)
+        self.assertIn("192.168.1.7", sub)
+        self.assertIn("10.0.0.9", sub)
+        self.assertNotIn("192.168.1.0", sub)
+
+
 if __name__ == "__main__":
     unittest.main()
