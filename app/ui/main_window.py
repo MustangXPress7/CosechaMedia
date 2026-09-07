@@ -94,14 +94,6 @@ def _generate_proxies_worker(progress, jobs, height):
             count += 1
     return count
 
-def _reorganize_worker(progress, ingestors):
-    # La reorganización se mueve al nuevo ReorganizeDialog (Plan 3).
-    # El método ingestor.reorganize_by_metadata() se eliminó (D-18); este
-    # worker queda como no-op hasta sustituirse por el diálogo nuevo.
-    progress.emit(translator.tr("La reorganización por metadatos se ha movido al diálogo 'Reorganizar footage...'."))
-    return True
-
-
 def _probe_device_connectivity(sessions):
     """Verifica la conectividad real de cada dispositivo (Tarea 3).
 
@@ -212,76 +204,40 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._sync_timer.timeout.connect(self._auto_sync_check)
         self._sync_timer.start()
 
-    def _auto_sync_check(self):
-        """Auto-sync MTP/FTP: detecta dispositivos en hilo de fondo para
-        no bloquear la UI."""
-        if getattr(self, "_stage_thread", None) and self._stage_thread.isRunning():
-            return
-        if self.current_project_id is None:
-            return
-        sessions = [s for s in db.get_sessions(self.current_project_id) if s.get("device_id")]
-        if not sessions:
-            return
-        if self._poll_in_progress:
-            return
-        self._poll_in_progress = True
-
-        def _probe_devices(progress_signal):
-            # Reutiliza la sonda compartida de conectividad (Tarea 3)
-            return _probe_device_connectivity(sessions)
-
-        def _on_poll_done(ok, result):
-            self._poll_in_progress = False
-            if not ok:
-                return
-            # Alimentar el cache de conectividad usado por la columna Estado
-            self._connectivity_ts = time.time()
-            for s in sessions:
-                did = s["device_id"]
-                if did and not str(did).startswith("wifi:"):
-                    self._connectivity[did] = (
-                        did in result.get("mtp_connected", set())
-                        or did in result.get("ftp_reachable", set()))
-            self._process_device_poll(result, sessions)
-            self._update_source_status_cells()
-
-        self._run_background(_probe_devices, _on_poll_done)
-
-    def _process_device_poll(self, result, sessions):
-        """Procesa los resultados de la detección en el hilo UI."""
-        now = time.time()
-        mtp_connected = result["mtp_connected"]
-        ftp_reachable = result["ftp_reachable"]
-        ftp_backend = result["ftp_backend"]
-        for s in sessions:
-            did = s["device_id"]
-            is_ftp = str(did).startswith("ftp:")
-            if is_ftp:
-                if did not in ftp_reachable:
-                    continue
-            elif did not in mtp_connected:
-                continue
-            if now - self._last_device_sync.get(did, 0) < 60:
-                continue
-            self._last_device_sync[did] = now
-            cache_dir = s.get("source_path") or mtp.device_cache_dir(did, s.get("device_folder") or "")
-            try:
-                os.makedirs(cache_dir, exist_ok=True)
-            except OSError:
-                continue
-            self._stage_device_in_background(
-                did, s.get("device_folder") or "", s["id"], cache_dir,
-                backend=ftp_backend if is_ftp else None, silent=is_ftp)
-            return
-
-    def setup_views(self):
+    # --- UI Construction Helpers (extracted from setup_views) ---
+    def _build_dashboard(self):
+        """Construye dashboard_view, dash_layout y desc_box (descripción)."""
         self.dashboard_view = DashboardBackground()
         self.dashboard_view.setObjectName("DashboardView")
-        dash_layout = QVBoxLayout(self.dashboard_view)
-        dash_layout.setContentsMargins(0, 0, 0, 0)
-        dash_layout.setSpacing(0)
+        self.dash_layout = QVBoxLayout(self.dashboard_view)
+        self.dash_layout.setContentsMargins(0, 0, 0, 0)
+        self.dash_layout.setSpacing(0)
 
-        # === HEADER BAR ===
+        # --- Project description (R-10) ---
+        desc_box = QGroupBox(self.tr("Descripción"))
+        desc_box.setObjectName("DescriptionBox")
+        desc_box_layout = QHBoxLayout(desc_box)
+        desc_box_layout.setContentsMargins(8, 6, 8, 6)
+        desc_box_layout.setSpacing(6)
+        self.project_description_label = QLabel("")
+        self.project_description_label.setStyleSheet(
+            f"color: {theme.color('text_secondary')}; font-size: 11px;")
+        self.project_description_label.setWordWrap(True)
+        self.project_description_label.setSizePolicy(
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
+        desc_box_layout.addWidget(self.project_description_label, 1)
+
+        self.btn_edit_description = QPushButton()
+        self.btn_edit_description.setObjectName("IconButton")
+        self.btn_edit_description.setFixedSize(24, 24)
+        self.btn_edit_description.setToolTip(self.tr("Editar descripción del proyecto"))
+        icons.apply(self.btn_edit_description, "pencil", size=16)
+        self.btn_edit_description.clicked.connect(self._edit_project_description)
+        desc_box_layout.addWidget(self.btn_edit_description, 0, Qt.AlignRight | Qt.AlignTop)
+        self._desc_box = desc_box
+
+    def _build_header(self):
+        """Construye header_bar: app_label, project_combo, botones proyecto, path_label, btn_show_metadata, status_indicator/text."""
         header_bar = QWidget()
         header_bar.setObjectName("HeaderBar")
         hb = QHBoxLayout(header_bar)
@@ -360,51 +316,17 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.status_text.setStyleSheet(f"color: {theme.color('text_secondary')}; font-size: 10px;")
         hb.addWidget(self.status_text)
 
-        dash_layout.addWidget(header_bar)
+        self.dash_layout.addWidget(header_bar)
 
-        # --- Project description (R-10) ---
-        desc_box = QGroupBox(self.tr("Descripción"))
-        desc_box.setObjectName("DescriptionBox")
-        desc_box_layout = QHBoxLayout(desc_box)
-        desc_box_layout.setContentsMargins(8, 6, 8, 6)
-        desc_box_layout.setSpacing(6)
-        self.project_description_label = QLabel("")
-        self.project_description_label.setStyleSheet(
-            f"color: {theme.color('text_secondary')}; font-size: 11px;")
-        self.project_description_label.setWordWrap(True)
-        self.project_description_label.setSizePolicy(
-            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred))
-        desc_box_layout.addWidget(self.project_description_label, 1)
-
-        self.btn_edit_description = QPushButton()
-        self.btn_edit_description.setObjectName("IconButton")
-        self.btn_edit_description.setFixedSize(24, 24)
-        self.btn_edit_description.setToolTip(self.tr("Editar descripción del proyecto"))
-        icons.apply(self.btn_edit_description, "pencil", size=16)
-        self.btn_edit_description.clicked.connect(self._edit_project_description)
-        desc_box_layout.addWidget(self.btn_edit_description, 0, Qt.AlignRight | Qt.AlignTop)
-        self._desc_box = desc_box
-
-        # === MAIN CONTENT ===
-        splitter = QSplitter(Qt.Horizontal)
-        splitter.setHandleWidth(4)
-        splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        left_widget = QWidget()
-        left_widget.setContentsMargins(10, 6, 6, 6)
-        left_col = QVBoxLayout(left_widget)
-        left_col.setContentsMargins(0, 0, 0, 0)
-        left_col.setSpacing(6)
-
-        left_col.addWidget(self._desc_box)
-
+    def _build_sources_table(self):
+        """Construye source_label_row, src_top (source_input + btn_add_source), source_list (4 cols, eventFilter)."""
         # --- Sources ---
         src_label_row = QHBoxLayout()
         src_label = QLabel(self.tr("Orígenes:"))
         src_label.setStyleSheet(f"font-weight: 600; font-size: 11px; color: {theme.color('text_secondary')};")
         src_label_row.addWidget(src_label)
         src_label_row.addStretch()
-        left_col.addLayout(src_label_row)
+        self.left_col.addLayout(src_label_row)
 
         src_top = QHBoxLayout()
         src_top.setSpacing(4)
@@ -423,7 +345,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.btn_add_source.clicked.connect(self._add_source_entry)
         src_top.addWidget(self.btn_add_source, 0)
 
-        left_col.addLayout(src_top)
+        self.left_col.addLayout(src_top)
 
         self.source_list = QTableWidget()
         self.source_list.setColumnCount(4)
@@ -451,9 +373,10 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.source_list.customContextMenuRequested.connect(
             self._show_source_context_menu)
         self.source_list.installEventFilter(self)
-        left_col.addWidget(self.source_list)
+        self.left_col.addWidget(self.source_list)
 
-        # --- Sessions ---
+    def _build_sessions_box(self):
+        """Construye sess_box: sessions_combo, botones new/delete, src/dest rows, dump mode switch (rotativo + config)."""
         sess_box = QGroupBox(self.tr("Sesiones"))
         sess_box.setObjectName("SessionsBox")
         sess_box_layout = QVBoxLayout(sess_box)
@@ -542,12 +465,10 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         sess_box_layout.addLayout(sess_dump_row)
         self._update_session_dump_switch()
 
-        sess_post_row = QHBoxLayout()
-        sess_post_row.setSpacing(10)
-        sess_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        sess_post_row.addWidget(sess_box, 1)
+        self._sess_box = sess_box
 
-        # --- Post-ingest actions (R-01: subgrupos "Al terminar" / "Operaciones") ---
+    def _build_post_actions(self):
+        """Construye post_box: 'Al terminar' (format, CSV, shutdown) + 'Operaciones' (reorganize, clear_completed)."""
         post_box = QGroupBox(self.tr("Acciones post-ingesta"))
         post_box.setObjectName("PostActionsBox")
         post_box_layout = QVBoxLayout(post_box)
@@ -607,13 +528,10 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
 
         post_box_layout.addLayout(post_operaciones)
 
-        post_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-        sess_post_row.addWidget(post_box, 1)
-        left_col.addLayout(sess_post_row)
+        self._post_box = post_box
 
-        left_col.addStretch()
-
-        # --- Action buttons ---
+    def _build_action_buttons(self):
+        """Construye action_row: btn_start (PrimaryAction), btn_stop (DangerAction)."""
         action_row = QHBoxLayout()
         self.btn_start = QPushButton(self.tr("INICIAR INGESTA"))
         self.btn_start.setObjectName("PrimaryAction")
@@ -629,18 +547,20 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
 
         action_row.addWidget(self.btn_start)
         action_row.addWidget(self.btn_stop)
-        left_col.addLayout(action_row)
+        self.left_col.addLayout(action_row)
 
         self.ingest_status_label = QLabel("")
         self.ingest_status_label.setStyleSheet(f"color: {theme.color('text_secondary')}; font-style: italic; font-size: 10px; padding: 4px 10px;")
 
+    def _build_progress_area(self):
+        """Construye progress_bar (sin texto), stats_row (processed/pending/errors labels)."""
         # --- Progress ---
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
         self.progress_bar.setMinimumHeight(18)
         # Sin texto hasta que la ingesta termina (el total solo se conoce al final).
         self.progress_bar.setFormat("")
-        left_col.addWidget(self.progress_bar)
+        self.left_col.addWidget(self.progress_bar)
 
         stats_row = QHBoxLayout()
         self.lbl_files_processed = QLabel(self.tr("0 procesados"))
@@ -653,8 +573,10 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         stats_row.addWidget(self.lbl_files_pending)
         stats_row.addWidget(self.lbl_files_errors)
         stats_row.addStretch()
-        left_col.addLayout(stats_row)
+        self.left_col.addLayout(stats_row)
 
+    def _build_files_table(self):
+        """Construye table (6 cols, sorting, context menu, styled viewport)."""
         # --- Files table ---
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels([
@@ -676,6 +598,31 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self._show_table_context_menu)
         self._style_table_viewports()
+
+    def _assemble_layout(self):
+        """Ensambla el splitter, tamaños, restore_btn, y añade splitter a dash_layout."""
+        splitter = QSplitter(Qt.Horizontal)
+        splitter.setHandleWidth(4)
+        splitter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        left_widget = QWidget()
+        left_widget.setContentsMargins(10, 6, 6, 6)
+        self.left_col = QVBoxLayout(left_widget)
+        self.left_col.setContentsMargins(0, 0, 0, 0)
+        self.left_col.setSpacing(6)
+
+        # Add description box first
+        self.left_col.addWidget(self._desc_box)
+
+        # Build all left column sections
+        self._build_sources_table()
+        self._build_sessions_box()
+        self._build_post_actions()
+        self._build_action_buttons()
+        self._build_progress_area()
+        self._build_files_table()
+
+        self.left_col.addStretch()
 
         splitter.addWidget(left_widget)
         splitter.addWidget(self.table)
@@ -699,17 +646,105 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._splitter_restore_btn.setParent(self.dashboard_view)
         splitter.splitterMoved.connect(self._on_splitter_moved)
 
-        dash_layout.addWidget(splitter, 1)
-        dash_layout.addWidget(self.ingest_status_label)
+        self.dash_layout.addWidget(splitter, 1)
+        self.dash_layout.addWidget(self.ingest_status_label)
 
         self.main_layout.addWidget(self.dashboard_view)
 
+    def _connect_signals(self):
+        """Conecta todas las señales UI → slots (project_combo, source_list, table, botones, etc.)."""
+        # project_combo ya conectado en _build_header
+        # source_list signals ya conectados en _build_sources_table
+        # sessions_combo ya conectado en _build_sessions_box
+        # btn_session_dump_mode, btn_session_dump_config ya conectados en _build_sessions_box
+        # chk_format_sources, btn_reorganize, btn_clear_completed ya conectados en _build_post_actions
+        # btn_start, btn_stop ya conectados en _build_action_buttons
+        # table context menu ya conectado en _build_files_table
+        # splitterMoved ya conectado en _assemble_layout
+        # source_input.currentTextChanged ya conectado en _build_sources_table
+        # btn_add_source.clicked ya conectado en _build_sources_table
+        # btn_new_session, btn_delete_session ya conectados en _build_sessions_box
+        # _btn_browse_sess_src, _btn_browse_sess_dest ya conectados en _build_sessions_box
+        # chk_format_sources.toggled ya conectado en _build_post_actions
+        # btn_edit_description.clicked ya conectado en _build_dashboard
+        # btn_show_metadata.clicked ya conectado en _build_header
+        # Los botones de proyecto (btn_refresh_projects, etc.) ya conectados en _build_header
+
+        # Cargar proyectos y rutas recientes
         self.load_existing_projects()
         self._refresh_recent_paths()
 
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         if settings.value("autoDetectDrives", False, type=bool):
             QTimer.singleShot(200, self._auto_detect_removable_drives)
+
+    def _auto_sync_check(self):
+        """Auto-sync MTP/FTP: detecta dispositivos en hilo de fondo para
+        no bloquear la UI."""
+        if getattr(self, "_stage_thread", None) and self._stage_thread.isRunning():
+            return
+        if self.current_project_id is None:
+            return
+        sessions = [s for s in db.get_sessions(self.current_project_id) if s.get("device_id")]
+        if not sessions:
+            return
+        if self._poll_in_progress:
+            return
+        self._poll_in_progress = True
+
+        def _probe_devices(progress_signal):
+            # Reutiliza la sonda compartida de conectividad (Tarea 3)
+            return _probe_device_connectivity(sessions)
+
+        def _on_poll_done(ok, result):
+            self._poll_in_progress = False
+            if not ok:
+                return
+            # Alimentar el cache de conectividad usado por la columna Estado
+            self._connectivity_ts = time.time()
+            for s in sessions:
+                did = s["device_id"]
+                if did and not str(did).startswith("wifi:"):
+                    self._connectivity[did] = (
+                        did in result.get("mtp_connected", set())
+                        or did in result.get("ftp_reachable", set()))
+            self._process_device_poll(result, sessions)
+            self._update_source_status_cells()
+
+        self._run_background(_probe_devices, _on_poll_done)
+
+    def _process_device_poll(self, result, sessions):
+        """Procesa los resultados de la detección en el hilo UI."""
+        now = time.time()
+        mtp_connected = result["mtp_connected"]
+        ftp_reachable = result["ftp_reachable"]
+        ftp_backend = result["ftp_backend"]
+        for s in sessions:
+            did = s["device_id"]
+            is_ftp = str(did).startswith("ftp:")
+            if is_ftp:
+                if did not in ftp_reachable:
+                    continue
+            elif did not in mtp_connected:
+                continue
+            if now - self._last_device_sync.get(did, 0) < 60:
+                continue
+            self._last_device_sync[did] = now
+            cache_dir = s.get("source_path") or mtp.device_cache_dir(did, s.get("device_folder") or "")
+            try:
+                os.makedirs(cache_dir, exist_ok=True)
+            except OSError:
+                continue
+            self._stage_device_in_background(
+                did, s.get("device_folder") or "", s["id"], cache_dir,
+                backend=ftp_backend if is_ftp else None, silent=is_ftp)
+            return
+
+    def setup_views(self):
+        self._build_dashboard()
+        self._build_header()
+        self._assemble_layout()
+        self._connect_signals()
 
     def _on_splitter_moved(self, pos, index):
         sizes = self._main_splitter.sizes()
