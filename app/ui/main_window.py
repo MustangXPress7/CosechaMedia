@@ -628,6 +628,8 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
 
         self._build_files_table()
 
+        self.left_col.addStretch(1)  # empuja los controles hacia abajo
+
         # Barra inferior izquierda: botones acción, progreso, stats, estado
         self._build_action_buttons()
         self._build_progress_area()
@@ -636,7 +638,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.left_col.addLayout(self._stats_row)
         self.left_col.addWidget(self.ingest_status_label)
 
-        self.left_col.addStretch()
+        self.left_col.addStretch(1)
 
         splitter.addWidget(left_widget)
         splitter.addWidget(self.table)
