@@ -23,6 +23,7 @@ import app.ui.mixins.camera_mixin as camera_mixin_module
 import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
+import app.ui.mixins.devices_mixin as devices_mixin_module
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
 from app.core.db import DatabaseManager
@@ -47,6 +48,8 @@ class TestCameraDetectionToken(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "cam.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -55,6 +58,8 @@ class TestCameraDetectionToken(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -81,6 +86,7 @@ class TestCameraDetectionToken(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_token_increments_on_each_detection(self):
@@ -136,6 +142,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "marker.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -144,6 +151,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -170,6 +178,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_marker_in_camera_cell_keeps_status_completado(self):
@@ -254,6 +263,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "term.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -262,6 +272,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -288,6 +299,7 @@ class TestIngestTableTerminology(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_ingest_table_header_says_dispositivo(self):
@@ -327,6 +339,7 @@ class TestCameraPersistence(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
@@ -334,6 +347,7 @@ class TestCameraPersistence(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -358,6 +372,7 @@ class TestCameraPersistence(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_known_sd_card_auto_fills(self):
@@ -429,6 +444,7 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
@@ -436,6 +452,7 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -470,6 +487,7 @@ class TestDevicePersistenceAcrossProjects(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _count_device_settings(self, key):
@@ -541,6 +559,7 @@ class TestDisconnectedDeviceStatus(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
@@ -548,6 +567,7 @@ class TestDisconnectedDeviceStatus(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -582,6 +602,7 @@ class TestDisconnectedDeviceStatus(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _status_label(self, row=0):
@@ -679,6 +700,7 @@ class TestForcePromptI14(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "test.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -687,6 +709,7 @@ class TestForcePromptI14(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
         conn = self.db.get_connection()
         conn.execute(
             "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
@@ -707,6 +730,7 @@ class TestForcePromptI14(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_manual_no_prompt_without_force(self):
@@ -844,6 +868,7 @@ class TestRenameDialogPersistence(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
@@ -851,6 +876,7 @@ class TestRenameDialogPersistence(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -879,6 +905,7 @@ class TestRenameDialogPersistence(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _session_with_device(self, sid, device_id, src):
@@ -1024,6 +1051,7 @@ class TestIntegrityReport(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "report.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -1032,6 +1060,7 @@ class TestIntegrityReport(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -1063,6 +1092,7 @@ class TestIntegrityReport(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_generates_valid_csv(self):
@@ -1163,6 +1193,7 @@ class TestSessionCRUD(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -1171,6 +1202,7 @@ class TestSessionCRUD(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -1194,6 +1226,7 @@ class TestSessionCRUD(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_session_create_and_list(self):
@@ -1278,12 +1311,14 @@ class TestProjectWizard(unittest.TestCase):
         self._orig_sess_db = sessions_mixin_module.db
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "wiz.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
         sessions_mixin_module.db = self.db
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
+        devices_mixin_module.db = self.db
 
     def tearDown(self):
         mw.db = self._orig_db
@@ -1291,6 +1326,7 @@ class TestProjectWizard(unittest.TestCase):
         sessions_mixin_module.db = self._orig_sess_db
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_wizard_saves_new_fields(self):
@@ -1344,6 +1380,7 @@ class TestAccentSwitch(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "accent.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -1352,6 +1389,7 @@ class TestAccentSwitch(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
         self.window = mw.MainWindow()
 
     def tearDown(self):
@@ -1367,6 +1405,7 @@ class TestAccentSwitch(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_switch_accent_retints_app_label(self):
@@ -1401,6 +1440,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "autosync.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -1409,6 +1449,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute("INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,))
@@ -1440,6 +1481,7 @@ class TestAutoSyncOffThread(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_auto_sync_dispatches_via_run_background(self):
@@ -1509,6 +1551,7 @@ class TestCleanupMenu(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "session.db"))
         mw.db = self.db
         camera_mixin_module.db = self.db
@@ -1517,6 +1560,7 @@ class TestCleanupMenu(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
 
         conn = self.db.get_connection()
         conn.execute(
@@ -1540,6 +1584,7 @@ class TestCleanupMenu(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_delete_all_saved_devices(self):

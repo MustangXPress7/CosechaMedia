@@ -27,6 +27,7 @@ import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
 import app.ui.mixins.wifi_mixin as wifi_mixin_module
+import app.ui.mixins.devices_mixin as devices_mixin_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
 
 
@@ -47,6 +48,7 @@ class TestWifiSource(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_wifi_db = wifi_mixin_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "wifisrc.db"))
         mw.db = self.db
@@ -56,6 +58,7 @@ class TestWifiSource(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         wifi_mixin_module.db = self.db
+        devices_mixin_module.db = self.db
 
         # La caché WiFi resuelve contra la misma DB que el resto del test.
         from app.core import shoot_inbox as inboxmod
@@ -110,6 +113,7 @@ class TestWifiSource(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         wifi_mixin_module.db = self._orig_wifi_db
+        devices_mixin_module.db = self._orig_devices_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 

@@ -25,6 +25,7 @@ import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
+import app.ui.mixins.devices_mixin as devices_mixin_module
 from app.core.db import DatabaseManager, WIFI_DEVICE_ID
 from app.core.ingestor import Ingestor
 
@@ -54,9 +55,11 @@ class TestWindowCutoffCore(unittest.TestCase):
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "sessmode.db"))
         self._orig_db = ingestor_module.db
         self._orig_sess_db = sessions_mixin_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self._orig_meta = ingestor_module.metadata_engine
         ingestor_module.db = self.db
         sessions_mixin_module.db = self.db
+        devices_mixin_module.db = self.db
         ingestor_module.metadata_engine = _FixedDateMeta("2024-01-02")
 
         conn = self.db.get_connection()
@@ -77,6 +80,7 @@ class TestWindowCutoffCore(unittest.TestCase):
             ing.executor.shutdown(wait=True)
         ingestor_module.db = self._orig_db
         sessions_mixin_module.db = self._orig_sess_db
+        devices_mixin_module.db = self._orig_devices_db
         ingestor_module.metadata_engine = self._orig_meta
         shutil.rmtree(self.tmp, ignore_errors=True)
 

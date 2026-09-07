@@ -17,6 +17,7 @@ import app.ui.mixins.sessions_mixin as sessions_mixin_module
 import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
+import app.ui.mixins.devices_mixin as devices_mixin_module
 from app.core.db import DatabaseManager
 
 
@@ -50,6 +51,7 @@ class TestSourceContent(unittest.TestCase):
         self._orig_sources_db = sources_mixin_module.db
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "src.db"))
         mw.db = self.db
@@ -58,6 +60,7 @@ class TestSourceContent(unittest.TestCase):
         sources_mixin_module.db = self.db
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
+        devices_mixin_module.db = self.db
 
         class StubNotif:
             def notify_ingest_complete(self, stats):
@@ -93,6 +96,7 @@ class TestSourceContent(unittest.TestCase):
         sources_mixin_module.db = self._orig_sources_db
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
+        devices_mixin_module.db = self._orig_devices_db
         mw.NotificationManager = self._orig_notif
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -191,10 +195,10 @@ class TestSourceContent(unittest.TestCase):
         limpia (junto con su mapeo huérfano) para que la tarjeta se identifique
         por serial en vez del id MTP falso."""
         sid2 = self.db.create_session(self.pid, "Auto (E:)", "2024-01-02", "active", self.src)
-        self.db.update_session_config(sid2, device_id="\\?\\swd#wpdbusenum#_??_usbstor#disk&x#0",
+        self.db.update_session_config(sid2, device_id="\\\\?\\\\swd#wpdbusenum#_??_usbstor#disk&x#0",
                                       nombre_dispositivo="Fake Cam")
         self.window.current_project_id = self.pid
-        with mock.patch.object(mw, "is_removable_drive", return_value=True):
+        with mock.patch("app.core.utils.is_removable_drive", return_value=True):
             self.window._repair_folder_device_id(self.src)
         s = self.db.get_session(sid2)
         self.assertEqual(s["device_id"], "")

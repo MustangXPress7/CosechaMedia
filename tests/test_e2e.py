@@ -20,6 +20,7 @@ import app.ui.mixins.sources_mixin as sources_mixin_module
 import app.ui.mixins.project_mixin as project_mixin_module
 import app.core.ingestor as ingestor_module
 import app.core.metadata_engine as me_module
+import app.ui.mixins.devices_mixin as devices_mixin_module
 from app.core.db import DatabaseManager
 
 
@@ -51,6 +52,7 @@ class TestEndToEndIngest(unittest.TestCase):
         self._orig_proj_db = project_mixin_module.db
         self._orig_ing_db = ingestor_module.db
         self._orig_me_db = me_module.db
+        self._orig_devices_db = devices_mixin_module.db
         self._orig_notif = mw.NotificationManager
         self._orig_data_dir = ingestor_module.data_dir
         self.db = DatabaseManager(db_path=os.path.join(self.tmp, "e2e.db"))
@@ -61,6 +63,7 @@ class TestEndToEndIngest(unittest.TestCase):
         project_mixin_module.db = self.db
         ingestor_module.db = self.db
         me_module.db = self.db
+        devices_mixin_module.db = self.db
         ingestor_module.data_dir = lambda: os.path.join(self.tmp, "resume")
 
         os.makedirs(os.path.join(self.tmp, "resume"), exist_ok=True)
@@ -110,6 +113,7 @@ class TestEndToEndIngest(unittest.TestCase):
         project_mixin_module.db = self._orig_proj_db
         ingestor_module.db = self._orig_ing_db
         me_module.db = self._orig_me_db
+        devices_mixin_module.db = self._orig_devices_db
         mw.NotificationManager = self._orig_notif
         ingestor_module.data_dir = self._orig_data_dir
         shutil.rmtree(self.tmp, ignore_errors=True)
