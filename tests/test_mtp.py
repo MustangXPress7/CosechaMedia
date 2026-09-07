@@ -340,6 +340,68 @@ class TestThreadLocalManager(unittest.TestCase):
         self.assertEqual([d.device_id for d in devices], ["CAM_MTP", "CAM2"])
         self.assertEqual([d.name for d in devices], ["Cámara", "Cámara B"])
 
+    def test_list_devices_recreates_manager_after_teardown(self):
+        """Bug 'Detectar crashea': tras CoUninitialize, el manager cacheado del
+        hilo pertenece a un apartamento muerto; la siguiente detección debe
+        crear uno nuevo, no reutilizar el objeto COM stale."""
+        created = []
+
+        def fake_create(*args, **kwargs):
+            dm = mock.MagicMock()
+            created.append(dm)
+            return dm
+
+        def fake_get_devices(ids, count):
+            count.contents.value = 0
+
+        def detect():
+            backend = mtp.WpdBackend()
+            with mock.patch("comtypes.client.CreateObject", side_effect=fake_create), \
+                 mock.patch("comtypes.CoInitialize"), \
+                 mock.patch("comtypes.CoUninitialize"), \
+                 mock.patch.dict(sys.modules, {
+                     "comtypes.gen.PortableDeviceApiLib": mock.MagicMock()}):
+                return backend.list_devices()
+
+        self.assertEqual(detect(), [])
+        # dos detecciones seguidas sobre el mismo hilo (caso real del bug)
+        self.assertEqual(detect(), [])
+        self.assertEqual(len(created), 2)
+        self.assertIsNone(getattr(mtp._manager_local, "device_manager", None))
+
+    def test_session_close_discards_cached_manager(self):
+        """Al cerrar la sesión (CoUninitialize), el manager cacheado del hilo
+        no debe sobrevivir al apartamento."""
+        fake_port = mock.MagicMock()
+        fake_types = mock.MagicMock()
+        ci = mock.MagicMock()
+        device_mock = mock.MagicMock()
+        device_mock.Content.return_value.Properties.return_value.GetValues.return_value.GetStringValue.return_value = "SERIAL9"
+
+        def fake_friendly_name(pnp_id, buf, nlen):
+            nlen.contents.value = 0
+
+        dm = mock.MagicMock()
+        dm.GetDeviceFriendlyName.side_effect = fake_friendly_name
+
+        with mock.patch.object(mtp, "_manager", return_value=dm), \
+             mock.patch.object(mtp, "_pkey", lambda fmtid, pid: mock.MagicMock()), \
+             mock.patch("comtypes.CoInitialize"), \
+             mock.patch("comtypes.CoUninitialize"), \
+             mock.patch("comtypes.client.CreateObject",
+                        side_effect=lambda clsid, clsctx=None, interface=None: mock.MagicMock()), \
+             mock.patch.dict(sys.modules, {
+                 "comtypes.gen.PortableDeviceApiLib": fake_port,
+                 "comtypes.gen.PortableDeviceTypesLib": fake_types,
+             }):
+            # simulamos un manager cacheado de una detección anterior
+            mtp._manager_local.device_manager = dm
+            mtp._com_owner.initialized = True
+            sess = mtp._WpdSession("PNP1")
+            sess.close()
+            self.assertIsNone(getattr(mtp._manager_local, "device_manager", None))
+            self.assertFalse(getattr(mtp._com_owner, "initialized", True))
+
     def test_wpd_session_devicename_no_duplicate(self):
         fake_port = mock.MagicMock()
         fake_types = mock.MagicMock()

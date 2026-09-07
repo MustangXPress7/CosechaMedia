@@ -200,6 +200,11 @@ class _WpdSession:
         self._ctypes = ctypes
         comtypes.CoInitialize()
         self._com_initialized = True
+        # La sesión abre (o reabre) el apartamento del hilo: descartar un
+        # manager cacheado de un ciclo COM anterior (pertenecería a un
+        # apartamento cerrado y reutilizarlo crashea la app).
+        _com_owner.initialized = True
+        _manager_local.device_manager = None
         try:
             ci = comtypes.client.CreateObject(
                 types.PortableDeviceValues,
@@ -226,6 +231,11 @@ class _WpdSession:
         if getattr(self, "_com_initialized", False):
             self._com_initialized = False
             self._device = None
+            # El manager cacheado del hilo vive en el apartamento que se va a
+            # cerrar; si sobrevive, la siguiente detección sobre el mismo hilo
+            # reutiliza un objeto COM muerto (access violation).
+            _manager_local.device_manager = None
+            _com_owner.initialized = False
             try:
                 self._ctypes.CoUninitialize()
             except Exception:
@@ -461,6 +471,9 @@ class WpdBackend(MtpBackend):
         if not was_initialized:
             comtypes.CoInitialize()
             _com_owner.initialized = True
+            # Apartamento de hilo recién (re)inicializado: un manager
+            # cacheado de un ciclo anterior pertenece a un apartamento cerrado.
+            _manager_local.device_manager = None
         try:
             DM = _manager()
             count = ctypes.pointer(ctypes.c_ulong(0))
@@ -505,6 +518,10 @@ class WpdBackend(MtpBackend):
             return devices
         finally:
             if not was_initialized:
+                # El manager muere con el apartamento que se cierra: si queda
+                # cacheado, la siguiente detección del hilo crashearía al
+                # reutilizar el objeto COM (Windows fatal exception).
+                _manager_local.device_manager = None
                 try:
                     comtypes.CoUninitialize()
                 except Exception:
