@@ -617,11 +617,8 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._build_sources_table()
         self._build_sessions_box()
         self._build_post_actions()
-        self._build_action_buttons()
-        self._build_progress_area()
-        self._build_files_table()
 
-        # Sesiones + Acciones post-ingesta lado a lado
+        # Sesiones + Acciones post-ingesta justo debajo de la tabla de orígenes
         sess_post_row = QHBoxLayout()
         sess_post_row.setSpacing(10)
         self._sess_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
@@ -629,6 +626,10 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._post_box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         sess_post_row.addWidget(self._post_box, 1)
         self.left_col.addLayout(sess_post_row)
+
+        self._build_action_buttons()
+        self._build_progress_area()
+        self._build_files_table()
 
         self.left_col.addStretch()
 
