@@ -293,8 +293,11 @@ class SourcesMixin:
                 for s in with_path:
                     sid = s["id"]
                     name = s.get("name", "")
-                    # Eliminar sesiones automáticas creadas al seleccionar origen
-                    if name.startswith("Auto ("):
+                    device_id = s.get("device_id") or ""
+                    # Eliminar sesiones automáticas creadas al seleccionar origen,
+                    # pero conservar las que tienen device_id (USB/FTP/MTP) para
+                    # poder deshabilitarlas en lugar de borrarlas.
+                    if name.startswith("Auto (") and not device_id:
                         # detener ingestores asociados si existen
                         ing = self._wifi_ingestors.pop(sid, None)
                         if ing is not None:
@@ -492,6 +495,7 @@ class SourcesMixin:
                     ing.stop()
                 except Exception:
                     pass
+            device_id = s.get("device_id") or ""
             db.delete_session(sid)
             # Si es un origen WiFi, elimina el remitente asociado para que
             # _sync_wifi_sessions no lo recree.
@@ -501,6 +505,12 @@ class SourcesMixin:
                     if (inboxmod.sanitize_alias(sender["name"]) == folder):
                         db.delete_inbox_sender(sender["id"])
                         break
+            # Limpiar registro de dispositivo USB para evitar fantasmas en Añadir origen
+            if device_id.startswith("usb:"):
+                try:
+                    db.delete_device(device_id)
+                except Exception:
+                    pass
         if path in self._source_paths:
             self._source_paths.remove(path)
         self._populate_source_paths_from_sessions()
