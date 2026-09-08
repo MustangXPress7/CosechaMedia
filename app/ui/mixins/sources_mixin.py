@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QMessageBox, QFileDialog, QMenu, QCheckBox, QLabe
                                QTableWidgetItem, QDialog)
 from PySide6.QtCore import Qt, QDate, QTimer
 from PySide6.QtGui import QColor
-from app.core.db import db, WIFI_DEVICE_ID
+from app.core.db import db, WIFI_DEVICE_ID, usb_device_id
 from app.core.metadata_engine import metadata_engine, _is_system_entry
 from app.core import ftp, mtp
 import app.core.utils as utils
@@ -630,9 +630,21 @@ class SourcesMixin:
             devices_connected = mtp.WpdBackend().list_devices()
         except Exception:
             devices_connected = []
+        # Unidades USB masivas montadas: la visibilidad no depende de que
+        # estén guardadas (borrar el origen no debe ocultar un dispositivo
+        # físicamente presente).
+        usb_connected = []
+        try:
+            for drive in utils.get_mounted_drives():
+                drive_path = drive if isinstance(drive, str) else drive.get("path", "")
+                if drive_path and utils.is_removable_drive(drive_path):
+                    usb_connected.append(drive_path)
+        except Exception:
+            usb_connected = []
         dialog = AddSourceDialog(self, folders=folders, senders=senders,
                                   devices_missing=self._disconnected_devices(),
                                   devices_connected=devices_connected,
+                                  usb_connected=usb_connected,
                                   on_delete=self._delete_saved_source,
                                   on_detect=self._detect_camera_for_source,
                                   on_qr=self._show_wifi_qr_for_sender,
@@ -715,7 +727,7 @@ class SourcesMixin:
         if kind == "usb":
             # El diálogo guarda unidades USB con clave usb:<ruta> (igual que las
             # sesiones). value es la ruta cruda (E:\).
-            device_id = value if str(value).startswith("usb:") else f"usb:{value}"
+            device_id = usb_device_id(value)
             reply = QMessageBox.question(
                 self, self.tr("Eliminar unidad USB guardada"),
                 self.tr("¿Eliminar esta unidad USB guardada y sus sesiones?\n"

@@ -228,7 +228,8 @@ class TestWifiSource(unittest.TestCase):
 
     def test_mounted_usb_excluded_from_disconnected_devices(self):
         """Un USB extraíble aún montado NO es un dispositivo desconectado
-        (bug 3: reabrir «Añadir origen» mostraba un MTP fantasma «[MTP] F:\»)."""
+        (su fila seleccionable la provee el escaneo físico de «Añadir origen»,
+        devolviéndolo solo aquí duplicaría el origen)."""
         usb_path = "E:\\"
         did = f"usb:{usb_path}"
         self.db.save_dispositivo_config(did, "Sony A7")

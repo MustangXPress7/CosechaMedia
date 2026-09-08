@@ -2,7 +2,7 @@ import os
 import json
 from PySide6.QtWidgets import QMessageBox, QDialog, QFileDialog, QInputDialog
 from PySide6.QtCore import QThread, QTimer, QDate
-from app.core.db import db, WIFI_DEVICE_ID
+from app.core.db import db, WIFI_DEVICE_ID, usb_device_id
 from app.core import translator, mtp, ftp
 from app.core.metadata_engine import metadata_engine
 from app.core.sd_reader import sd_reader
@@ -101,7 +101,7 @@ class DevicesMixin:
             # la identidad evitamos duplicados y que delete_device no encuentre
             # las sesiones por usar una clave distinta.
             if dtype == "usb" and not did.startswith("usb:"):
-                did = f"usb:{did}"
+                did = usb_device_id(did)
             if kd.get("name"):
                 known.setdefault(did, kd["name"])
         # 3. Legacy device_settings (fuente histórica; redundante con
@@ -117,9 +117,10 @@ class DevicesMixin:
                     known[did] = name
         finally:
             conn.close()
-        # Devolver solo los que están desconectados (o FTP que siempre se listan).
-        # Las unidades USB extraíbles se excluyen si siguen montadas como medio
-        # real: no son «desconectadas» (evita el MTP fantasma por re-Render).
+        # Devolver dispositivos salvados, salvo unidades USB extraíbles que sigan
+        # montadas como medio real: la visibilidad de una USB montada la da el
+        # escaneo físico de «Añadir origen» (not connected flag), no el
+        # registro guardado. Evita duplicar la fila [USB] seleccionable.
         mounted = set()
         try:
             mounted = {d["path"] for d in utils.get_mounted_drives()}
@@ -177,7 +178,7 @@ class DevicesMixin:
                         # (solo si es una extraíble real, con filtro de falso positivo).
                         device_id = ""
                         if utils.is_true_removable_drive(path):
-                            device_id = f"usb:{path}"
+                            device_id = usb_device_id(path)
                         sid = db.create_session(
                             self.current_project_id, f"Auto ({base})",
                             QDate.currentDate().toString("yyyy-MM-dd"), "active",

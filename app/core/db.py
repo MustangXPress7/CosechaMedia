@@ -2,6 +2,7 @@ import secrets
 import sqlite3
 import os
 import sys
+import re
 from datetime import datetime
 from typing import List, Tuple, Optional
 
@@ -27,6 +28,31 @@ def _resolve_db_path() -> str:
 
 
 WIFI_DEVICE_ID = "wifi:pairdrop"
+
+# Unidad Windows real: UNA letra + ':' + separador/opcional (F:, F:\, F:/, F:\DCIM).
+# NO coincide con prefijos de varios caracteres como 'mtp:' o 'ftp:' (que
+# os.path.splitdrive interpretaría erróneamente como unidad en Windows).
+_USB_DRIVE_RE = re.compile(r"^[A-Za-z]:[\\/]?")
+
+
+def usb_device_id(path: str) -> str:
+    """Clave canónica de una unidad USB a partir de su ruta o clave previa.
+
+    Una misma unidad puede llegar con formatos distintos (``F:``, ``F:\\``,
+    ``F:/``, ``F:\\DCIM``, ``usb:F:\\``). Para que known_devices, device_settings
+    y sessions compartan una identidad única se normaliza a ``usb:<LETRA>:\\``:
+    se ignora cualquier subcarpeta, el prefijo ``usb:`` se re-añade y la letra
+    se fuerza en mayúsculas con separador Windows.
+    """
+    if not path:
+        return ""
+    p = path
+    if p.lower().startswith("usb:"):
+        p = p[4:]
+    m = _USB_DRIVE_RE.match(p)
+    if m:
+        return "usb:" + p[0].upper() + ":\\"
+    return "usb:" + p.rstrip("\\")
 
 class DatabaseManager:
     def __init__(self, db_path: str = None):
@@ -765,6 +791,8 @@ class DatabaseManager:
 
     def get_sessions_by_device(self, device_id: str):
         """Devuelve las sesiones asociadas a un dispositivo (para auto-sync)."""
+        if device_id.lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -806,6 +834,8 @@ class DatabaseManager:
         También limpia el mapeo de cámara guardado del dispositivo
         (device_settings y known_devices), para que al volver a detectarlo no resucite un
         nombre de cámara que el usuario solicitó borrar (bug origen 1)."""
+        if device_id.lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute(
@@ -941,6 +971,9 @@ class DatabaseManager:
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
+            # Normalizar la clave de unidades USB (una letra puede llegar como F:\, F:/, etc.)
+            if device_type == "usb":
+                device_id = usb_device_id(device_id)
             # Asegurar que la columna migrated_from_legacy existe
             cursor.execute("PRAGMA table_info(known_devices)")
             cols = [row[1] for row in cursor.fetchall()]
@@ -969,6 +1002,8 @@ class DatabaseManager:
     def get_known_device(self, device_id: str):
         """Obtiene la información completa de un dispositivo conocido."""
         import json
+        if device_id.lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -1022,6 +1057,8 @@ class DatabaseManager:
 
     def delete_known_device(self, device_id: str):
         """Elimina un dispositivo conocido."""
+        if device_id.lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -1048,6 +1085,8 @@ class DatabaseManager:
 
     def sync_device_settings_to_known(self):
         """Migra datos de device_settings a known_devices (idempotente)."""
+        # Consolidar claves USB duplicadas primero (F:/, F:\, usb:F:/... → usb:F:\)
+        self.repair_duplicate_usb_keys()
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -1060,8 +1099,17 @@ class DatabaseManager:
             cursor.execute('SELECT device_key, nombre_dispositivo FROM device_settings WHERE nombre_dispositivo IS NOT NULL AND nombre_dispositivo != ""')
             migrated = 0
             for device_key, nombre in cursor.fetchall():
-                # device_key puede ser PnP ID (MTP) o ftp:<id> (FTP)
-                if device_key.startswith("ftp:"):
+                # device_key puede ser PnP ID (MTP) o ftp:<id> (FTP) o usb:<letra> (USB).
+                # Los USB se normalizan y marcaron como 'usb'; nunca MTP fantasma.
+                usb_key = None
+                if device_key.lower().startswith("usb:"):
+                    usb_key = usb_device_id(device_key)
+                elif _USB_DRIVE_RE.match(device_key):
+                    usb_key = usb_device_id(device_key)
+                if usb_key is not None:
+                    device_type = "usb"
+                    device_key = usb_key
+                elif device_key.startswith("ftp:"):
                     device_type = "ftp"
                 elif device_key.startswith("wifi:"):
                     device_type = "wifi"
@@ -1077,6 +1125,91 @@ class DatabaseManager:
                         (device_key, device_type, nombre, nombre, json.dumps({"name": nombre}))
                     )
                     migrated += 1
+            conn.commit()
+        finally:
+            conn.close()
+        return migrated
+
+    def repair_duplicate_usb_keys(self) -> int:
+        """Consolida claves USB duplicadas con formatos distintos.
+
+        Una misma unidad puede tener ``usb:F:/``, ``usb:F:\\``, ``F:\\`` (sin
+        prefijo) o ``F:\\DCIM`` en distintas tablas. Esta función reescribe
+        todas las variantes a ``usb:<LETRA>:\\`` canónica.
+
+        Devuelve el número de filas migradas.
+        """
+        migrated = 0
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+
+            def _normalize(val):
+                if not val:
+                    return val
+                if val.lower().startswith("usb:"):
+                    return usb_device_id(val)
+                if _USB_DRIVE_RE.match(val):
+                    return usb_device_id(val)
+                return val
+
+            # -- known_devices: purgar claves USB corruptas (usb:mtp:..., usb:ftp:..) --
+            # Nunca son unidades reales: una USB es usb:<LETRA>:. Son huérfanas sin
+            # sesiones que un bug antiguo guardó bajo usb:+id MTP/FTP.
+            cursor.execute(
+                "SELECT device_id FROM known_devices "
+                "WHERE device_id LIKE 'usb:mtp:%' OR device_id LIKE 'usb:ftp:%' "
+                "OR device_id LIKE 'usb:wifi:%'")
+            for (did,) in cursor.fetchall():
+                cursor.execute('DELETE FROM known_devices WHERE device_id = ?', (did,))
+                migrated += 1
+
+            # -- known_devices: renormalizar + borrar duplicados --
+            cursor.execute('SELECT device_id FROM known_devices')
+            for (did,) in cursor.fetchall():
+                new = _normalize(did)
+                if new and new != did:
+                    cursor.execute(
+                        'SELECT id FROM known_devices WHERE device_id = ?',
+                        (new,))
+                    existing = cursor.fetchone()
+                    if existing:
+                        # Ya existe la clave canónica; borrar la vieja
+                        cursor.execute(
+                            'DELETE FROM known_devices WHERE device_id = ?',
+                            (did,))
+                    else:
+                        # No hay duplicado; renombrar in-place
+                        cursor.execute(
+                            'UPDATE known_devices SET device_id = ? WHERE device_id = ?',
+                            (new, did))
+                    migrated += 1
+
+            # -- device_settings: renormalizar --
+            cursor.execute('SELECT device_key FROM device_settings')
+            for (dk,) in cursor.fetchall():
+                new = _normalize(dk)
+                if new and new != dk:
+                    cursor.execute(
+                        'DELETE FROM device_settings WHERE device_key = ?',
+                        (new,))
+                    cursor.execute(
+                        'UPDATE device_settings SET device_key = ? WHERE device_key = ?',
+                        (new, dk))
+                    migrated += 1
+
+            # -- sessions.device_id: renormalizar --
+            cursor.execute(
+                "SELECT device_id FROM sessions "
+                "WHERE device_id IS NOT NULL AND device_id != ''")
+            for (did,) in cursor.fetchall():
+                new = _normalize(did)
+                if new and new != did:
+                    cursor.execute(
+                        'UPDATE sessions SET device_id = ? WHERE device_id = ?',
+                        (new, did))
+                    migrated += 1
+
             conn.commit()
             return migrated
         finally:
@@ -1415,6 +1548,9 @@ class DatabaseManager:
         """
         if not device_id:
             return None
+        # Las claves USB se normalizan para no duplicar identidades.
+        if str(device_id).lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         # Primero buscar en known_devices (tabla unificada)
         known = self.get_known_device(device_id)
         if known and known.get("name"):
@@ -1439,6 +1575,9 @@ class DatabaseManager:
         nombre_dispositivo = self._sanitize_dispositivo_nombre(nombre_dispositivo)
         if not device_id or not nombre_dispositivo:
             return
+        # Las claves USB se normalizan para no duplicar identidades.
+        if str(device_id).lower().startswith("usb:"):
+            device_id = usb_device_id(device_id)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -1465,6 +1604,8 @@ class DatabaseManager:
         """Devuelve el modo delicado para un dispositivo (0/1), o None si no hay config."""
         if not device_key:
             return None
+        if device_key.lower().startswith("usb:"):
+            device_key = usb_device_id(device_key)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
@@ -1481,6 +1622,8 @@ class DatabaseManager:
         """Guarda el modo delicado para un dispositivo."""
         if not device_key:
             return
+        if device_key.lower().startswith("usb:"):
+            device_key = usb_device_id(device_key)
         conn = self.get_connection()
         try:
             cursor = conn.cursor()
