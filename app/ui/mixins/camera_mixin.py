@@ -61,10 +61,29 @@ class CameraMixin:
             self.tr("Nombre del dispositivo para este origen:"),
             text=current
         )
-        if ok:
-            db.update_session_config(session["id"], nombre_dispositivo=name.strip() or None)
-            self._refresh_source_list()
-            self._refresh_sessions_combo()
+        if not ok or not name.strip():
+            return
+        new_name = name.strip()
+        # Popup de confirmación: persistir o no en el registro global (quick 260908-f5o)
+        settings = QSettings("Audiovisual Production", "CosechaMedia")
+        if settings.value("camera/skip_rename_confirm", False, type=bool):
+            persist = True
+        else:
+            ret = QMessageBox.question(
+                self, self.tr("Renombrar dispositivo"),
+                self.tr("¿Guardar '%1' como nombre del dispositivo para futuras sesiones?")
+                .arg(new_name),
+                QMessageBox.Yes | QMessageBox.No | QMessageBox.Discard,
+                QMessageBox.Yes
+            )
+            persist = ret in (QMessageBox.Yes, QMessageBox.Discard)
+            if ret == QMessageBox.Discard:
+                settings.setValue("camera/skip_rename_confirm", True)
+        db.update_session_config(session["id"], nombre_dispositivo=new_name)
+        if persist:
+            self._persist_camera_mapping(session["id"], path, new_name)
+        self._refresh_source_list()
+        self._refresh_sessions_combo()
 
     @staticmethod
     def _drive_label(path):
