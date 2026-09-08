@@ -224,3 +224,25 @@ Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
 | 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
 | 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
+
+### Phase 2: remove-camera-auto-detection Eliminar modo de detección automática de cámara (solo manual)
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 1
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 2 to break down)
+
+### Phase 3: beta3 Reestructuración barra de menú: Datos, Utilidades, absorción Ingesta
+
+**Goal:** Reestructurar barra de menú agrupando acciones por intención: absorber Ingesta en Proyecto, crear menú Datos para mantenimiento destructivo, renombrar Herramientas a Utilidades y mover Idioma a Ayuda.
+**Requirements**: UI-04
+**Depends on:** Phase 1.6.0
+**Plans:** 1 plan completed
+
+Plans:
+
+- [x] 01.6.1-01-PLAN.md — Reestructuración barra de menú: Proyecto/Datos/Utilidades, Idioma en Ayuda
