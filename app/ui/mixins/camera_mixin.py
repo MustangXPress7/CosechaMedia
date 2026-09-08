@@ -307,6 +307,15 @@ class CameraMixin:
                 db.upsert_known_device(device_id, device_type, name=nombre_dispositivo, last_camera=nombre_dispositivo)
             except Exception:
                 pass
+            # Reconciliar identidad por serial (sd_cards): la misma tarjeta puede
+            # haberse guardado antes por serial (cuando la sesión aún no tenía
+            # device_id). El rename debe dejar UN solo nombre conocido; si no, el
+            # nombre viejo queda huérfano y reaparece en list_known_camera_names()
+            # (debug: renombrar-sobreescribe-nombre-device).
+            if str(device_id).startswith("usb:"):
+                serial = sd_reader.get_volume_serial(source_path)
+                if serial:
+                    db.save_dispositivo(serial, nombre_dispositivo)
         else:
             serial = sd_reader.get_volume_serial(source_path)
             if serial:
@@ -348,6 +357,13 @@ class CameraMixin:
             db.upsert_known_device(device_id, device_type, name=sane, last_camera=sane)
         except Exception:
             pass
+        # Reconciliar identidad por serial (sd_cards) para unidades USB: el
+        # rename desde el diálogo debe dejar UN solo nombre conocido igual que
+        # _persist_camera_mapping (debug: renombrar-sobreescribe-nombre-device).
+        if str(device_id).startswith("usb:"):
+            serial = sd_reader.get_volume_serial(device_id[4:])
+            if serial:
+                db.save_dispositivo(serial, sane)
         if self.current_project_id is None:
             return
         for s in db.get_sessions(self.current_project_id):

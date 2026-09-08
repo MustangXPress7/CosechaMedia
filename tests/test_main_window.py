@@ -1006,6 +1006,39 @@ class TestRenameDialogPersistence(unittest.TestCase):
             self.assertEqual(combo2.lineEdit().text(), "RED Komodo 6K")
             dlg2.close()
 
+    def test_rename_usb_reconciles_serial_identity(self):
+        """Renombrar una unidad USB desde el diálogo actualiza también la
+        identidad por serial (sd_cards): el nombre viejo no queda huérfano
+        (debug: renombrar-sobreescribe-nombre-device)."""
+        from unittest.mock import patch
+        sid = self._session_with_device("SUSB", "usb:F:\\", "F:\\")
+        self.db.save_dispositivo("073e1bba", "Culote")
+        with patch.object(sd_reader, "get_volume_serial", return_value="073e1bba"):
+            self.window._on_dialog_camera_name_changed("usb:F:\\", "Pitorrote")
+        self.assertEqual(self.db.get_dispositivo_for_card("073e1bba"), "Pitorrote")
+        self.assertEqual(self.db.get_dispositivo_for_device("usb:F:\\"), "Pitorrote")
+        self.assertEqual(self.db.list_known_camera_names(), ["Pitorrote"])
+
+    def test_persist_mapping_usb_reconciles_serial(self):
+        """_persist_camera_mapping con device_id usb: sincroniza sd_cards por
+        serial (ruta del pop-up «¿Guardar para futuras sesiones?»)."""
+        from unittest.mock import patch
+        sid = self._session_with_device("SUSB2", "usb:F:\\", "F:\\")
+        self.db.save_dispositivo("073e1bba", "Culote")
+        with patch.object(sd_reader, "get_volume_serial", return_value="073e1bba"):
+            self.window._persist_camera_mapping(sid, "F:\\", "Pitorrote")
+        self.assertEqual(self.db.get_dispositivo_for_card("073e1bba"), "Pitorrote")
+        self.assertEqual(self.db.list_known_camera_names(), ["Pitorrote"])
+
+    def test_persist_mapping_ftp_does_not_write_serial(self):
+        """FTP no reconcilia identidad serial: su source_path es un staging
+        local y no debe contaminar sd_cards con el serial del disco del sistema."""
+        from unittest.mock import patch
+        sid = self._session_with_device("SFTP", "ftp:42", os.path.join(self.tmp, "staging"))
+        with patch.object(sd_reader, "get_volume_serial", return_value="c0ffee00"):
+            self.window._persist_camera_mapping(sid, os.path.join(self.tmp, "staging"), "Camara FTP")
+        self.assertIsNone(self.db.get_dispositivo_for_card("c0ffee00"))
+
     def test_auto_detect_saves_to_device_settings(self):
         """La detección automática (modo auto) persiste la cámara detectada en
         device_settings y en la sesión (I-14 + B-20)."""
