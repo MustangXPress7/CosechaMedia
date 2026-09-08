@@ -53,6 +53,7 @@ class TestPromptRenameCamera(unittest.TestCase):
         self.mock_db.get_sessions.return_value = [
             {"id": 7, "source_path": "E:\\DCIM", "nombre_dispositivo": "OldCam"}]
         camera_mixin.QSettings = mock.MagicMock()
+        camera_mixin.QSettings().value.return_value = False
 
     def _input(self, text="Canon R5", ok=True):
         return mock.patch.object(camera_mixin, "QInputDialog",
