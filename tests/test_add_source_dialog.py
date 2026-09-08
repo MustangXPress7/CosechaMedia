@@ -198,6 +198,33 @@ class TestAddSourceDialog(unittest.TestCase):
         cb = _checkbox(dlg, row)
         self.assertFalse(cb.isEnabled())
 
+    def test_usb_connected_renders_selectable(self):
+        """Una USB montada (usb_connected) es seleccionable al reabrir «Añadir
+        origen» en otro proyecto, sin pulsar «Detectar» ni depender de que esté
+        guardada (tras borrar el origen, la unidad física sigue apareciendo)."""
+        dlg = self._dialog(usb_connected=["F:\\"], folders=["E:\\DCIM"])
+        row = dlg._row_for_source("usb", "F:\\")
+        self.assertIsNotNone(row)
+        cb = _checkbox(dlg, row)
+        self.assertTrue(cb.isEnabled())
+        # Queda dentro de result_sources al marcar + aceptar
+        cb.setChecked(True)
+        dlg.accept()
+        sources = dlg.result_sources()
+        self.assertTrue(any(s["kind"] == "usb" and s["value"] == "F:\\"
+                            for s in sources))
+
+    def test_usb_connected_no_conflict_with_missing(self):
+        """Si la misma USB viene en usb_connected y en devices_missing, no se
+        duplica (la montada gana como seleccionable)."""
+        dlg = self._dialog(
+            devices_missing=[{"id": "usb:E:\\", "name": "Sony"}],
+            usb_connected=["E:\\"])
+        e_rows = [i for i, s in enumerate(dlg._row_sources)
+                  if s is not None and s["kind"] == "usb" and s["value"] == "E:\\"]
+        self.assertEqual(len(e_rows), 1)
+        self.assertTrue(_checkbox(dlg, e_rows[0]).isEnabled())
+
     # -- papelera borrar (D-11) -------------------------------------------
 
     def test_delete_triggers_callback(self):
@@ -380,17 +407,17 @@ class TestAddSourceDialog(unittest.TestCase):
         self.assertLess(device_row, wifi_row)
 
     def test_detect_adds_usb_even_without_explicit_backend(self):
-        """Bug E/F (revisado): "Detectar" debe escanear USB incluso con
-        _explicit_mtp=False (producción). Una unidad removable real (H:\\)
-        debe añadirse aunque el diálogo no reciba backend MTP explícito."""
+        """Bug E/F: "Detectar" escanea USB incluso con _explicit_mtp=False
+        (producción sin backend). En construcción no se escanean devuelve 0
+        esperando a que usb_connected lo provea; al pulsar «Detectar» sí."""
         with mock.patch.object(utils_module, "get_mounted_drives",
                                return_value=["H:\\"]), \
              mock.patch.object(utils_module, "is_removable_drive",
                                return_value=True):
             dlg = self._dialog(folders=["E:\\DCIM"])
-            # Sin backend explícito: _populate NO debe listar USB en construcción
+            # Sin usb_connected: la mounted drive NO se lista en construcción
             self.assertIsNone(dlg._row_for_source("usb", "H:\\"))
-            # Pero al pulsar "Detectar" sí debe escanearse y añadirse
+            # Pero «Detectar» sí la escanea y no rompe
             dlg._detect_devices()
             self.assertIsNotNone(dlg._row_for_source("usb", "H:\\"))
 
@@ -404,6 +431,47 @@ class TestAddSourceDialog(unittest.TestCase):
             dlg._detect_devices()
             self.assertIsNotNone(dlg._row_for_source("usb", "E:\\"))
             self.assertIsNone(dlg._row_for_source("usb", "F:\\"))
+
+    def test_usb_known_name_prefills_combo(self):
+        """Quick 260908-f5o: una USB con nombre conocido en el registro
+        (device_settings/known_devices) pre-selecciona el combo de cámara."""
+        import app.ui.add_source_dialog as dlgmod
+        with mock.patch.object(dlgmod, "usb_device_id",
+                               return_value="usb:E:\\"), \
+             mock.patch.object(dlgmod.db, "get_dispositivo_for_device",
+                               return_value="Sony A7S"):
+            dlg = self._dialog(usb_connected=["E:\\"])
+        row = dlg._row_for_source("usb", "E:\\")
+        self.assertIsNotNone(row)
+        self.assertEqual(_camera_text(dlg, row), "Sony A7S")
+        self.assertNotEqual(_camera_text(dlg, row), dlg.tr("Sin nombre"))
+
+    def test_usb_known_name_prefills_after_detect(self):
+        """Quick 260908-f5o: «Detectar» también pre-rellena el nombre conocido."""
+        import app.ui.add_source_dialog as dlgmod
+        with mock.patch.object(utils_module, "get_mounted_drives",
+                               return_value=["E:\\"]), \
+             mock.patch.object(utils_module, "is_removable_drive",
+                               return_value=True), \
+             mock.patch.object(dlgmod, "usb_device_id",
+                               return_value="usb:E:\\"), \
+             mock.patch.object(dlgmod.db, "get_dispositivo_for_device",
+                               return_value="Sony A7S"):
+            dlg = self._dialog(folders=["E:\\DCIM"])
+            dlg._detect_devices()
+        row = dlg._row_for_source("usb", "E:\\")
+        self.assertIsNotNone(row)
+        self.assertEqual(_camera_text(dlg, row), "Sony A7S")
+
+    def test_usb_unknown_keeps_sin_nombre(self):
+        """Quick 260908-f5o: USB sin nombre conocido → combo «Sin nombre»."""
+        import app.ui.add_source_dialog as dlgmod
+        with mock.patch.object(dlgmod.db, "get_dispositivo_for_device",
+                               return_value=None):
+            dlg = self._dialog(usb_connected=["E:\\"])
+        row = dlg._row_for_source("usb", "E:\\")
+        self.assertIsNotNone(row)
+        self.assertEqual(_camera_text(dlg, row), dlg.tr("Sin nombre"))
 
     def test_wifi_row_inserted_in_wifi_section(self):
         """BUG-3: un nuevo WiFi se inserta antes de la sección FTP."""
