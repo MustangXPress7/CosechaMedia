@@ -22,6 +22,13 @@ class TestVersionParsing(unittest.TestCase):
         self.assertEqual(updater.compare_versions("1.9.9", "2.0.0"), -1)
         self.assertEqual(updater.compare_versions("v2.1", "2.0.9"), 1)
 
+    def test_compare_pre_release(self):
+        self.assertEqual(updater.compare_versions("v1.5.9-beta2", "v1.5.9-beta1"), 1)
+        self.assertEqual(updater.compare_versions("1.5.9-beta1", "1.5.9-beta1"), 0)
+        self.assertEqual(updater.compare_versions("1.5.9-beta1", "1.5.9"), -1)
+        self.assertEqual(updater.compare_versions("1.5.9", "1.5.9-beta9"), 1)
+        self.assertEqual(updater.compare_versions("1.5.9-beta2", "1.5.9"), -1)
+
 
 class TestAssetSelection(unittest.TestCase):
     def _assets(self):

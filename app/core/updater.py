@@ -55,10 +55,31 @@ def _parse_version(text: str) -> tuple:
     return tuple(nums)
 
 
+def _pre_release(text: str) -> str:
+    """Sufijo pre-release (p.ej. '-beta2') o '' si es un release estable."""
+    text = text.strip().lstrip("vV")
+    if "-" in text:
+        return text.split("-", 1)[1]
+    return ""
+
+
 def compare_versions(a: str, b: str) -> int:
-    """Devuelve 1 si a > b, -1 si a < b y 0 si son iguales."""
-    va, vb = _parse_version(a), _parse_version(b)
-    return (va > vb) - (va < vb)
+    """Devuelve 1 si a > b, -1 si a < b y 0 si son iguales.
+
+    Los pre-releases (1.5.9-beta2) se ordenan antes que el release estable
+    (1.5.9) y entre sí por número/etiqueta.
+    """
+    main = (lambda x, y: (x > y) - (x < y))(_parse_version(a), _parse_version(b))
+    if main:
+        return main
+    pa, pb = _pre_release(a), _pre_release(b)
+    if pa == pb:
+        return 0
+    if not pa:
+        return 1
+    if not pb:
+        return -1
+    return (pa > pb) - (pa < pb)
 
 
 def _http_json(url: str, timeout: int = 10):
