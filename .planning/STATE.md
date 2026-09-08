@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.6.0
 milestone_name: Verificación avanzada + Reorganizador de footage
-current_phase: 01.6.0
-current_phase_name: Añadir origen + Reorganizador + Bugs + DeviceRegistry
+current_phase: beta3-menu
+current_phase_name: Reestructuración barra de menú: Datos, Utilidades, absorción Ingesta
 status: completed
 stopped_at: Completed quick-01-PLAN.md (IngestMixin extraction)
 last_updated: "2026-09-07T19:30:00.000Z"
