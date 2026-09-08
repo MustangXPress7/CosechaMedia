@@ -70,7 +70,7 @@ See: .planning/PROJECT.md (updated 2026-08-15)
 Phase: 01.6.0 — COMPLETED
 Plan: 6 of 6
 Status: All plans verified
-Last activity: 2026-09-07 — Completed 9 bloques reducción MainWindow (4589→961 líneas, 8 mixins + WifiMixin, suite 394 passed, único fail pre-existente test_mtp)
+Last activity: 2026-09-08 — Completed quick 260908-f5o: rename de dispositivo en tabla de orígenes persiste en registro global (device_settings+known_devices) con popup Sí/No/No volver a preguntar (QSettings skip_rename_confirm), auto-fill USB de nombre conocido en Añadir origen (58 tests, 5 commits)
 
 ## Phase 1.6.0 — Verificación Avanzada (ingest-focused)
 
@@ -211,6 +211,8 @@ Recent decisions affecting current work:
 | 260906-01 | Bloque 8 (reducción god object MainWindow): extraer pipeline ingesta + post-actions a IngestMixin (app/ui/mixins/ingest_mixin.py) — 29 métodos verbatim (start/stop_ingest, on_file_*, _finalize_ingest, format/proxies/report/shutdown), composición + IngestMixin, parche db + ingest_mixin_module.db fixes, main_window ~1800→~1200 líneas, suite 393 passed | 2026-09-07 | f075c60/d66ad05 | Verified | [260906-ingest-mixin-extraction/260906-01-PLAN.md](./quick/260906-ingest-mixin-extraction/) |
 | 260906-bloque9 | Bloque 9 (reducción god object MainWindow): descomponer setup_views en 8 helpers + limpieza (elimina _reorganize_worker dead code), main_window ~1200→961 líneas, suite 394 passed (1 pre-existente test_mtp) | 2026-09-07 | 7598f5d | Verified | [260906-bloque9-setup-views-decomposition/260906-bloque9-PLAN.md](./quick/260906-bloque9-setup-views-decomposition/) |
 | 260907-p7b | Fix 7 bugs (fase 1.5.0): WiFi QR IP errónea (local_ip sin Internet + multi-NIC), FTP «timed out» con host:puerto, crash «Detectar» (COM manager reutilizado de apartamento cerrado), aviso «Proyecto requerido» al añadir origen sin proyecto, purga de `folder` en known_devices, «— Vacío —» predeterminado en selector de cámara (manual+auto), nombre fijo read-only en filas WiFi/FTP de Añadir origen | 2026-09-07 | 10fc7e3, dd07468, 84b0ebc, ac48027, c672e9b, 7eb5405, 3a8acbd | Needs Review | [260907-p7b-fix-7-bugs-wifi-qr-ip-erronea-ftp-timeou](./quick/260907-p7b-fix-7-bugs-wifi-qr-ip-erronea-ftp-timeou/) |
+| 260907-fb2 | Fix 4 bugs: WiFi/FTP sin conexión (IP virtual/link-local, subred), origen USB fantasma «[MTP] F:\» (falso positivo + render), «+» Sesiones NameError QDate, churn COM (cache list_devices) | 2026-09-07 | pending | Planned | [260907-fb2-feedback-wifi-ftp-fantasma-sesiones](./quick/260907-fb2-feedback-wifi-ftp-fantasma-sesiones/) |
+| 260908-f5o | Renombrar dispositivo en la tabla de orígenes: persistir nombre en registro (device_settings+known_devices) con popup Sí/No/No volver a preguntar (QSettings), auto-fill USB de nombre conocido en Añadir origen | 2026-09-08 | 865f373 | Verified | [260908-f5o-renombrar-dispositivo-en-la-tabla-de-or-](./quick/260908-f5o-renombrar-dispositivo-en-la-tabla-de-or-/) |
 
 ## Deferred Items
 
@@ -228,8 +230,8 @@ Recent decisions affecting current work:
 
 ## Session Continuity
 
-Last session: 2026-09-07T20:00:00.000Z
-Stopped at: Quick 260907-p7b completado (7 bugs WiFi/FTP/Detectar/UI Añadir origen, 7 commits, suites válidas en verde; test_main_window rojo transitorio por WIP ajeno de main_window.py)
+Last session: 2026-09-07T21:15:00.000Z
+Stopped at: Plan escrito para quick 260907-fb2 (4 bugs: WiFi/FTP conexión, USB fantasma, sesiones +, churn COM); en espera de aprobación para ejecutar código
 Resume file: None
 
 ## Operator Next Steps
