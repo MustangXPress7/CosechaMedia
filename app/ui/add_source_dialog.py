@@ -420,11 +420,11 @@ class AddSourceDialog(QDialog):
         combo.setInsertPolicy(QComboBox.NoInsert)
         known = self._known_camera_names()
         combo.addItems(known)
-        # Bug 6: en ambos modos existe «— Vacío —» y es el estado por defecto
+        # Bug 6: en ambos modos existe «— Sin nombre —» y es el estado por defecto
         # cuando la fila no tiene cámara; en auto va seguido del disparador de
         # detección.
         self._vacio_trigger_index = len(known)
-        combo.addItem(self.tr("— Vacío —"))
+        combo.addItem(self.tr("— Sin nombre —"))
         self._detect_trigger_index = self._vacio_trigger_index + 1
         if self._camera_detection_mode == "auto":
             combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
@@ -484,7 +484,7 @@ class AddSourceDialog(QDialog):
         if not name:
             return
         placeholders = (self.tr("Detectando…"), self.tr("Sin nombre"),
-                        self.tr("— Vacío —"))
+                        self.tr("— Sin nombre —"))
         if name in placeholders:
             return
         self.on_camera_name_changed(device_id, name)
@@ -517,6 +517,15 @@ class AddSourceDialog(QDialog):
             if text:
                 combo.setEditText(text)
                 self._update_camera_in_row(row, text)
+                # Disparar callback también al seleccionar desde la lista
+                if self.on_camera_name_changed is not None:
+                    src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
+                    if src:
+                        kind = src.get("kind")
+                        value = src.get("value")
+                        device_id = value if kind != "ftp_profile" else f"ftp:{value}"
+                        if kind in ("device", "usb", "ftp_profile"):
+                            self._on_camera_text_changed(row, text)
 
     # -- acciones ---------------------------------------------------------
 
@@ -734,11 +743,12 @@ class AddSourceDialog(QDialog):
                     "enabled": True, "connected": True,
                     "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
                     insert_before_row=wifi_row)
-                # Persist USB drive to known_devices for cross-project persistence
+                # Persist USB drive to known_devices only if we have a real name (avoid "F:\")
                 try:
-                    db.upsert_known_device(usb_device_id(drive_path), "usb",
-                                           name=drive_path,
-                                           last_camera=usb_name)
+                    if usb_name and usb_name != self.tr("Sin nombre"):
+                        db.upsert_known_device(usb_device_id(drive_path), "usb",
+                                               name=drive_path,
+                                               last_camera=usb_name)
                 except Exception:
                     pass
                 wifi_row += 1
@@ -962,47 +972,33 @@ class AddSourceDialog(QDialog):
         self.btn_aceptar.setEnabled(self._has_valid_selection())
 
     def _has_valid_selection(self):
+        has_checked = False
         for i, src in enumerate(self._row_sources):
             if src is None:
                 continue
             if not self._checkbox_checked(i):
                 continue
+            has_checked = True
             cam = self.table.cellWidget(i, 2)
-            if _camera_text(cam).strip():
-                return True
-        return False
+            if not _camera_text(cam).strip():
+                # No se permite aceptar con cámara vacía; se exige nombre
+                return False
+        return has_checked
 
     # -- resultado --------------------------------------------------------
 
     def accept(self):
-        # En modo manual, si hay orígenes seleccionados con cámara "Vacío" (vacía),
-        # mostrar diálogo de renombrado para cada uno antes de aceptar
-        if self._camera_detection_mode == "manual":
-            from PySide6.QtWidgets import QInputDialog, QMessageBox
-            for i, src in enumerate(self._row_sources):
-                if src is None:
-                    continue
-                if not self._checkbox_checked(i):
-                    continue
-                cam = self.table.cellWidget(i, 2)
-                camera = _camera_text(cam).strip()
-                if not camera:
-                    # Preguntar nombre de dispositivo
-                    name, ok = QInputDialog.getText(
-                        self, self.tr("Renombrar dispositivo"),
-                        self.tr("Nombre del dispositivo para %1:").arg(src.get("label", src["value"])),
-                        text=""
-                    )
-                    if not ok:
-                        return  # Usuario canceló, no cerrar diálogo
-                    if not name.strip():
-                        QMessageBox.warning(
-                            self, self.tr("Nombre requerido"),
-                            self.tr("Debe introducir un nombre de dispositivo."))
-                        return
-                    # Actualizar el combo con el nombre ingresado
-                    self._set_combo_text(cam, name.strip())
-                    self._update_camera_in_row(i, name.strip())
+        # Validar que todos los orígenes marcados tengan nombre de cámara
+        for i, src in enumerate(self._row_sources):
+            if src is None or not self._checkbox_checked(i):
+                continue
+            cam = self.table.cellWidget(i, 2)
+            if not _camera_text(cam).strip():
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(
+                    self, self.tr("Nombre de cámara requerido"),
+                    self.tr("Selecciona o introduce un nombre de cámara para todos los orígenes marcados."))
+                return
         self._accepted = True
         super().accept()
 

@@ -804,7 +804,7 @@ class TestCameraVacioDefault(unittest.TestCase):
     def test_auto_mode_has_vacio_and_is_default(self):
         dlg, combo = self._combo("auto")
         texts = [combo.itemText(i) for i in range(combo.count())]
-        self.assertIn(dlg.tr("— Vacío —"), texts)
+        self.assertIn(dlg.tr("— Sin nombre —"), texts)
         self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
         self.assertEqual(combo.itemData(combo.currentIndex()), "VACIO")
         self.assertEqual(combo.lineEdit().text(), "")
@@ -812,7 +812,7 @@ class TestCameraVacioDefault(unittest.TestCase):
     def test_manual_mode_has_vacio_and_is_default(self):
         dlg, combo = self._combo("manual")
         texts = [combo.itemText(i) for i in range(combo.count())]
-        self.assertIn(dlg.tr("— Vacío —"), texts)
+        self.assertIn(dlg.tr("— Sin nombre —"), texts)
         self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
         self.assertEqual(combo.lineEdit().text(), "")
 
