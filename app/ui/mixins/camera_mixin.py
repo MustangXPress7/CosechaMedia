@@ -2,7 +2,7 @@ import os
 import threading
 import uuid
 from PySide6.QtCore import QTimer, QDate, QSettings
-from PySide6.QtWidgets import QInputDialog, QMessageBox
+from PySide6.QtWidgets import QInputDialog, QMessageBox, QCheckBox
 from app.core.db import db
 from app.core.sd_reader import sd_reader
 from app.core.metadata_engine import metadata_engine
@@ -67,18 +67,21 @@ class CameraMixin:
         # Popup de confirmación: persistir o no en el registro global (quick 260908-f5o)
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         if settings.value("camera/skip_rename_confirm", False, type=bool):
-            persist = True
+            persist = settings.value("camera/rename_global_default", True, type=bool)
         else:
-            ret = QMessageBox.question(
-                self, self.tr("Renombrar dispositivo"),
-                self.tr("¿Guardar '%1' como nombre del dispositivo para futuras sesiones?")
-                .arg(new_name),
-                QMessageBox.Yes | QMessageBox.No | QMessageBox.Discard,
-                QMessageBox.Yes
-            )
-            persist = ret in (QMessageBox.Yes, QMessageBox.Discard)
-            if ret == QMessageBox.Discard:
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Question)
+            box.setWindowTitle(self.tr("Renombrar dispositivo"))
+            box.setText(self.tr("¿Guardar '%1' como nombre del dispositivo para futuras sesiones?").arg(new_name))
+            box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+            box.setDefaultButton(QMessageBox.Yes)
+            dont_ask = QCheckBox(self.tr("No volver a preguntar"))
+            box.setCheckBox(dont_ask)
+            box.exec()
+            persist = box.clickedButton() == box.button(QMessageBox.Yes)
+            if dont_ask.isChecked():
                 settings.setValue("camera/skip_rename_confirm", True)
+                settings.setValue("camera/rename_global_default", persist)
         db.update_session_config(session["id"], nombre_dispositivo=new_name)
         if persist:
             self._persist_camera_mapping(session["id"], path, new_name)

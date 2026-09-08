@@ -35,12 +35,20 @@ class _Harness(camera_mixin.CameraMixin):
         return _QtStr(text)
 
 
-def _setup_popup(mbox):
+def _setup_popup(mbox, clicked="yes", checkbox=False):
     mbox.Yes = 1
     mbox.No = 2
-    mbox.Discard = 3
-    mbox.question.return_value = mbox.Yes
-    return mbox
+    mbox.Question = 3
+    box = mbox.return_value
+    yes_btn = mock.Mock()
+    no_btn = mock.Mock()
+    box.button.side_effect = lambda b: yes_btn if b == mbox.Yes else no_btn
+    box.clickedButton.return_value = yes_btn if clicked == "yes" else no_btn
+    box.setCheckBox = mock.Mock()
+    dont_ask = mock.Mock()
+    dont_ask.isChecked.return_value = checkbox
+    camera_mixin.QCheckBox = mock.Mock(return_value=dont_ask)
+    return box
 
 
 class TestPromptRenameCamera(unittest.TestCase):
@@ -71,31 +79,31 @@ class TestPromptRenameCamera(unittest.TestCase):
     def test_no_persists_only_session(self):
         with self._input(), \
              mock.patch.object(camera_mixin, "QMessageBox") as mbox:
-            _setup_popup(mbox)
-            mbox.question.return_value = mbox.No
+            _setup_popup(mbox, clicked="no")
             self.h._prompt_rename_camera(0)
         self.mock_db.update_session_config.assert_called_once_with(
             7, nombre_dispositivo="Canon R5")
         self.assertIsNone(self.h._persisted)
 
-    def test_discard_sets_skip_flag_and_persists(self):
+    def test_no_ask_checkbox_sets_skip_flag_and_persists(self):
         with self._input(), \
              mock.patch.object(camera_mixin, "QMessageBox") as mbox:
-            _setup_popup(mbox)
-            mbox.question.return_value = mbox.Discard
+            _setup_popup(mbox, clicked="yes", checkbox=True)
             self.h._prompt_rename_camera(0)
         self.mock_db.update_session_config.assert_called_once_with(
             7, nombre_dispositivo="Canon R5")
         self.assertEqual(self.h._persisted, (7, "E:\\DCIM", "Canon R5"))
-        camera_mixin.QSettings().setValue.assert_called_once_with(
-            "camera/skip_rename_confirm", True)
+        camera_mixin.QSettings().setValue.assert_has_calls([
+            mock.call("camera/skip_rename_confirm", True),
+            mock.call("camera/rename_global_default", True),
+        ])
 
     def test_skip_flag_bypasses_popup(self):
         camera_mixin.QSettings().value.return_value = True
         with self._input(), \
              mock.patch.object(camera_mixin, "QMessageBox") as mbox:
             self.h._prompt_rename_camera(0)
-            mbox.question.assert_not_called()
+            mbox.assert_not_called()
         self.assertEqual(self.h._persisted, (7, "E:\\DCIM", "Canon R5"))
         self.mock_db.update_session_config.assert_called_once_with(
             7, nombre_dispositivo="Canon R5")
@@ -105,7 +113,7 @@ class TestPromptRenameCamera(unittest.TestCase):
              mock.patch.object(camera_mixin, "QMessageBox") as mbox:
             _setup_popup(mbox)
             self.h._prompt_rename_camera(0)
-            mbox.question.assert_not_called()
+            mbox.assert_not_called()
         self.mock_db.update_session_config.assert_not_called()
         self.assertIsNone(self.h._persisted)
 
