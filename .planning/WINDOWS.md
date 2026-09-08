@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 4
+open_count: 5
 waived_count: 1
 fixed_count: 1
-total_count: 6
-last_updated: 2026-09-06T09:02:24.671Z
+total_count: 7
+last_updated: 2026-09-08T09:38:29.865Z
 ---
 
 # Broken Windows Ledger
@@ -21,6 +21,7 @@ last_updated: 2026-09-06T09:02:24.671Z
 | 4 | 01.6.0 | deviation | tests/test_e2e.py |  | Flake de timing bajo carga (pre-existente): e2e rotativo 'segunda ingesta no termino a tiempo' en suite completa; pasa aislado; disco C: con ~4,4 GB libres | open |  | 2026-09-05T09:50:31.784Z |  |
 | 5 | quick-260906-ci2 | unrun-verify | tests/test_mtp.py | 374 | test_wpd_session_devicename_no_duplicate falla solo en full-suite (pre-existente en HEAD, pasa aislado) | open |  | 2026-09-06T07:45:55.854Z |  |
 | 6 | quick-260906-epl | deviation | tests/test_mtp.py | 374 | Falla pre-existente dependiente del orden: tests/test_mtp.py::TestThreadLocalManager::test_wpd_session_devicename_no_duplicate falla solo en suite completa (pasa en aislamiento); idéntica en HEAD 9cf857f. Descubierta durante quick 260906-epl (refactor UI, no relacionada). | open |  | 2026-09-06T09:02:24.671Z |  |
+| 7 | quick-260908-f5o | unrun-verify | tests/test_main_window.py | 977 | test_rename_in_dialog_ftp_prefix falla (QLineEdit sin setEditText) por cambios sin commitear de 260907-fb2 en add_source_dialog.py — pre-existente, fuera de scope | open |  | 2026-09-08T09:38:29.865Z |  |
 
 ````json
 [
@@ -94,6 +95,18 @@ last_updated: 2026-09-06T09:02:24.671Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-06T09:02:24.671Z",
+    "resolved_at": null
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "quick-260908-f5o",
+    "file": "tests/test_main_window.py",
+    "line": 977,
+    "description": "test_rename_in_dialog_ftp_prefix falla (QLineEdit sin setEditText) por cambios sin commitear de 260907-fb2 en add_source_dialog.py — pre-existente, fuera de scope",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-08T09:38:29.865Z",
     "resolved_at": null
   }
 ]
