@@ -44,3 +44,15 @@ Hallazgos fuera de scope de este plan, registrados para fases futuras. No correg
   (`FtpBackend`/`FtpSession`) y servidor HTTP WiFi (`ShootInboxServer`). El endurecimiento se aplicó a
   las superficies reales (ver SUMMARY). Si en el futuro se añade un servidor FTP, aplicarle los mismos
   patrones (settimeout + keepalive + límites).
+
+## 4. UI intervalo de fechas con posibles bugs
+
+- **Dónde:** interfaz de volcado selectivo por sesión / modo intervalo de fechas (UI sesiones y `SelectiveDumpAssistant`).
+- **Problema reportado:** la interfaz del intervalo de fechas parece tener bugs de comportamiento/validación (por confirmar con capturas y reproducción).
+- **Acción futura sugerida:** revisar fase 1.6.0 para auditoría de la UI del intervalo de fechas: validación de rango, sincronización con `date_key_for_file`, inicialización de `session_date_mode`, y consistencia entre diálogo y tabla de sesiones. Registrar hallazgos en un plan dedicado de UI-04/UI-05.
+
+## 5. Traducción inglesa incompleta / cadenas sin traducir en UI
+
+- **Dónde:** `app/i18n/cosechamedia_en.ts` / `cosechamedia_en.qm`. Varios diálogos muestran cadenas en español en modo inglés, p.ej. `ProjectSettingsDialog` muestra `proyecto, datos, guardar, cancelar, establecer como predeterminado` en español; también faltan traducciones para cadenas nuevas de `AddSourceDialog`, `ReorganizeDialog`, `SelectiveDumpAssistant`, `FtpStatusDialog`, etc.
+- **Problema:** el catálogo inglés no incluye todas las cadenas usadas con `tr()` en contextos nuevos. Algunas cadenas están presentes en el catálogo pero con contexto distinto, por lo que Qt no las aplica. Se detectaron 119 cadenas usadas con `tr()` sin entrada `<source>` y 13 casos con traducción idéntica a la fuente.
+- **Acción futura sugerida:** generar el `.ts` con `lupdate` sobre el código Python, consolidar contextos, homogeneizar terminología *ingest/ingestion*, completar traducciones faltantes, y recompilar `.qm`. Registrar la tarea en un plan dedicado de i18n/UX-01.
