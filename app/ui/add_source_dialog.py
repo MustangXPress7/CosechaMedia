@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 from app.core import utils
 from app.core import mtp
 from app.core import ftp as ftpmod
-from app.core.db import db
+from app.core.db import db, usb_device_id
 from app.core.translator import QtString
 from app.ui import theme
 from app.ui import icons
@@ -72,7 +72,7 @@ class AddSourceDialog(QDialog):
         return QtString(super().tr(text, *args, **kwargs))
 
     def __init__(self, parent=None, folders=(), senders=(),
-                 devices_missing=(), devices_connected=(),
+                 devices_missing=(), devices_connected=(), usb_connected=(),
                  mtp_backend=None, ftp_backend=None,
                  on_delete=None, on_detect=None, on_qr=None,
                  on_camera_name_changed=None, on_wifi_status=None,
@@ -102,11 +102,11 @@ class AddSourceDialog(QDialog):
 
         self.setWindowTitle(self.tr("Añadir origen"))
         self.setMinimumSize(800, 500)
-        self._build_ui(folders, senders, devices_missing, devices_connected)
+        self._build_ui(folders, senders, devices_missing, devices_connected, usb_connected)
 
     # -- construcción de la UI --------------------------------------------
 
-    def _build_ui(self, folders, senders, devices_missing, devices_connected):
+    def _build_ui(self, folders, senders, devices_missing, devices_connected, usb_connected=()):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(10)
@@ -180,12 +180,12 @@ class AddSourceDialog(QDialog):
         layout.addLayout(buttons)
 
         # ---- poblado de secciones ----
-        self._populate(folders, senders, devices_missing, devices_connected)
+        self._populate(folders, senders, devices_missing, devices_connected, usb_connected)
         self._update_ok_state()
 
     # -- poblado ----------------------------------------------------------
 
-    def _populate(self, folders, senders, devices_missing, devices_connected):
+    def _populate(self, folders, senders, devices_missing, devices_connected, usb_connected=()):
         row = 0
         # Sección física
         row = self._add_section(row, self.tr("Conexión física (MTP/USB/SD)"))
@@ -215,24 +215,38 @@ class AddSourceDialog(QDialog):
                 row, {"kind": "device", "value": device_id,
                       "camera": name, "enabled": True, "connected": True,
                       "label": self.tr("[MTP] %1").arg(name), "type": "MTP"})
-        # Unidades USB masivas removibles (D-13/D-14). Solo se escanean en
-        # construcción cuando hay un backend explícito (o el llamador ya
-        # pre-detectó): evita dependencia del estado real del equipo en tests.
-        if self._explicit_mtp:
-            for drive in utils.get_mounted_drives():
-                # get_mounted_drives() devuelve dicts {"path","type","label"};
-                # aceptamos también strings por robustez.
-                drive_path = drive if isinstance(drive, str) else drive.get("path", "")
-                if not drive_path:
-                    continue
-                if utils.is_removable_drive(drive_path):
-                    row = self._add_source_row(
-                        row, {"kind": "usb", "value": drive_path,
-                              "camera": self.tr("Sin nombre"), "enabled": True,
-                              "connected": True,
-                              "label": self.tr("[USB] %1").arg(drive_path),
-                              "type": "USB"})
-        # Desconectados (D-03/D-12): filas atenuadas, no seleccionables
+        # Unidades USB masivas removibles (D-13/D-14). En producción el llamador
+        # pre-detecta y pasa `usb_connected`: así una USB montada aparece
+        # SIEMPRE seleccionable, sin depender de un registro guardado (reusar
+        # en otros proyectos tras borrar el origen). Con backend explícito
+        # (tests) se escanea en construcción como fallback.
+        connected_usb = list(usb_connected)
+        if not connected_usb and self._explicit_mtp:
+            try:
+                for drive in utils.get_mounted_drives():
+                    drive_path = drive if isinstance(drive, str) else drive.get("path", "")
+                    if drive_path and utils.is_removable_drive(drive_path):
+                        connected_usb.append(drive_path)
+            except Exception:
+                connected_usb = []
+        for drive_path in connected_usb:
+            if not drive_path:
+                continue
+            if self._row_for_source("usb", drive_path) is not None:
+                continue
+            # Quick 260908-f5o: auto-rellenar nombre conocido (device_settings/
+            # known_devices) como en MTP, no «Sin nombre» a ciegas.
+            saved_usb = db.get_dispositivo_for_device(usb_device_id(drive_path))
+            usb_name = saved_usb or self.tr("Sin nombre")
+            row = self._add_source_row(
+                row, {"kind": "usb", "value": drive_path,
+                      "camera": usb_name, "enabled": True,
+                      "connected": True,
+                      "label": self.tr("[USB] %1").arg(drive_path),
+                      "type": "USB"})
+        # Desconectados (D-03/D-12): filas atenuadas, no seleccionables.
+        # (Una USB montada nunca llega aquí: el llamador la pre-detecta y la
+        # muestra en la sección física vía usb_connected.)
         for dev in devices_missing:
             device_id = dev["id"]
             # Los dispositivos WiFi y FTP se gestionan en su propia sección; no mostrarlos aquí
@@ -241,6 +255,10 @@ class AddSourceDialog(QDialog):
             saved_camera = db.get_dispositivo_for_device(device_id)
             name = saved_camera or dev.get("name") or device_id
             if device_id.startswith("usb:"):
+                # Si la unidad ya se listó como conectada (usb_connected),
+                # no añadir fila atenuada duplicada.
+                if self._row_for_source("usb", device_id[len("usb:"):]) is not None:
+                    continue
                 # Unidad USB masiva guardada: etiqueta/estilo propios, no [MTP]
                 row = self._add_source_row(
                     row, {"kind": "usb", "value": device_id[len("usb:"):],
@@ -708,16 +726,19 @@ class AddSourceDialog(QDialog):
                 continue
             if utils.is_removable_drive(drive_path) and \
                     self._row_for_source("usb", drive_path) is None:
+                # Quick 260908-f5o: auto-rellenar nombre conocido (mirror MTP)
+                saved_usb = db.get_dispositivo_for_device(usb_device_id(drive_path))
+                usb_name = saved_usb or self.tr("Sin nombre")
                 self._append_raw_source({
-                    "kind": "usb", "value": drive_path, "camera": self.tr("Sin nombre"),
+                    "kind": "usb", "value": drive_path, "camera": usb_name,
                     "enabled": True, "connected": True,
                     "label": self.tr("[USB] %1").arg(drive_path), "type": "USB"},
                     insert_before_row=wifi_row)
                 # Persist USB drive to known_devices for cross-project persistence
                 try:
-                    db.upsert_known_device(f"usb:{drive_path}", "usb",
+                    db.upsert_known_device(usb_device_id(drive_path), "usb",
                                            name=drive_path,
-                                           last_camera=self.tr("Sin nombre"))
+                                           last_camera=usb_name)
                 except Exception:
                     pass
                 wifi_row += 1
