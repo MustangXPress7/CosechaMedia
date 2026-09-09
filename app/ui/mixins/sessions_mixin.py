@@ -22,7 +22,6 @@ class SessionsMixin:
         else:
             # No restaurar sesión del combo anterior al cambiar de proyecto
             target_id = None
-        print(f"[SESSION DEBUG] _refresh_sessions_combo project_id={self.current_project_id} restore_id={restore_id} target_id={target_id}")
         
         self.sessions_combo.blockSignals(True)
         self.sessions_combo.clear()
@@ -146,7 +145,6 @@ class SessionsMixin:
         except (TypeError, ValueError):
             filt = None
         mode = sess.get("content_mode") or "all"
-        print(f"[SESSION DEBUG] _session_content_state sid={sid} mode={mode} restricted={restricted} filt={filt}")
         return mode, filt, restricted
 
     @staticmethod

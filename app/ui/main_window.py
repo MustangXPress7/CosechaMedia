@@ -907,10 +907,9 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
             self.btn_start.setEnabled(True)
             return
         sessions = db.get_sessions(self.current_project_id)
-        self.btn_start.setEnabled(
-            any(s.get("source_path") and os.path.isdir(s["source_path"])
+        enabled = any(s.get("source_path") and os.path.isdir(s["source_path"])
                 and s.get("enabled", True) for s in sessions)
-)
+        self.btn_start.setEnabled(enabled)
         self._update_format_sources_state()
 
     def _refresh_recent_paths(self):
