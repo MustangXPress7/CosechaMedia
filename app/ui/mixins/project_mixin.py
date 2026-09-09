@@ -37,14 +37,12 @@ class ProjectMixin:
             self.project_combo.blockSignals(False)
 
         if previous_id is not None:
+            # Guardar sesión antes de cambiar el índice para que _refresh_sessions_combo la restaure
+            if previous_session_id is not None:
+                self._restore_session_id = previous_session_id
             idx = self.project_combo.findData(previous_id)
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
-            # Restaurar sesión activa si sigue existiendo en el proyecto recargado
-            if previous_session_id is not None:
-                # _load_project se llamará via on_project_selected y luego _refresh_sessions_combo
-                # Guardamos el session_id deseado para restaurarlo después de poblar el combo
-                self._restore_session_id = previous_session_id
 
     def on_project_selected(self, index):
         self._reset_wifi_ingestors()
