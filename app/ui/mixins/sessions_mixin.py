@@ -20,7 +20,9 @@ class SessionsMixin:
             target_id = restore_id
             self._restore_session_id = None
         else:
-            target_id = self.sessions_combo.currentData()
+            # No restaurar sesión del combo anterior al cambiar de proyecto
+            target_id = None
+        print(f"[SESSION DEBUG] _refresh_sessions_combo project_id={self.current_project_id} restore_id={restore_id} target_id={target_id}")
         
         self.sessions_combo.blockSignals(True)
         self.sessions_combo.clear()
