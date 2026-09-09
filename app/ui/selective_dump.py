@@ -156,7 +156,7 @@ class DateSelectCalendar(QCalendarWidget):
         self._grid = self._find_grid()
         if self._grid is not None:
             self._grid_viewport = self._grid.viewport()
-            self._grid.installEventFilter(self)
+            # Solo filtrar el viewport para evitar duplicados y coordenadas incorrectas
             if self._grid_viewport is not None:
                 self._grid_viewport.installEventFilter(self)
 
@@ -177,8 +177,10 @@ class DateSelectCalendar(QCalendarWidget):
         self.updateCells()
         if counts:
             dates = sorted(counts.keys())
-            self.setMinimumDate(QDate(dates[0].year(), 1, 1))
-            self.setMaximumDate(QDate(dates[-1].year(), 12, 31))
+            # Desactivar min/max para evitar que QCalendarWidget oculte celdas
+            # y desplace el indexAt. El filtrado se hace a nivel lógico.
+            # self.setMinimumDate(QDate(dates[0].year(), 1, 1))
+            # self.setMaximumDate(QDate(dates[-1].year(), 12, 31))
             self.setSelectedDate(dates[0])
 
     def clear_selection(self):
@@ -233,35 +235,49 @@ class DateSelectCalendar(QCalendarWidget):
     def _date_at(self, pos):
         """Fecha bajo un punto en coordenadas del viewport de la rejilla.
 
-        Recorre los rects reales de las celdas (los mismos que Qt usa para
-        pintar) en lugar de indexAt(): con alturas de fila fraccionarias o
-        scroll interno, indexAt puede desviarse una fila del clic."""
+        Busca la celda cuyo visualRect contiene el punto para evitar
+        problemas de indexAt con celdas con contenido y DPI.
+        Se expande ligeramente hacia abajo para capturar clics sobre el contador."""
         if self._grid is None:
             return None
-        try:
-            model = self._grid.model()
-        except Exception:
-            return None
+        model = self._grid.model()
         if model is None:
             return None
+        # Recorrer celdas y buscar la que contiene el punto, con margen inferior
         for row in range(1, model.rowCount()):
             for col in range(1, model.columnCount()):
-                try:
-                    rect = self._grid.visualRect(model.index(row, col))
-                except Exception:
-                    continue
-                if rect is not None and rect.contains(pos):
-                    return self._date_for_index(row, col)
+                idx = model.index(row, col)
+                rect = self._grid.visualRect(idx)
+                if rect is not None:
+                    # Expandir rect 30 px hacia abajo para capturar contador
+                    expanded = rect.__class__(rect.x(), rect.y(), rect.width(), rect.height() + 30)
+                    if expanded.contains(pos) or rect.contains(pos):
+                        return self._date_from_grid(row, col)
+        # Fallback a indexAt
+        idx = self._grid.indexAt(pos)
+        if idx.isValid():
+            row = idx.row()
+            col = idx.column()
+            if row >= 1 and col >= 1:
+                return self._date_from_grid(row, col)
         return None
 
-    def _date_for_index(self, row, col):
-        # La rejilla es 7 filas x 8 columnas: fila 0 = cabecera de días,
-        # col 0 = número de semana, cols 1..7 = lun..dom.
+    def _date_from_grid(self, row, col):
+        """Calcula la fecha desde row/col de la rejilla.
+
+        Usa firstDayOfWeek() del widget para evitar dependencias de locale."""
         if row < 1 or col < 1:
             return None
         first = QDate(self.yearShown(), self.monthShown(), 1)
-        monday = first.addDays(-(first.dayOfWeek() - 1))
-        return monday.addDays((row - 1) * 7 + (col - 1))
+        try:
+            dow = int(self.firstDayOfWeek())
+            if dow < 1 or dow > 7:
+                dow = 1
+        except Exception:
+            dow = 1
+        offset = (first.dayOfWeek() - dow) % 7
+        start = first.addDays(-offset)
+        return start.addDays((row - 1) * 7 + (col - 1))
 
     def _viewport_pos(self, obj, pos):
         """Convierte un punto del widget que entregó el evento (vista o
@@ -275,12 +291,13 @@ class DateSelectCalendar(QCalendarWidget):
             etype = event.type()
             if etype in (QEvent.Type.MouseButtonPress, QEvent.Type.MouseButtonDblClick):
                 if event.button() == Qt.LeftButton:
-                    pos = self._viewport_pos(obj, event.position().toPoint())
+                    # Usar event.pos() para coordenadas lógicas coherentes con indexAt
+                    pos = self._viewport_pos(obj, event.pos())
                     self._handle_press(pos, event.modifiers())
                     return True
             elif etype == QEvent.Type.MouseMove:
                 if event.buttons() & Qt.LeftButton:
-                    pos = self._viewport_pos(obj, event.position().toPoint())
+                    pos = self._viewport_pos(obj, event.pos())
                     self._handle_drag(pos)
                     return True
             elif etype == QEvent.Type.MouseButtonRelease:

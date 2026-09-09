@@ -407,8 +407,11 @@ class Ingestor(QObject):
                 if verdict == "errored":
                     return False
                 if verdict == "copied":
-                    # Copiado antes pero destino borrado → re-volcar (F-02).
-                    return False
+                    # Copiado antes pero destino borrado → re-volcar SOLO si
+                    # el archivo sigue dentro de la ventana de contenido activa.
+                    if self._content_filter is None or self._matches_filter(source_path):
+                        return False
+                    return True
                 if verdict == "filtered":
                     saved_key = db.load_seen_filter_key(self.source_dir, source_path)
                     return saved_key == self._content_filter_signature()
@@ -464,9 +467,10 @@ class Ingestor(QObject):
                     cursor = conn.cursor()
                     cursor.execute(
                         "SELECT dest_path FROM files WHERE source_path = ? "
+                        "AND session_id = ? "
                         "AND status IN ('completed', 'reference') "
                         "ORDER BY id DESC LIMIT 1",
-                        (source_path,)
+                        (source_path, self.session_id)
                     )
                     row = cursor.fetchone()
                 finally:

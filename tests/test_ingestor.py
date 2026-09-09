@@ -352,12 +352,10 @@ class TestIngestor(unittest.TestCase):
         finally:
             ing.stop()
 
-    def test_window_known_dump_missing_dest_is_recopied(self):
-        """«Últimos x días»: un archivo con volcado previo en la sesión cuya
-        copia falta en el archivo se re-vuelca AUNQUE su fecha haya quedado
-        fuera de la ventana recalculada (la ventana se ancla al último
-        volcado y deriva hacia adelante). El filtro solo decide contenido
-        nuevo, no reparar copias borradas."""
+    def test_window_known_dump_outside_window_is_skipped(self):
+        """«Últimos x días»: un archivo con volcado previo cuya fecha
+        quedó fuera de la ventana recalculada se omite aunque la copia
+        haya sido borrada. La ventana de contenido es la fuente de verdad."""
         src = self._make_source()
         conn = self.db.get_connection()
         cursor = conn.cursor()
@@ -369,17 +367,51 @@ class TestIngestor(unittest.TestCase):
         conn.commit()
         conn.close()
 
+        # Simular inventario de pasada previa (veredicto copied).
+        ingestor_module.db.save_seen(self.src_dir, {src: "copied"})
+
         ing = Ingestor(1, self.dst_dir, session_id=21,
                        content_mode="window",
                        content_filter={"window_days": 1})
+        ing.source_dir = self.src_dir
         try:
             # cutoff = 2026-08-09: el date_key 2024-01-02 quedaría fuera
             self.assertLess("2024-01-02", ing._content_filter["cutoff_date"])
             ing.handle_new_file(src)
             ing.executor.shutdown(wait=True)
             stats = ing.get_stats()
+            self.assertEqual(stats["processed"], 0,
+                             "Archivo fuera de ventana debe omitirse aunque hubiera volcado previo")
+            self.assertEqual(stats["skipped"], 1)
+        finally:
+            ing.stop()
+
+    def test_window_known_dump_inside_window_is_recopied(self):
+        """«Últimos x días»: un archivo con volcado previo cuya fecha
+        SÍ está dentro de la ventana se re-vuelca si la copia fue borrada."""
+        src = self._make_source()
+        conn = self.db.get_connection()
+        cursor = conn.cursor()
+        # date_key del archivo de prueba es 2024-01-02; window_days=1
+        # con last_dump_date = 2024-01-02 → cutoff = 2024-01-01 → dentro
+        cursor.execute(
+            "INSERT INTO files (session_id, source_path, dest_path, file_size,"
+            " md5_hash, status, verified_at) VALUES (?, ?, ?, 1, 'x',"
+            " 'completed', '2024-01-02 12:00:00')",
+            (str(21), src, os.path.join(self.dst_dir, "perdido.mp4")))
+        conn.commit()
+        conn.close()
+
+        ing = Ingestor(1, self.dst_dir, session_id=21,
+                       content_mode="window",
+                       content_filter={"window_days": 1})
+        try:
+            self.assertEqual(ing._content_filter["cutoff_date"], "2024-01-01")
+            ing.handle_new_file(src)
+            ing.executor.shutdown(wait=True)
+            stats = ing.get_stats()
             self.assertEqual(stats["processed"], 1,
-                             "El volcado previo sin copia debe re-volearse aunque quede fuera de la ventana")
+                             "Archivo dentro de ventana sin copia debe re-volcarse")
             self.assertEqual(stats["skipped"], 0)
             dest = os.path.join(self.dst_dir, "Footage", "TestCam", "2024-01-02", "clip.mp4")
             self.assertTrue(os.path.exists(dest))
