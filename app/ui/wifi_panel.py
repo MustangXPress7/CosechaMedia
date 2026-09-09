@@ -91,6 +91,12 @@ class ShootInboxPanel(QWidget):
         self._bridge.received.connect(self._on_file_received)
         self._sender_name = None
         self._build_ui()
+        # Temporizador persistente (hijo del panel): si el panel se destruye
+        # antes de dispararse, Qt cancela el callback y evita un crash nativo.
+        # Un QTimer.singleShot global seguiría llamando a un widget ya borrado.
+        self._copy_timer = QTimer(self)
+        self._copy_timer.setSingleShot(True)
+        self._copy_timer.timeout.connect(self._restore_copy_btn)
         self._apply_theme()
         self.refresh()
 
@@ -289,7 +295,7 @@ class ShootInboxPanel(QWidget):
         QApplication.clipboard().setText(url)
         self.copy_btn.setText(self.tr("Copiado"))
         self.copy_btn.setEnabled(False)
-        QTimer.singleShot(1500, self._restore_copy_btn)
+        self._copy_timer.start(1500)
 
     def _restore_copy_btn(self):
         self.copy_btn.setText(self.tr("Copiar"))

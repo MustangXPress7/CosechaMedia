@@ -184,9 +184,6 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.setup_views()
 
         settings = QSettings("Audiovisual Production", "CosechaMedia")
-        stored_mode = settings.value("camera_detection_mode", "manual")
-        self.project_camera_detection_mode = stored_mode if stored_mode in ("manual", "auto") else "manual"
-        self.project_camera_detection_timeout = settings.value("camera_detection_timeout", 5, type=int)
         geometry = settings.value("geometry", type=QByteArray)
         if geometry:
             self.restoreGeometry(geometry)
@@ -354,18 +351,20 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         header = self.source_list.horizontalHeader()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.Interactive)
-        header.setSectionResizeMode(2, QHeaderView.Interactive)
-        header.setSectionResizeMode(3, QHeaderView.Interactive)
-        header.setMinimumSectionSize(32)
-        header.resizeSection(1, 70)
+        header.setSectionResizeMode(1, QHeaderView.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.Fixed)
+        header.setSectionResizeMode(3, QHeaderView.Fixed)
+        header.setMinimumSectionSize(40)
+        header.resizeSection(1, 120)
         header.resizeSection(2, 90)
         header.resizeSection(3, 110)
+        self.source_list.setMinimumWidth(300)
+        self.source_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.source_list.verticalHeader().setVisible(False)
         self.source_list.setSelectionBehavior(QTableWidget.SelectRows)
         self.source_list.setSelectionMode(QTableWidget.SingleSelection)
         self.source_list.setSizePolicy(
-            QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred))
+            QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding))
         self.source_list.itemChanged.connect(self._on_source_check_changed)
         self.source_list.itemDoubleClicked.connect(self._on_source_double_clicked)
         self.source_list.setContextMenuPolicy(Qt.CustomContextMenu)
@@ -398,6 +397,14 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         icons.apply(self.btn_new_session, "plus", size=18)
         self.btn_new_session.clicked.connect(self._add_manual_session)
         sess_top.addWidget(self.btn_new_session)
+
+        self.btn_rename_session = QPushButton()
+        self.btn_rename_session.setObjectName("IconButton")
+        self.btn_rename_session.setFixedSize(28, 28)
+        self.btn_rename_session.setToolTip(self.tr("Renombrar sesión"))
+        icons.apply(self.btn_rename_session, "pencil", size=18)
+        self.btn_rename_session.clicked.connect(self._rename_current_session)
+        sess_top.addWidget(self.btn_rename_session)
 
         self.btn_delete_session = QPushButton()
         self.btn_delete_session.setObjectName("IconButton")
@@ -762,6 +769,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._assemble_layout()
         self._connect_signals()
 
+    
     def _on_splitter_moved(self, pos, index):
         sizes = self._main_splitter.sizes()
         total = sum(sizes) or 1
@@ -772,6 +780,17 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
             self._position_splitter_restore_btn()
         else:
             self._splitter_restore_btn.hide()
+        # Fuerza recálculo del header Stretch de source_list al mover el splitter
+        if hasattr(self, 'source_list') and self.source_list:
+            try:
+                self.source_list.horizontalHeader().updateGeometries()
+                # asegura que la columna 0 ocupa el espacio disponible
+                hdr = self.source_list.horizontalHeader()
+                fixed = hdr.sectionSize(1) + hdr.sectionSize(2) + hdr.sectionSize(3)
+                avail = max(40, self.source_list.viewport().width() - fixed - 2)
+                hdr.resizeSection(0, avail)
+            except Exception:
+                pass
 
     def _position_splitter_restore_btn(self):
         handle = self._main_splitter.handle(1)

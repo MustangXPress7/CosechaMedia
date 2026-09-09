@@ -198,10 +198,15 @@ class _WpdSession:
     def __init__(self, pnp_id: str):
         _ensure_types()
         import ctypes
+        import importlib
         import comtypes
         import comtypes.client
-        import comtypes.gen.PortableDeviceApiLib as port
-        import comtypes.gen.PortableDeviceTypesLib as types
+        # Resolver los gen COM vía import_module (respecta sys.modules). Con un
+        # «import comtypes.gen.XLib as» el módulo real, una vez importado por
+        # otro componente, se cuela por el paquete comtypes.gen y desactiva el
+        # monkeypatch de sys.modules en los tests.
+        port = importlib.import_module("comtypes.gen.PortableDeviceApiLib")
+        types = importlib.import_module("comtypes.gen.PortableDeviceTypesLib")
         self._port = port
         self._types = types
         self._ctypes = ctypes
@@ -269,8 +274,9 @@ class _WpdSession:
         return self._read_prop("DEVICE", WPD_DEVICE_SERIAL_FMTID, 9)
 
     def _key_collection(self):
+        import importlib
         import comtypes.client
-        import comtypes.gen.PortableDeviceTypesLib as types
+        types = importlib.import_module("comtypes.gen.PortableDeviceTypesLib")
         if getattr(self, "_keys", None) is None:
             keys = comtypes.client.CreateObject(
                 types.PortableDeviceKeyCollection,
@@ -528,6 +534,12 @@ class WpdBackend(MtpBackend):
             return devices
         finally:
             if not was_initialized:
+                # Suelta la referencia LOCAL del manager (DM) y la del
+                # thread-local ANTES de CoUninitialize. Si el proxy comtypes
+                # se liberara después (al salir de la función), su __del__ haría
+                # Release sobre un apartamento ya cerrado y la app abortaría
+                # con un acceso inválido.
+                DM = None
                 _manager_local.device_manager = None
                 try:
                     comtypes.CoUninitialize()

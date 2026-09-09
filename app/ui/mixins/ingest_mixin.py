@@ -269,10 +269,8 @@ class IngestMixin:
         cam_name = self._camera_for_path(source_path)
         if cam_name:
             cam_text = cam_name
-        elif self.project_camera_detection_mode == "manual":
-            cam_text = self.tr("Sin nombre")
         else:
-            cam_text = self.tr("Detectando...")
+            cam_text = self.tr("Sin nombre")
         camera_item = QTableWidgetItem(cam_text)
         camera_item.setFlags(camera_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, 1, camera_item)
@@ -323,19 +321,8 @@ class IngestMixin:
         if item is not None:
             row = self.table.indexFromItem(item).row()
 
-            if self.project_camera_detection_mode != "manual" and metadata:
-                if metadata.get("metadata_verified") is False:
-                    camera_item = QTableWidgetItem(self.tr("⛔ Metadatos no verificados"))
-                    camera_item.setToolTip(self.tr("ffprobe no respondió; metadatos no verificados"))
-                elif metadata.get("camera_model") != "Unknown":
-                    camera_item = QTableWidgetItem(metadata["camera_model"])
-                else:
-                    # camera_model "Unknown" con metadatos verificados: no
-                    # sobreescribir con "Unknown"; conservar el valor que ya
-                    # mostraba la celda (nombre/Detectando...) para que
-                    # camera_item SIEMPRE esté enlazado (evita UnboundLocalError).
-                    existing = self.table.item(row, 1)
-                    camera_item = existing if existing is not None else QTableWidgetItem("")
+            if metadata and metadata.get("camera_model") not in ("Unknown", "", None):
+                camera_item = QTableWidgetItem(metadata["camera_model"])
                 self.table.setItem(row, 1, camera_item)
 
             if success:

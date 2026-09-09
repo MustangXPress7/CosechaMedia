@@ -94,12 +94,10 @@ class SourcesMixin:
 
             # Column 1: camera name
             cam = sess.get("nombre_dispositivo") if sess else None
-            cam_text = cam if cam else (self.tr("Sin nombre") if self.project_camera_detection_mode == "manual" else "—")
+            cam_text = cam if cam else self.tr("Sin nombre")
             cam_item = QTableWidgetItem(cam_text)
             if not checked:
                 cam_item.setForeground(QColor(theme.color("text_disabled")))
-            if self.project_camera_detection_mode != "manual":
-                cam_item.setFlags(cam_item.flags() & ~Qt.ItemIsEditable)
             self.source_list.setItem(row, 1, cam_item)
             # Column 2: estado de conectividad (Tarea 3)
             device_id = (sess or {}).get("device_id") or ""
@@ -646,11 +644,9 @@ class SourcesMixin:
                                   devices_connected=devices_connected,
                                   usb_connected=usb_connected,
                                   on_delete=self._delete_saved_source,
-                                  on_detect=self._detect_camera_for_source,
                                   on_qr=self._show_wifi_qr_for_sender,
                                   on_camera_name_changed=self._on_dialog_camera_name_changed,
-                                  on_wifi_status=lambda sender_id: self._wifi_server is not None and self._wifi_server.running,
-                                  camera_detection_mode=self.project_camera_detection_mode)
+                                  on_wifi_status=lambda sender_id: self._wifi_server is not None and self._wifi_server.running)
         if dialog.exec() != QDialog.Accepted:
             return None
         sources = dialog.result_sources()

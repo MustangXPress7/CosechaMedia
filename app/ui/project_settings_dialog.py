@@ -75,25 +75,6 @@ class ProjectSettingsDialog(QDialog):
 
         main_layout.addWidget(gen_group)
 
-        # --- Grupo Detección de cámara ---
-        cam_group = QGroupBox(self.tr("Detección de cámara"))
-        cam_layout = QFormLayout(cam_group)
-
-        cam_mode_combo = QComboBox()
-        cam_mode_combo.addItems([self.tr("Manual"), self.tr("Automático")])
-        cam_mode_combo.setCurrentIndex(0 if self.window.project_camera_detection_mode != "auto" else 1)
-        cam_layout.addRow(self.tr("Modo:"), cam_mode_combo)
-
-        cam_timeout_spin = QSpinBox()
-        cam_timeout_spin.setRange(1, 30)
-        cam_timeout_spin.setSuffix(" s")
-        cam_timeout_spin.setValue(self.window.project_camera_detection_timeout)
-        cam_timeout_spin.setEnabled(cam_mode_combo.currentIndex() == 1)
-        cam_layout.addRow(self.tr("Timeout:"), cam_timeout_spin)
-        cam_mode_combo.currentIndexChanged.connect(lambda i: cam_timeout_spin.setEnabled(i == 1))
-
-        main_layout.addWidget(cam_group)
-
         # --- Grupo Proxies ---
         prox_group = QGroupBox(self.tr("Proxies y rendimiento"))
         prox_layout = QFormLayout(prox_group)
@@ -122,20 +103,16 @@ class ProjectSettingsDialog(QDialog):
             self.window.project_manual_date = date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else None
             self.window.project_generate_proxies = chk_gen_proxies.isChecked()
             self.window.project_proxy_resolution = proxy_res_combo.currentText()
-            self.window.project_camera_detection_mode = "auto" if cam_mode_combo.currentIndex() == 1 else "manual"
-            self.window.project_camera_detection_timeout = cam_timeout_spin.value()
             if self.window.current_project_id is not None:
                 db.add_footage_folder(self.window.project_folder_name)
                 conn = db.get_connection()
                 cursor = conn.cursor()
                 cursor.execute(
                     'UPDATE projects SET folder_name=?, organization_type=?, date_mode=?, manual_date=?, '
-                    'generate_proxies=?, proxy_resolution=?, '
-                    'camera_detection_mode=?, camera_detection_timeout=?, camera_date_overrides=? WHERE id=?',
+                    'generate_proxies=?, proxy_resolution=?, camera_date_overrides=? WHERE id=?',
                     (self.window.project_folder_name, self.window.project_organization_type,
                      self.window.project_date_mode, self.window.project_manual_date,
                      int(self.window.project_generate_proxies), self.window.project_proxy_resolution,
-                     self.window.project_camera_detection_mode, self.window.project_camera_detection_timeout,
                      self.window.project_camera_date_overrides,
                      self.window.current_project_id)
                 )
@@ -153,8 +130,6 @@ class ProjectSettingsDialog(QDialog):
             settings.setValue("default_organization_type", org_combo.currentIndex())
             settings.setValue("default_date_mode", "manual" if date_mode_combo.currentIndex() == 1 else "auto")
             settings.setValue("default_manual_date", date_input.date().toString("yyyy-MM-dd") if date_mode_combo.currentIndex() == 1 else "")
-            settings.setValue("default_camera_detection_mode", "auto" if cam_mode_combo.currentIndex() == 1 else "manual")
-            settings.setValue("camera_detection_timeout", cam_timeout_spin.value())
             self.window.ingest_status_label.setText(self.tr("Valores guardados como predeterminados."))
         btn_defaults.clicked.connect(_set_defaults)
 

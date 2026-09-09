@@ -296,22 +296,6 @@ class TestAddSourceDialog(unittest.TestCase):
 
     # -- detección de cámara off-thread (D-08/D-09) -----------------------
 
-    def test_camera_detection_worker(self):
-        dlg = self._dialog(
-            folders=["E:\\DCIM"],
-            on_detect=lambda kind, value: "Sony A7 III")
-        row = dlg._row_for_source("folder", "E:\\DCIM")
-        cam = dlg.table.cellWidget(row, 2)
-        _set_camera(dlg, row, "")
-        dlg._detect_camera_for_row(row)
-        # worker lanzado; la UI no se bloquea y muestra progreso inline
-        self.assertEqual(dlg.tr("Detectando…"), _camera_text(dlg, row))
-        deadline = time.time() + 5
-        while _camera_text(dlg, row) == dlg.tr("Detectando…") and time.time() < deadline:
-            QApplication.processEvents()
-            time.sleep(0.01)
-        self.assertEqual(_camera_text(dlg, row), "Sony A7 III")
-
     # -- nueva funcionalidad (bugs/mejoras 2026-09-04) --------------------
 
     def test_delete_removes_row_from_table(self):
@@ -373,26 +357,6 @@ class TestAddSourceDialog(unittest.TestCase):
         cb = _checkbox(dlg, row)
         self.assertIsInstance(cb, QCheckBox)
         self.assertTrue(cb.isChecked() == cb.isChecked())
-
-    def test_camera_combo_with_trigger(self):
-        """CHG-5: la celda de cámara es un combo con disparador de detección."""
-        dlg = self._dialog(
-            folders=["E:\\DCIM"],
-            on_detect=lambda kind, value: "Sony A7 III")
-        row = dlg._row_for_source("folder", "E:\\DCIM")
-        combo = dlg.table.cellWidget(row, 2)
-        self.assertIsInstance(combo, QComboBox)
-        self.assertTrue(combo.isEditable())
-        # El último item es el disparador
-        last = combo.count() - 1
-        combo.setCurrentIndex(last)
-        # Disparar lanza detección
-        self.assertEqual(_camera_text(dlg, row), dlg.tr("Detectando…"))
-        deadline = time.time() + 5
-        while _camera_text(dlg, row) == dlg.tr("Detectando…") and time.time() < deadline:
-            QApplication.processEvents()
-            time.sleep(0.01)
-        self.assertEqual(_camera_text(dlg, row), "Sony A7 III")
 
     def test_detected_device_inserted_in_physical_section(self):
         """BUG-3: tras "Detectar", los MTP nuevos se insertan antes de la sección WiFi."""
@@ -791,8 +755,8 @@ class TestCameraVacioDefault(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def _combo(self, mode="auto", camera=""):
-        dlg = AddSourceDialog(None, camera_detection_mode=mode)
+    def _combo(self, camera=""):
+        dlg = AddSourceDialog(None)
         src = {"kind": "device", "value": "PNP1", "camera": camera,
                "enabled": True, "connected": True}
         dlg._row_sources = [None, src]
@@ -801,33 +765,21 @@ class TestCameraVacioDefault(unittest.TestCase):
             combo = dlg._build_camera_combo(1, src)
         return dlg, combo
 
-    def test_auto_mode_has_vacio_and_is_default(self):
-        dlg, combo = self._combo("auto")
+    def test_manual_mode_has_vacio_and_is_default(self):
+        dlg, combo = self._combo()
         texts = [combo.itemText(i) for i in range(combo.count())]
         self.assertIn(dlg.tr("— Sin nombre —"), texts)
         self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
         self.assertEqual(combo.itemData(combo.currentIndex()), "VACIO")
         self.assertEqual(combo.lineEdit().text(), "")
 
-    def test_manual_mode_has_vacio_and_is_default(self):
-        dlg, combo = self._combo("manual")
-        texts = [combo.itemText(i) for i in range(combo.count())]
-        self.assertIn(dlg.tr("— Sin nombre —"), texts)
-        self.assertEqual(combo.currentIndex(), dlg._vacio_trigger_index)
-        self.assertEqual(combo.lineEdit().text(), "")
-
-    def test_auto_mode_still_offers_detect_trigger(self):
-        from app.ui.add_source_dialog import TRIGGER_DETECT
-        dlg, combo = self._combo("auto")
-        self.assertIs(combo.itemData(combo.count() - 1), TRIGGER_DETECT)
-
     def test_known_camera_still_selected_when_present(self):
-        dlg, combo = self._combo("auto", camera="Sony FX6")
+        dlg, combo = self._combo(camera="Sony FX6")
         self.assertEqual(combo.currentText(), "Sony FX6")
         self.assertNotEqual(combo.currentIndex(), dlg._vacio_trigger_index)
 
     def test_selecting_vacio_clears_camera_text(self):
-        dlg, combo = self._combo("auto", camera="Sony FX6")
+        dlg, combo = self._combo(camera="Sony FX6")
         dlg._row_sources = [None, {"kind": "device", "value": "PNP1",
                                    "camera": "Sony FX6", "connected": True}]
         dlg.table.setCellWidget(1, 2, combo)
@@ -893,17 +845,6 @@ class TestCameraNameChangedCallback(unittest.TestCase):
         _set_camera(dlg, row, "Cámara X")
         self.assertEqual(calls, [])
 
-    def test_placeholder_detectando_not_persisted(self):
-        """El placeholder 'Detectando…' no se guarda como nombre real."""
-        calls = []
-        dlg = self._dialog(
-            devices_connected=[DeviceInfo("dev-2", "Cámara B")],
-            on_camera_name_changed=lambda did, name: calls.append((did, name)))
-        row = dlg._row_for_source("device", "dev-2")
-        combo = dlg.table.cellWidget(row, 2)
-        combo.setEditText(dlg.tr("Detectando…"))
-        self.assertEqual(calls, [])
-
     def test_placeholder_sin_nombre_not_persisted(self):
         """El placeholder 'Sin nombre' no se guarda como nombre real."""
         calls = []
@@ -914,18 +855,6 @@ class TestCameraNameChangedCallback(unittest.TestCase):
         combo = dlg.table.cellWidget(row, 2)
         combo.setEditText(dlg.tr("Sin nombre"))
         self.assertEqual(calls, [])
-
-    def test_auto_detect_result_saved_via_callback(self):
-        """Al detectar automáticamente, el nombre resultante se escribe en la
-        celda Y se persiste vía el mismo callback (D-09 + B-20)."""
-        calls = []
-        dlg = self._dialog(
-            devices_connected=[DeviceInfo("dev-4", "Cámara D")],
-            on_camera_name_changed=lambda did, name: calls.append((did, name)))
-        row = dlg._row_for_source("device", "dev-4")
-        dlg._on_camera_detected(row, True, "RED V-Raptor")
-        self.assertEqual(_camera_text(dlg, row), "RED V-Raptor")
-        self.assertEqual(calls, [("dev-4", "RED V-Raptor")])
 
 
 if __name__ == "__main__":

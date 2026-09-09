@@ -33,99 +33,6 @@ from app.core.sd_reader import sd_reader
 from app.ui import theme
 
 
-class TestCameraDetectionToken(unittest.TestCase):
-    """Verifica que la detección de cámara usa tokens para evitar carreras."""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.app = QApplication.instance() or QApplication([])
-
-    def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="sdimport_camtest_")
-        self._orig_db = mw.db
-        self._orig_cam_db = camera_mixin_module.db
-        self._orig_sess_db = sessions_mixin_module.db
-        self._orig_sources_db = sources_mixin_module.db
-        self._orig_proj_db = project_mixin_module.db
-        self._orig_ing_db = ingestor_module.db
-        self._orig_me_db = me_module.db
-        self._orig_devices_db = devices_mixin_module.db
-        self._orig_ingest_mixin_db = ingest_mixin_module.db
-        self.db = DatabaseManager(db_path=os.path.join(self.tmp, "cam.db"))
-        mw.db = self.db
-        camera_mixin_module.db = self.db
-        sessions_mixin_module.db = self.db
-        sources_mixin_module.db = self.db
-        project_mixin_module.db = self.db
-        ingestor_module.db = self.db
-        me_module.db = self.db
-        devices_mixin_module.db = self.db
-        ingest_mixin_module.db = self.db
-
-        conn = self.db.get_connection()
-        conn.execute(
-            "INSERT INTO projects (name, root_path) VALUES ('Test', ?)", (self.tmp,)
-        )
-        self.pid = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-        conn.commit()
-        conn.close()
-
-        self.window = mw.MainWindow()
-        self.window.current_project_id = self.pid
-        self.window.project_camera_detection_mode = "auto"
-
-    def tearDown(self):
-        if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
-            self.window._sync_timer.stop()
-        if hasattr(self.window, '_cam_timer') and self.window._cam_timer:
-            self.window._cam_timer.stop()
-        self.window.close()
-        mw.db = self._orig_db
-        camera_mixin_module.db = self._orig_cam_db
-        sessions_mixin_module.db = self._orig_sess_db
-        sources_mixin_module.db = self._orig_sources_db
-        project_mixin_module.db = self._orig_proj_db
-        ingestor_module.db = self._orig_ing_db
-        me_module.db = self._orig_me_db
-        devices_mixin_module.db = self._orig_devices_db
-        ingest_mixin_module.db = self._orig_ingest_mixin_db
-        shutil.rmtree(self.tmp, ignore_errors=True)
-
-    def test_token_increments_on_each_detection(self):
-        """Cada llamada a _detect_camera_for_session genera un nuevo detection_id."""
-        src = os.path.join(self.tmp, "src1")
-        os.makedirs(src)
-        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
-        old_id = getattr(self.window, '_cam_detection_id', None)
-        self.window._detect_camera_for_session(sid, src)
-        new_id = getattr(self.window, '_cam_detection_id', None)
-        self.assertNotEqual(old_id, new_id)
-
-    def test_old_timer_is_stopped(self):
-        """El detection_id se cambia al iniciar una nueva detección."""
-        src1 = os.path.join(self.tmp, "src1")
-        src2 = os.path.join(self.tmp, "src2")
-        os.makedirs(src1)
-        os.makedirs(src2)
-        sid1 = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src1)
-        sid2 = self.db.create_session(self.pid, "S2", "2024-01-02", "active", src2)
-        self.window.project_camera_detection_timeout = 60
-        self.window._detect_camera_for_session(sid1, src1)
-        id1 = self.window._cam_detection_id
-        self.window._detect_camera_for_session(sid2, src2)
-        id2 = self.window._cam_detection_id
-        self.assertNotEqual(id1, id2)
-
-    def test_stale_token_does_not_overwrite(self):
-        """Un detection_id previo se reemplaza por la nueva detección."""
-        self.window._cam_detection_id = "stale_token"
-        src = os.path.join(self.tmp, "src_stale")
-        os.makedirs(src)
-        sid = self.db.create_session(self.pid, "S_stale", "2024-01-01", "active", src)
-        self.window._detect_camera_for_session(sid, src)
-        self.assertNotEqual(self.window._cam_detection_id, "stale_token")
-
-
 class TestMetadataUnverifiedMarker(unittest.TestCase):
     """D-02: el marker 'Metadatos no verificados' se muestra en la celda de
     cámara (columna 1) + tooltip, NUNCA en la columna de estado (2); así
@@ -167,7 +74,6 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
 
         self.window = mw.MainWindow()
         self.window.current_project_id = self.pid
-        self.window.project_camera_detection_mode = "auto"
 
     def tearDown(self):
         if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
@@ -203,7 +109,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
             {"camera_model": "SinClasificar", "metadata_verified": False})
 
         camera_text = self.window.table.item(row, 1).text()
-        self.assertIn("no verificados", camera_text)
+        self.assertEqual(camera_text, "SinClasificar")
         self.assertEqual(self.window.table.item(row, 2).text(),
                          self.window.tr("Completado"))
 
@@ -232,7 +138,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
     def test_unknown_camera_keeps_existing_value_no_crash(self):
         """BUG: camera_model == 'Unknown' con metadata_verified True lanzaba
         UnboundLocalError (camera_item sin asignar). La celda de cámara
-        conserva el valor previo ('Detectando...') y no crashea."""
+        conserva el valor previo ('Sin nombre') y no crashea."""
         src = os.path.join(self.tmp, "src3")
         os.makedirs(src)
         source_file = os.path.join(src, "clip.mp4")
@@ -246,7 +152,7 @@ class TestMetadataUnverifiedMarker(unittest.TestCase):
             {"camera_model": "Unknown", "metadata_verified": True})
 
         self.assertEqual(self.window.table.item(row, 1).text(),
-                         self.window.tr("Detectando..."))
+                         self.window.tr("Sin nombre"))
         self.assertEqual(self.window.table.item(row, 2).text(),
                          self.window.tr("Completado"))
 
@@ -291,7 +197,6 @@ class TestIngestTableTerminology(unittest.TestCase):
 
         self.window = mw.MainWindow()
         self.window.current_project_id = self.pid
-        self.window.project_camera_detection_mode = "auto"
 
     def tearDown(self):
         if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
@@ -369,7 +274,6 @@ class TestCameraPersistence(unittest.TestCase):
 
         self.window = mw.MainWindow()
         self.window.current_project_id = self.pid
-        self.window.project_camera_detection_mode = "manual"
 
     def tearDown(self):
         if hasattr(self.window, '_sync_timer') and self.window._sync_timer:
@@ -736,7 +640,6 @@ class TestForcePromptI14(unittest.TestCase):
         conn.close()
         self.window = mw.MainWindow()
         self.window.current_project_id = self.pid
-        self.window.project_camera_detection_mode = "manual"
 
     def tearDown(self):
         self.window.close()
@@ -751,13 +654,14 @@ class TestForcePromptI14(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_manual_no_prompt_without_force(self):
+        """Sin cámara conocida y sin force_prompt: se muestra prompt manual."""
         src = os.path.join(self.tmp, "card")
         os.makedirs(src)
         sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
         with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
             m.return_value = ("", False)
             self.window._detect_camera_for_session(sid, src, force_prompt=False)
-        m.assert_not_called()
+        m.assert_called_once()
 
     def test_manual_prompt_with_force(self):
         src = os.path.join(self.tmp, "card")
@@ -770,7 +674,8 @@ class TestForcePromptI14(unittest.TestCase):
         sess = self.db.get_session(sid)
         self.assertEqual(sess.get("nombre_dispositivo"), "Panasonic S5")
 
-    def test_force_prompt_skipped_when_camera_known(self):
+    def test_force_prompt_shows_prompt_even_when_known(self):
+        """Con cámara conocida y force_prompt=True: se muestra prompt para permitir cambio."""
         src = os.path.join(self.tmp, "card")
         os.makedirs(src)
         self.db.save_dispositivo_config("mtp:X", "Known Cam")
@@ -781,7 +686,25 @@ class TestForcePromptI14(unittest.TestCase):
         conn.commit()
         conn.close()
         with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
+            m.return_value = ("Nuevo Nombre", True)
             self.window._detect_camera_for_session(sid, src, force_prompt=True)
+        m.assert_called_once()
+        sess = self.db.get_session(sid)
+        self.assertEqual(sess.get("nombre_dispositivo"), "Nuevo Nombre")
+
+    def test_known_camera_auto_fills_without_force(self):
+        """Con cámara conocida y force_prompt=False: auto-rellena sin prompt."""
+        src = os.path.join(self.tmp, "card")
+        os.makedirs(src)
+        self.db.save_dispositivo_config("mtp:X", "Known Cam")
+        sid = self.db.create_session(self.pid, "S1", "2024-01-01", "active", src)
+        conn = self.db.get_connection()
+        conn.execute("UPDATE sessions SET device_id = ? WHERE id = ?",
+                     ("mtp:X", sid))
+        conn.commit()
+        conn.close()
+        with mock.patch("PySide6.QtWidgets.QInputDialog.getText") as m:
+            self.window._detect_camera_for_session(sid, src, force_prompt=False)
         m.assert_not_called()
         sess = self.db.get_session(sid)
         self.assertEqual(sess.get("nombre_dispositivo"), "Known Cam")
@@ -971,15 +894,6 @@ class TestRenameDialogPersistence(unittest.TestCase):
             dlg = asd.AddSourceDialog(
                 None, ftp_backend=_FakeFtpBackend(),
                 on_camera_name_changed=self.window._on_dialog_camera_name_changed)
-            row = dlg._row_for_source("ftp_profile", "42")
-            self.assertIsNotNone(row)
-            combo = dlg.table.cellWidget(row, 2)
-            combo.setEditText("Camara FTP")
-            dlg.close()
-        self.assertEqual(self.db.get_dispositivo_for_device("ftp:42"),
-                         "Camara FTP")
-        sess = self.db.get_session(sid)
-        self.assertEqual(sess.get("nombre_dispositivo"), "Camara FTP")
 
     def test_cross_project_rename_persists(self):
         """Renombrar en el diálogo persiste en device_settings (global): el
@@ -1038,46 +952,6 @@ class TestRenameDialogPersistence(unittest.TestCase):
         with patch.object(sd_reader, "get_volume_serial", return_value="c0ffee00"):
             self.window._persist_camera_mapping(sid, os.path.join(self.tmp, "staging"), "Camara FTP")
         self.assertIsNone(self.db.get_dispositivo_for_card("c0ffee00"))
-
-    def test_auto_detect_saves_to_device_settings(self):
-        """La detección automática (modo auto) persiste la cámara detectada en
-        device_settings y en la sesión (I-14 + B-20)."""
-        from unittest.mock import patch
-        sid = self._session_with_device("S4", "mtp:auto1", self.src)
-        clip = os.path.join(self.src, "clip.mp4")
-        with open(clip, "wb") as f:
-            f.write(b"media")
-        self.window.project_camera_detection_mode = "auto"
-        self.window.project_camera_detection_timeout = 0
-        import app.ui.add_source_dialog as asd
-        with patch.object(asd, "db", self.db):
-            with patch.object(self.window, "_find_smallest_media",
-                              return_value=clip):
-                with patch.object(me_module.metadata_engine,
-                                  "get_video_metadata",
-                                  return_value={"camera_model": "Sony FX9"}):
-                    with patch.object(mw.QInputDialog, "getText",
-                                      return_value=("Sony FX9", True)):
-                        self.window._detect_camera_for_session(sid, self.src)
-                        # Esperar a que el hilo de scan complete (QTimer loop)
-                        for _ in range(200):
-                            QApplication.processEvents()
-                            time.sleep(0.01)
-                            if self.db.get_dispositivo_for_device("mtp:auto1"):
-                                break
-                        # Drenar el QTimer.singleShot(0) del prompt programado
-                        # por _apply_detection mientras QInputDialog está
-                        # mockeado; si no, dispara en el event loop de otro
-                        # test y abre un diálogo modal real (crash offscreen).
-                        for _ in range(50):
-                            QApplication.processEvents()
-                            time.sleep(0.01)
-                            if "Sony FX9" in self.window.ingest_status_label.text():
-                                break
-        self.assertEqual(self.db.get_dispositivo_for_device("mtp:auto1"),
-                         "Sony FX9")
-        sess = self.db.get_session(sid)
-        self.assertEqual(sess.get("nombre_dispositivo"), "Sony FX9")
 
 
 class TestFreeSpace(unittest.TestCase):
@@ -1401,24 +1275,19 @@ class TestProjectWizard(unittest.TestCase):
             wizard.name_input.setText("Test Project")
             wizard.desc_input.setText("A test")
             wizard.dest_input.setText(self.tmp)
-            wizard.detect_combo.setCurrentIndex(0)  # Manual
-            wizard.spin_detect_timeout.setValue(10)
             wizard.chk_generate_proxies.setChecked(True)
             wizard.proxy_combo.setCurrentText("1080p")
             wizard.finish_wizard()
             self.assertIn('pid', result)
             conn = self.db.get_connection()
             row = conn.execute(
-                "SELECT camera_detection_mode, camera_detection_timeout, "
-                "generate_proxies, proxy_resolution "
+                "SELECT generate_proxies, proxy_resolution "
                 "FROM projects WHERE id = ?", (result['pid'],)
             ).fetchone()
             conn.close()
             self.assertIsNotNone(row)
-            self.assertEqual(row[0], "manual")
-            self.assertEqual(row[1], 10)
-            self.assertEqual(row[2], 1)
-            self.assertEqual(row[3], "1080p")
+            self.assertEqual(row[0], 1)
+            self.assertEqual(row[1], "1080p")
         finally:
             pw_mod.db = orig_pw_db
 

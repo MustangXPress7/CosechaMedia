@@ -1,25 +1,17 @@
 import os
-import threading
-import uuid
-from PySide6.QtCore import QTimer, QDate, QSettings
+from PySide6.QtCore import QDate, QSettings
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QCheckBox
 from app.core.db import db
 from app.core.sd_reader import sd_reader
-from app.core.metadata_engine import metadata_engine
 from app.core.utils import get_mounted_drives
 
 class CameraMixin:
     """Métodos de detección/nombrado de cámara y lectura de tarjeta SD extraídos de MainWindow (quick 260906-fgl)."""
 
     def _on_camera_rename_needed(self, source_path, nombre_dispositivo):
-        if self.project_camera_detection_mode == "manual":
-            return
         self._unknown_cameras.add(nombre_dispositivo)
 
     def _post_ingest_rename_dialog(self):
-        if self.project_camera_detection_mode == "manual":
-            self._unknown_cameras.clear()
-            return
         if not self._unknown_cameras:
             return
         unknown_list = list(self._unknown_cameras)
@@ -132,13 +124,17 @@ class CameraMixin:
                 return cam
         return None
 
-    def _detect_camera_for_session(self, session_id, source_path, force_prompt=False):
-        """Detecta la cámara para una sesión. Flujo I-03+I-14:
+    def _detect_camera_for_session(self, session_id, source_path, force_prompt=False,
+                                   prompt_if_unknown=True):
+        """Detecta la cámara para una sesión. Flujo simplificado (solo manual):
         1. Buscar nombre conocido (sd_cards por serial o device_settings por device_id)
         2. Auto-rellenar si se conoce → guardar en sesión y volver
-        3. Si no se conoce → detección automática (ffprobe) o prompt manual
+        3. Si no se conoce → prompt manual para nombre de dispositivo
         Si force_prompt=True (registro explícito de origen), se muestra el prompt
-        incluso en modo manual si no se detectó cámara.
+        incluso si hay cámara conocida (para permitir cambio).
+        Si prompt_if_unknown=False (auto-detección al inicio), no se abre el
+        diálogo modal: la cámara desconocida queda «Sin nombre» y se nombra
+        después (registro explícito o rename post-ingesta).
         """
         # 1. Buscar cámara conocida (I-03)
         sess = db.get_session(session_id)
@@ -154,7 +150,7 @@ class CameraMixin:
                 known_cam = db.get_dispositivo_for_card(serial)
 
         # 2. Auto-rellenar si se conoce (I-03)
-        if known_cam:
+        if known_cam and not force_prompt:
             db.update_session_config(session_id, nombre_dispositivo=known_cam)
             self._set_camera_cell_text(source_path, known_cam)
             self._refresh_source_list()
@@ -162,68 +158,13 @@ class CameraMixin:
             self.ingest_status_label.setText(self.tr("Dispositivo conocido: %1").arg(known_cam))
             return
 
-        # 3. Detección automática (I-14)
-        if self.project_camera_detection_mode == "manual":
+        # 3. Prompt manual para nombre de dispositivo
+        if not prompt_if_unknown:
+            db.update_session_config(session_id, nombre_dispositivo=None)
             self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-            if force_prompt:
-                self._prompt_nombre_dispositivo(session_id, source_path, "")
             return
-
-        self._set_camera_cell_text(source_path, "🔄 Escaneando…")
-        detection_id = uuid.uuid4().hex
-        self._cam_detection_id = detection_id
-        self._cam_timer = QTimer(self)
-        self._cam_timer.setSingleShot(True)
-        self._cam_scan_scheduled = False
-
-        def _apply_detection():
-            """Aplica el resultado del scan y muestra prompt (main thread)."""
-            if self._cam_detection_id != detection_id:
-                return
-            if self._cam_scan_scheduled:
-                return
-            self._cam_scan_scheduled = True
-            cam = getattr(self, '_cam_detected', None)
-            if cam:
-                self._set_camera_cell_text(source_path, cam)
-                db.update_session_config(session_id, nombre_dispositivo=cam)
-                self._persist_camera_mapping(session_id, source_path, cam)
-                self._refresh_source_list()
-                self._refresh_sessions_combo()
-                self.ingest_status_label.setText(
-                    self.tr("Dispositivo detectado: %1").arg(cam))
-            else:
-                self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
-            QTimer.singleShot(0, lambda c=cam or "": self._prompt_nombre_dispositivo(session_id, source_path, c))
-
-        def on_timeout():
-            _apply_detection()
-
-        self._cam_timer.timeout.connect(on_timeout)
-        self._cam_timer.start(self.project_camera_detection_timeout * 1000)
-
-        def scan():
-            if self._cam_detection_id != detection_id:
-                return
-            smallest = self._find_smallest_media(source_path)
-            if smallest is None:
-                self._cam_detected = None
-                QTimer.singleShot(0, _apply_detection)
-                return
-            try:
-                meta = metadata_engine.get_video_metadata(smallest)
-                cam = meta.get("camera_model", "") or ""
-                if cam and cam.strip() and cam != "Unknown":
-                    self._cam_detected = cam.strip()
-                    QTimer.singleShot(0, _apply_detection)
-                    return
-            except Exception:
-                pass
-            self._cam_detected = None
-            QTimer.singleShot(0, _apply_detection)
-
-        t = threading.Thread(target=scan, daemon=True)
-        t.start()
+        self._set_camera_cell_text(source_path, self.tr("Sin nombre"))
+        self._prompt_nombre_dispositivo(session_id, source_path, known_cam or "")
 
     def _prompt_nombre_dispositivo(self, session_id, source_path, suggested_name=""):
         """Prompt manual para nombre de dispositivo (I-14)."""
@@ -248,43 +189,6 @@ class CameraMixin:
         self.ingest_status_label.setText(
             self.tr("Dispositivo: %1").arg(cam if ok and name.strip() else self.tr("Sin nombre"))
         )
-
-    def _detect_camera_for_source(self, kind, value):
-        """Detecta la cámara para un origen del AddSourceDialog (D-08/D-09).
-
-        Se ejecuta en un worker off-thread. Devuelve el nombre de cámara detectado
-        o cadena vacía si no se pudo detectar.
-        """
-        # Para carpetas locales y USB, usamos el path directamente
-        source_path = None
-        if kind == "folder":
-            source_path = value
-        elif kind == "usb":
-            source_path = value
-        elif kind == "device":
-            # Para MTP, el value es el device_id; no tenemos path directo aquí
-            # La detección para MTP se hace en el diálogo principal tras registro
-            return ""
-        elif kind == "sender":
-            # WiFi: no hay path local para detectar
-            return ""
-        elif kind == "ftp_profile":
-            return ""
-
-        if not source_path or not os.path.isdir(source_path):
-            return ""
-
-        try:
-            smallest = self._find_smallest_media(source_path)
-            if smallest is None:
-                return ""
-            meta = metadata_engine.get_video_metadata(smallest)
-            cam = meta.get("camera_model", "") or ""
-            if cam and cam.strip() and cam != "Unknown":
-                return cam.strip()
-        except Exception:
-            pass
-        return ""
 
     def _device_type_for_id(self, device_id):
         """Tipo known_devices para un device_id (ftp:/usb:/resto → mtp)."""
@@ -443,7 +347,7 @@ class CameraMixin:
                                 QDate.currentDate().toString("yyyy-MM-dd"), "active",
                                 source_path=p
                             )
-                        self._detect_camera_for_session(sid, p)
+                        self._detect_camera_for_session(sid, p, prompt_if_unknown=False)
             self._refresh_source_list()
             self._refresh_sessions_combo()
             self.update_start_button_state()

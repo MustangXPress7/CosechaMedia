@@ -82,7 +82,6 @@ class ProjectMixin:
         cursor.execute(
             'SELECT name, root_path, description, organization_type, duration_type, default_dispositivo, '
             'folder_name, delicate_mode, use_metadata_date, generate_proxies, proxy_resolution, '
-            'camera_detection_mode, camera_detection_timeout, '
             'date_mode, manual_date, camera_date_overrides '
             'FROM projects WHERE id = ?',
             (project_id,)
@@ -105,8 +104,6 @@ class ProjectMixin:
         self.project_use_metadata_date = bool(res["use_metadata_date"]) if res["use_metadata_date"] is not None else True
         self.project_generate_proxies = bool(res["generate_proxies"]) if res["generate_proxies"] is not None else False
         self.project_proxy_resolution = res["proxy_resolution"] or "720p"
-        self.project_camera_detection_mode = res["camera_detection_mode"] or "auto"
-        self.project_camera_detection_timeout = res["camera_detection_timeout"] if res["camera_detection_timeout"] is not None else 5
         self.project_date_mode = res["date_mode"] or "auto"
         self.project_manual_date = res["manual_date"]
         self.project_camera_date_overrides = res["camera_date_overrides"] or "{}"
@@ -478,12 +475,24 @@ class ProjectMixin:
             # Los dispositivos guardados son globales y deben persistir entre
             # proyectos (y visibles en «Añadir origen»). El único camino de
             # borrado es la papelera del diálogo (db.delete_device).
-            for serial in volume_serials:
-                cursor.execute(
-                    'SELECT COUNT(*) FROM sessions WHERE source_path IS NOT NULL AND project_id != ?',
-                    (self.current_project_id,))
-                if cursor.fetchone()[0] == 0:
-                    cursor.execute('DELETE FROM sd_cards WHERE serial = ?', (serial,))
+            #
+            # sd_cards (nombre de cámara por serial de volumen) sí se limpia,
+            # pero solo cuando el serial deja de estar referenciado por NINGUNA
+            # sesión restante (de otros proyectos). Antes el guard usaba un
+            # COUNT global de sesiones para todos los seriales por igual, lo que
+            # borraba tarjetas aún en uso por otras sesiones.
+            cursor.execute(
+                'SELECT source_path FROM sessions '
+                'WHERE source_path IS NOT NULL AND project_id != ?',
+                (self.current_project_id,))
+            remaining_serials = set()
+            for row in cursor.fetchall():
+                serial = sd_reader.get_volume_serial(row[0])
+                if serial:
+                    remaining_serials.add(serial)
+
+            for serial in volume_serials - remaining_serials:
+                cursor.execute('DELETE FROM sd_cards WHERE serial = ?', (serial,))
 
             conn.commit()
             conn.close()

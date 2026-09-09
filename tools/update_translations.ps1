@@ -7,18 +7,12 @@ $lrelease = Join-Path $scripts "pyside6-lrelease.exe"
 $i18n = Join-Path $root "app\i18n"
 
 $sources = @(
-    (Join-Path $root "main.py"),
-    (Join-Path $root "app\ui\main_window.py"),
-    (Join-Path $root "app\ui\about_dialog.py"),
-    (Join-Path $root "app\ui\device_picker.py"),
-    (Join-Path $root "app\ui\ftp_picker.py"),
-    (Join-Path $root "app\ui\project_wizard.py"),
-    (Join-Path $root "app\ui\selective_dump.py"),
-    (Join-Path $root "app\ui\wifi_panel.py"),
-    (Join-Path $root "app\ui\source_picker.py"),
-    (Join-Path $root "app\core\notifications.py"),
-    (Join-Path $root "app\core\updater.py")
+    (Join-Path $root "main.py")
 )
+# Escaneo recursivo de todo app/ (mixins, diálogos, core) sin archivos basura/stale.
+$sources += Get-ChildItem -Path (Join-Path $root "app") -Recurse -Filter "*.py" |
+    Where-Object { $_.FullName -notmatch "__pycache__" -and $_.Name -ne "sources_mixin_pre.py" } |
+    ForEach-Object { $_.FullName }
 
 New-Item -ItemType Directory -Force -Path $i18n | Out-Null
 

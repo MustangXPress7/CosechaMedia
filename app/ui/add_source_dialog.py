@@ -3,16 +3,13 @@
 Sustituye a ``SourcePickerDialog`` (D-04). Muestra una única tabla con 5
 columnas y 3 secciones visuales (física MTP/USB, WiFi/PairDrop, FTP), sin
 pestañas. Integra los dispositivos guardados y detectados, distingue MTP vs
-USB masivo, ofrece detección de cámara off-thread y notifica fallos WPD de
-forma no-bloqueante.
+USB masivo y notifica fallos WPD de forma no-bloqueante.
 
 Al aceptar expone ``result_sources()``: lista de dicts
 ``{"kind", "value", "camera", "enabled"}`` con los orígenes marcados.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-
-from PySide6.QtCore import Qt, QObject, Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel,
     QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
@@ -28,10 +25,6 @@ from app.ui import theme
 from app.ui import icons
 
 
-# Ítem disparador de detección en el combo de cámara (CHG-5)
-TRIGGER_DETECT = object()
-
-
 def _camera_text(widget):
     """Extrae el texto del widget de cámara (QLineEdit o QComboBox editable)."""
     if isinstance(widget, QComboBox):
@@ -40,29 +33,6 @@ def _camera_text(widget):
     if isinstance(widget, QLineEdit):
         return widget.text()
     return ""
-
-
-class _CameraDetectWorker(QObject):
-    """Detección de cámara en hilo separado (D-08/D-09): no bloquea la UI."""
-
-    done = Signal(int, bool, object)
-
-    def __init__(self, fn, source, executor):
-        super().__init__()
-        self._fn = fn
-        self._source = source
-        self._executor = executor
-        self._future = None
-
-    def start(self):
-        self._future = self._executor.submit(self._run)
-
-    def _run(self):
-        try:
-            name = self._fn(self._source.get("kind"), self._source.get("value"))
-            self.done.emit(self._source.get("_row", -1), True, name)
-        except Exception as e:
-            self.done.emit(self._source.get("_row", -1), False, str(e))
 
 
 class AddSourceDialog(QDialog):
@@ -74,24 +44,19 @@ class AddSourceDialog(QDialog):
     def __init__(self, parent=None, folders=(), senders=(),
                  devices_missing=(), devices_connected=(), usb_connected=(),
                  mtp_backend=None, ftp_backend=None,
-                 on_delete=None, on_detect=None, on_qr=None,
-                 on_camera_name_changed=None, on_wifi_status=None,
-                 camera_detection_mode="auto"):
+                 on_delete=None, on_qr=None,
+                 on_camera_name_changed=None, on_wifi_status=None):
         super().__init__(parent)
         self.on_delete = on_delete      # on_delete(kind, value) -> bool
-        self.on_detect = on_detect      # on_detect(kind, value) -> str (cámara)
         self.on_qr = on_qr              # on_qr(sender_name) -> None
         self.on_camera_name_changed = on_camera_name_changed
         self.on_wifi_status = on_wifi_status  # on_wifi_status(sender_id) -> bool
         # on_camera_name_changed(device_id, nombre) -> None: se invoca al
         # editar el nombre de un dispositivo conocido (persistencia B-20).
-        self._camera_detection_mode = camera_detection_mode
         self._mtp_backend = mtp_backend if mtp_backend is not None else mtp.WpdBackend()
         self._explicit_mtp = mtp_backend is not None
         self._ftp_backend = ftp_backend or ftpmod.FtpBackend()
         self._row_sources = []          # dict por fila de datos (None = cabecera)
-        self._cam_executor = ThreadPoolExecutor(max_workers=1)
-        self._cam_worker = None
         self._accepted = None   # None=sin decidir, True=aceptado, False=cancelado
         # Limpieza one-shot de carpetas locales persistidas como dispositivos
         # (bug 5): las carpetas ya viven en recent_paths y no son dispositivos.
@@ -414,26 +379,19 @@ class AddSourceDialog(QDialog):
             return []
 
     def _build_camera_combo(self, row, src):
-        """Combo editable con nombres conocidos + disparador de detección (CHG-5/CHG-6)."""
+        """Combo editable con nombres conocidos (modo manual)."""
         combo = QComboBox()
         combo.setEditable(True)
         combo.setInsertPolicy(QComboBox.NoInsert)
         known = self._known_camera_names()
         combo.addItems(known)
-        # Bug 6: en ambos modos existe «— Sin nombre —» y es el estado por defecto
-        # cuando la fila no tiene cámara; en auto va seguido del disparador de
-        # detección.
+        # Estado por defecto: "— Sin nombre —" cuando no hay cámara
         self._vacio_trigger_index = len(known)
         combo.addItem(self.tr("— Sin nombre —"))
-        self._detect_trigger_index = self._vacio_trigger_index + 1
-        if self._camera_detection_mode == "auto":
-            combo.addItem(self.tr("🔍 Detectar cámara automáticamente…"))
         # Datos: -1 = normal (editable), índice de disparo especial
         for i in range(len(known)):
             combo.setItemData(i, i)
         combo.setItemData(self._vacio_trigger_index, "VACIO")
-        if self._camera_detection_mode == "auto":
-            combo.setItemData(self._detect_trigger_index, TRIGGER_DETECT)
         # Seleccionar el nombre actual si está en la lista; si no, escribirlo
         current = (src.get("camera") or "").strip()
         idx = combo.findText(current) if current else -1
@@ -443,8 +401,6 @@ class AddSourceDialog(QDialog):
             combo.setEditText(current)
         else:
             combo.setCurrentIndex(self._vacio_trigger_index)
-            # El campo queda vacío (la cámara no tiene nombre); el ítem
-            # «— Vacío —» queda seleccionado de cara al desplegable.
             combo.setEditText("")
         combo.currentIndexChanged.connect(
             lambda i, r=row: self._on_camera_combo_changed(r, i))
@@ -496,17 +452,8 @@ class AddSourceDialog(QDialog):
         if combo is None or not isinstance(combo, QComboBox):
             return
         item_data = combo.itemData(index)
-        if item_data is TRIGGER_DETECT:
-            src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
-            if src is None or self.on_detect is None:
-                return
-            # Reset al valor anterior mientras se detecta (evita quedarse pegado)
-            combo.blockSignals(True)
-            combo.setEditText(self.tr("Detectando…"))
-            combo.blockSignals(False)
-            self._start_camera_detection(row, src)
-        elif item_data == "VACIO":
-            # En modo manual, "Vacío" deja el campo editable vacío
+        if item_data == "VACIO":
+            # "Vacío" deja el campo editable vacío
             combo.blockSignals(True)
             combo.setEditText("")
             combo.blockSignals(False)
@@ -893,78 +840,6 @@ class AddSourceDialog(QDialog):
             "camera": name, "enabled": True, "connected": True,
             "label": name, "type": "FTP"})
         self._update_ok_state()
-
-    # -- detección de cámara (D-08/D-09) ----------------------------------
-
-    def _detect_camera_for_row(self, row):
-        cam = self.table.cellWidget(row, 2)
-        if cam is None:
-            return
-        text = _camera_text(cam)
-        if text.strip():
-            return
-        src = self._row_sources[row]
-        if src is None:
-            return
-        if self.on_detect is None:
-            return
-        self._start_camera_detection(row, src)
-
-    def _start_camera_detection(self, row, src):
-        cam = self.table.cellWidget(row, 2)
-        if isinstance(cam, QComboBox):
-            cam.setEnabled(False)
-            combo = cam
-            if hasattr(combo, "lineEdit") and combo.lineEdit() is not None:
-                combo.setEditText(self.tr("Detectando…"))
-        else:
-            cam.setText(self.tr("Detectando…"))
-            cam.setEnabled(False)
-        src = dict(src)
-        src["_row"] = row
-        worker = _CameraDetectWorker(self.on_detect, src, self._cam_executor)
-        worker.done.connect(self._on_camera_detected)
-        self._cam_worker = worker
-        worker.start()
-
-    def _on_camera_detected(self, row, ok, name):
-        if row is None or row < 0 or row >= self.table.rowCount():
-            row = self.table.rowCount() - 1
-        cam = self.table.cellWidget(row, 2)
-        if cam is None:
-            return
-        result = name if ok and name else self.tr("Sin nombre")
-        if isinstance(cam, QComboBox):
-            cam.setEnabled(True)
-            self._set_combo_text(cam, result)
-        else:
-            cam.setEnabled(True)
-            cam.setText(result)
-        self._update_ok_state()
-        # Persistir nombre detectado automáticamente a known_devices (REQ-09)
-        if ok and name and self.on_camera_name_changed:
-            src = self._row_sources[row] if 0 <= row < len(self._row_sources) else None
-            if src:
-                device_id = src.get("value")
-                if device_id:
-                    self.on_camera_name_changed(device_id, name)
-
-    @staticmethod
-    def _set_combo_text(combo, text):
-        """Escribe text en un combo editable sin disparar índices de disparo ni señales."""
-        combo.blockSignals(True)
-        le = combo.lineEdit()
-        if le:
-            le.blockSignals(True)
-        idx = combo.findText(text)
-        if idx >= 0:
-            combo.setCurrentIndex(idx)
-        else:
-            combo.setEditText(text)
-        if le:
-            le.setText(text)
-            le.blockSignals(False)
-        combo.blockSignals(False)
 
     # -- estado de aceptar -------------------------------------------------
 

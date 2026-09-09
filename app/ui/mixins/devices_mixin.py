@@ -211,7 +211,13 @@ class DevicesMixin:
             if path not in self._source_paths:
                 self._source_paths.append(path)
             base = self._drive_label(path)
-            db.update_session_config(session_id, source_path=path, name=f"Auto ({base})")
+            auto_name = f"Auto ({base})"
+            sessions = db.get_sessions(self.current_project_id)
+            for s in sessions:
+                if s["id"] != session_id and s.get("source_path")==path and str(s.get("name","")).startswith("Auto ("):
+                    auto_name = s.get("name")
+                    break
+            db.update_session_config(session_id, source_path=path, name=auto_name)
         if session.get("device_id"):
             db.update_session_config(session_id, device_id="", device_folder="")
             self._detect_camera_for_session(session_id, path)

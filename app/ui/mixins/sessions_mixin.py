@@ -54,12 +54,14 @@ class SessionsMixin:
             self._on_session_selected(0)
         self.sessions_combo.blockSignals(False)
         self.btn_delete_session.setEnabled(self.current_session_id is not None)
+        self.btn_rename_session.setEnabled(self.current_session_id is not None)
         self._update_session_dump_switch()
 
     def _reset_session_selection_ui(self):
         """Deja el panel de sesión sin selección y con etiquetas neutras."""
         self.current_session_id = None
         self.btn_delete_session.setEnabled(False)
+        self.btn_rename_session.setEnabled(False)
         self.session_src_label.setText("")
         self.session_src_label.setToolTip("")
         self._btn_browse_sess_src.setVisible(False)
@@ -73,6 +75,7 @@ class SessionsMixin:
         if session_id is None:
             self.current_session_id = None
             self.btn_delete_session.setEnabled(False)
+            self.btn_rename_session.setEnabled(False)
             self.session_src_label.setText("")
             self._btn_browse_sess_src.setVisible(False)
             self.session_dest_label.setText(self.tr("Por defecto"))
@@ -81,6 +84,7 @@ class SessionsMixin:
             return
         self.current_session_id = session_id
         self.btn_delete_session.setEnabled(True)
+        self.btn_rename_session.setEnabled(True)
         session = db.get_session(session_id)
         if not session:
             return
@@ -107,6 +111,18 @@ class SessionsMixin:
         self.session_dest_label.setText(dest if dest else self.tr("Por defecto"))
         self.session_dest_label.setToolTip(dest or "")
         self._update_session_dump_switch()
+
+    def _rename_current_session(self):
+        sid = self.current_session_id
+        if not sid:
+            return
+        sess = db.get_session(sid)
+        name, ok = QInputDialog.getText(self, self.tr("Renombrar sesión"),
+                                        self.tr("Nuevo nombre:"), text=sess.get("name",""))
+        if ok and name.strip():
+            db.update_session_config(sid, name=name.strip())
+            self._refresh_sessions_combo()
+            self.ingest_status_label.setText(self.tr("Sesión renombrada"))
 
     def _session_content_state(self, sid):
         """Devuelve (mode, filt, restricted) de la sesión dada.

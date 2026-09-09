@@ -109,29 +109,6 @@ class ProjectWizard(QDialog):
 
         config_row2 = QHBoxLayout()
 
-        detect_group = QGroupBox(self.tr("Detección de cámara"))
-        detect_layout = QVBoxLayout(detect_group)
-        self.detect_combo = QComboBox()
-        self.detect_combo.addItems([
-            self.tr("Manual"),
-            self.tr("Automático")
-        ])
-        self.detect_combo.setMinimumHeight(36)
-        detect_layout.addWidget(self.detect_combo)
-        self.spin_detect_timeout = QSpinBox()
-        self.spin_detect_timeout.setRange(1, 30)
-        self.spin_detect_timeout.setValue(5)
-        self.spin_detect_timeout.setSuffix(" s")
-        self.spin_detect_timeout.setToolTip(self.tr("Tiempo máximo de espera para auto-detección"))
-        self.spin_detect_timeout.setEnabled(self.detect_combo.currentIndex() == 1)
-        self.detect_combo.currentIndexChanged.connect(lambda i: self.spin_detect_timeout.setEnabled(i == 1))
-        timeout_row = QHBoxLayout()
-        timeout_row.addWidget(QLabel(self.tr("Timeout:")))
-        timeout_row.addWidget(self.spin_detect_timeout)
-        timeout_row.addStretch()
-        detect_layout.addLayout(timeout_row)
-        config_row2.addWidget(detect_group, 1)
-
         proxy_group = QGroupBox(self.tr("Proxies y rendimiento"))
         proxy_layout = QVBoxLayout(proxy_group)
         self.chk_generate_proxies = QCheckBox(self.tr("Generar proxies tras la ingesta"))
@@ -169,11 +146,6 @@ class ProjectWizard(QDialog):
         saved_org = settings.value("default_organization_type", 0, type=int)
         if 0 <= saved_org < self.org_combo.count():
             self.org_combo.setCurrentIndex(saved_org)
-        saved_detect = settings.value("default_camera_detection_mode", "manual")
-        # detect_combo items: Manual=0, Automático=1
-        self.detect_combo.setCurrentIndex(1 if saved_detect == "auto" else 0)
-        self.spin_detect_timeout.setValue(
-            settings.value("camera_detection_timeout", 5, type=int))
         self.chk_generate_proxies.setChecked(
             settings.value("default_generate_proxies", False, type=bool))
         saved_proxy_res = settings.value("default_proxy_resolution", "720p")
@@ -219,7 +191,6 @@ class ProjectWizard(QDialog):
             date_mode = "auto" if self.date_mode_combo.currentIndex() == 0 else "manual"
             use_metadata_date = date_mode == "auto"
             duration_type = 2 if date_mode == "auto" else 1
-            camera_detection_mode = "auto" if self.detect_combo.currentIndex() == 1 else "manual"
             
             conn = db.get_connection()
             try:
@@ -230,8 +201,6 @@ class ProjectWizard(QDialog):
                         organization_type = ?,
                         use_metadata_date = ?,
                         date_mode = ?,
-                        camera_detection_mode = ?,
-                        camera_detection_timeout = ?,
                         generate_proxies = ?,
                         proxy_resolution = ?
                     WHERE id = ?
@@ -240,8 +209,6 @@ class ProjectWizard(QDialog):
                     org_type,
                     use_metadata_date,
                     date_mode,
-                    camera_detection_mode,
-                    self.spin_detect_timeout.value(),
                     self.chk_generate_proxies.isChecked(),
                     self.proxy_combo.currentText(),
                     project_id

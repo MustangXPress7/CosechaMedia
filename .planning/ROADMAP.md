@@ -153,16 +153,17 @@ Plans:
 
 - [x] 01.6.0-07-PLAN.md — DeviceRegistry Write Path: upsert on MTP/FTP detection + camera rename + legacy migration + remove Detect button
 
-### Phase 1.7.0: Notificadores SMTP/Telegram
+### Phase 1.7.0: Notificadores SMTP/Telegram + Volcado por orden de dispositivo
 
-**Goal:** Notificadores configurables por proyecto para avisar al acabar la ingesta.
+**Goal:** Notificadores configurables por proyecto para avisar al acabar la ingesta, y volcado de tarjetas por orden de dispositivo (reubicado desde 1.6.0) para rotar tarjetas con un solo lector.
 **Mode:** standard
 **Depends on:** Phase 1.6.0
-**Requirements**: REQ-07 (notificadores)
+**Requirements**: REQ-07 (notificadores); volcado por orden de dispositivo (todo 2026-09-02)
 **Success Criteria** (what must be TRUE):
 
   1. Notificadores configurables por proyecto (SMTP + Telegram)
   2. Aviso al finalizar ingesta (éxito/error)
+  3. Volcado por orden de dispositivo: con un solo lector, el operador rota tarjetas y la ingesta las procesa en orden
 
 **Plans:** 0 plans
 
