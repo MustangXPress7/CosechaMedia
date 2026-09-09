@@ -18,6 +18,7 @@ class ProjectMixin:
     def load_existing_projects(self):
         previous_id = self.current_project_id
         previous_session_id = self.current_session_id
+        print(f"[PROJECT DEBUG] load_existing_projects: previous_id={previous_id} previous_session_id={previous_session_id}")
         self.project_combo.blockSignals(True)
         self.project_combo.clear()
         self.project_combo.addItem(self.tr("-- Selecciona un proyecto --"), None)
@@ -41,10 +42,14 @@ class ProjectMixin:
             if previous_session_id is not None:
                 self._restore_session_id = previous_session_id
             idx = self.project_combo.findData(previous_id)
+            print(f"[PROJECT DEBUG] load_existing_projects: setCurrentIndex idx={idx}")
             if idx >= 0:
                 self.project_combo.setCurrentIndex(idx)
+        # Asegurar que el estado de inicio esté actualizado tras recargar proyectos
+        self.update_start_button_state()
 
     def on_project_selected(self, index):
+        print(f"[PROJECT DEBUG] on_project_selected index={index}")
         self._reset_wifi_ingestors()
         # Limpieza COM + detención de timers/ingestors al cambiar de proyecto
         # (D-25): igual que al borrar proyecto, para no dejar hilos con
@@ -75,6 +80,7 @@ class ProjectMixin:
         self.update_start_button_state()
 
     def _load_project(self, project_id):
+        print(f"[PROJECT DEBUG] _load_project project_id={project_id}")
         conn = db.get_connection()
         cursor = conn.cursor()
         cursor.execute(
