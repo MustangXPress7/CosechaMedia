@@ -47,6 +47,8 @@ class SessionsMixin:
             idx = self.sessions_combo.findData(target_id)
             if idx >= 0:
                 self.sessions_combo.setCurrentIndex(idx)
+                # Señales bloqueadas durante repoblación, actualizar manualmente
+                self._on_session_selected(idx)
             else:
                 # La sesión a restaurar no existe: quedarse con la primera
                 self.sessions_combo.setCurrentIndex(0)
@@ -144,6 +146,7 @@ class SessionsMixin:
         except (TypeError, ValueError):
             filt = None
         mode = sess.get("content_mode") or "all"
+        print(f"[SESSION DEBUG] _session_content_state sid={sid} mode={mode} restricted={restricted} filt={filt}")
         return mode, filt, restricted
 
     @staticmethod
