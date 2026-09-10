@@ -168,6 +168,7 @@ Recent decisions affecting current work:
 
 - Roadmap renumerado por versión (2026-08-29): fases 1.5.0 / 1.6.0 / 2.0. La antigua Fase 2 (volcado selectivo multi-origen) queda dentro de 1.5.0; la antigua Fase 3 (verificación avanzada XXH64+ASC MHL) pasa a 1.6.0 junto a REQ-06 (Reorganizar footage); modo guiado (I-01) y pantalla de bienvenida (I-13) quedan en 2.0
 - Acotación posterior (2026-08-29): la 1.5.0 queda como fase ligera de bugs (CONCERNS.md) resueltos por quick tasks; ID-01/ID-02/ID-04 migran a la 1.6.0 y el I-07 pasa a decisión de dashboard, fuera del alcance de la 1.5.0
+- Reasignación de roadmap (2026-09-10): notificadores SMTP/Telegram y volcado por orden de dispositivo → **Fase 1.8.0**; R-05 (XXH64+ASC MHL) → **Fase 1.7.0** (plan 01.7.0-06); reorganizador avanzado ffprobe (ex 01.7.0-03) → **Fase 1.8.0** (01.8.0-03); ID-01/ID-02 → **Fase 1.7.0** (01.7.0-07/08); I-24 → **Fase 2.0**; ideas abiertas sin conexión (I-02, I-04, I-21, I-25) → **Fase 2.0**. **Phase 1.9.0** creada (velocidad de copia + resume + reportes, del análisis OffShoot). Planes de 1.7.0 renumerados (8: 01..08). Mejora de interfaz/funciones del reorganizador de footage → **Fase 1.8.0** (01.8.0-05), total 5 planes
 
 ### Pending Todos
 

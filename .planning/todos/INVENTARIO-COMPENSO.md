@@ -1,7 +1,7 @@
 # Inventario Consolidado — Acciones para Fases y Olas
 
 **Estado**: Revisión completada — estructurado para planificación  
-**Obs**: Fase 1.6.0: Añadir origen (prioridad), reorganizador, bugs. Verificación en 1.8.0
+**Obs**: Reasignaciones 2026-09-10: DeviceRegistry → 1.6.0 (implementado, 01.6.0-07); notificadores → 1.8.0; verificación XXH64+ASC MHL → 1.7.0; bienvenida → 1.7.0; modo guiado + ideas sueltas → 2.0
 
 ## FASE 1.6.0 — Añadir Origen + Reorganizador Footage + Bug Fixes
 
@@ -42,32 +42,9 @@
 
 ---
 
-## FASE 1.7.0 — Registro devices + notificadores
+## FASE 1.7.0 — Pulido visual + Configuración de proyecto + Verificación avanzada
 
-### Ola 1 — Registro Dispositivos (REQ-09)
-| Accion | Archivo | Prioridad |
-|--------|---------|-----------|
-| Tabla `known_devices` | db.py | Alta |
-| Crear `device_registry.py` | NUEVO | Alta |
-
-### Ola 2 — Notificadores (REQ-07)
-| Accion | Archivo | Prioridad |
-|--------|---------|-----------|
-| Interfaz notificadores | notifications.py | Alta |
-| Backend SMTP | notifications.py | Alta |
-| Backend Telegram | notifications.py | Media |
-
----
-
-## FASE 1.8.0 — WiFi SSID + verificación
-
-### Ola 1 — WiFi SSID (REQ-08)
-| Accion | Archivo | Prioridad |
-|--------|---------|-----------|
-| Servidor FTP embebido | shoot_inbox.py | Alta |
-| Conectar a red OS | utils.py | Alta |
-
-### Ola 2 — Verificación XXH64+ASC MHL
+### Ola 1 — Verificación XXH64+ASC MHL (R-05, reubicado desde 1.8.0)
 | Accion | Archivo | Prioridad |
 |--------|---------|-----------|
 | Crear `app/core/integrity.py` | NUEVO | Alta |
@@ -75,19 +52,57 @@
 | Usar paquete `ascmhl` | deps | Media |
 | Modificar `copy_verified` | ingestor.py | Alta |
 
+### Ola 2 — Registro Dispositivos (REQ-09) ✅ Implementado en 1.6.0 (01.6.0-07)
+| Accion | Archivo | Prioridad |
+|--------|---------|-----------|
+| Tabla `known_devices` | db.py | ✅ |
+| Crear `device_registry.py` | NUEVO | ✅ |
+
+> Nota: los **notificadores (REQ-07)** pasaron a la Fase 1.8.0 (01.8.0-01).
+
 ---
 
-## FASE 2.0 — Modo guiado + Bienvenida
+## FASE 1.8.0 — Notificadores + Volcado por orden + Reorganizador avanzado + WiFi SSID
 
-### Ola 1 — Acciones rápidas (I-01)
+### Ola 1 — Notificadores (REQ-07, reubicado desde 1.7.0)
+| Accion | Archivo | Prioridad |
+|--------|---------|-----------|
+| Interfaz notificadores | notifications.py | Alta |
+| Backend SMTP | notifications.py | Alta |
+| Backend Telegram | notifications.py | Media |
+
+### Ola 2 — WiFi SSID (REQ-08)
+| Accion | Archivo | Prioridad |
+|--------|---------|-----------|
+| Servidor FTP embebido | shoot_inbox.py | Alta |
+| Conectar a red OS | utils.py | Alta |
+
+### Ola 3 — Volcado por orden de dispositivo + Reorganizador (reubicados desde 1.7.0)
+| Accion | Prioridad |
+|--------|-----------|
+| Volcado por orden de dispositivo (un lector rotando tarjetas) | Alta |
+| Reorganizador con filtros ffprobe (resolución, códec, fps, duración) | Media |
+| Mejora de interfaz y funciones de ReorganizeDialog (selección/previsualización) | Media |
+
+---
+
+## FASE 2.0 — Modo guiado con plantillas + ideas sin conexión
+
+### Ola 1 — Modo guiado (I-01)
 | Accion | Prioridad |
 |--------|-----------|
 | Flujo guiado completo | Alta |
 
-### Ola 2 — Pantalla bienvenida (I-13)
-| Accion | Prioridad |
-|--------|-----------|
-| Primer arranque guiado | Alta |
+### Ola 2 — Ideas incorporadas a 2.0 (2026-09-10)
+| Idea | Prioridad |
+|------|-----------|
+| I-24 scripts/webhooks post-ingesta (desde 1.9.0) | Media |
+| I-02 destinos "fallback"/servidor | Media |
+| I-04 contenedores por tipo de archivo | Media |
+| I-21 menú contextual "Copiar a CosechaMedia…" | Media |
+| I-25 health check del soporte | Media |
+
+> Nota: la **pantalla de bienvenida (I-13)** ya no está en 2.0 — se implementa en la Fase 1.7.0 (01.7.0-04).
 
 ---
 
@@ -104,16 +119,12 @@
 
 ## Próximos Pasos
 
-1. **Fase 1.6.0 Ola 1** (Añadir origen):
-   - Ejecutar `/gsd-plan-phase 1.6.0` 
-   - Fijar primero los bugs de WiFi y selección
+1. **Fase 1.7.0** (siguiente roadmap):
+   - Ejecutar `/gsd-plan-phase 1.7.0`
+   - Pulido visual UI, configuración de proyecto (plantillas/bienvenida/orígenes), verificación XXH64+ASC MHL, volcado selectivo global (ID-01/ID-02)
 
-2. **Fase 1.6.0 Ola 2** (Reorganizador):
-   - Continuar con reorganizador footage
+2. **Fase 1.8.0** (después):
+   - Notificadores, volcado por orden, reorganizador avanzado, WiFi SSID
 
-3. **Fase 1.7.0** (Device registry):
-   - Tabla conocidos + notificadores
-
-4. **Fase 1.8.0** (WiFi + verificación):
-   - Servidor FTP embebido
-   - XPH64+ASC MHL
+3. **Fase 1.9.0**:
+   - Velocidad de copia, resume robusto, reportes con marca
