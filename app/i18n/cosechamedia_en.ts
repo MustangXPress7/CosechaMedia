@@ -4,12 +4,12 @@
 <context>
     <name></name>
     <message>
-        <location filename="../core/notifications.py" line="76"/>
+        <location filename="../core/notifications.py" line="100"/>
         <source>Ingesta Completada</source>
         <translation>Ingest Complete</translation>
     </message>
     <message>
-        <location filename="../core/notifications.py" line="110"/>
+        <location filename="../core/notifications.py" line="134"/>
         <source>Ingesta con errores</source>
         <translation>Ingest with errors</translation>
     </message>
@@ -52,7 +52,7 @@
     <message>
         <location filename="../core/ftp.py" line="568"/>
         <location filename="../core/ftp.py" line="669"/>
-        <location filename="../core/mtp.py" line="520"/>
+        <location filename="../core/mtp.py" line="526"/>
         <source>Sin nombre</source>
         <translation>No name</translation>
     </message>
@@ -496,101 +496,102 @@ Enter a name for the device:</translation>
         <translation>Don't ask again</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="154"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="158"/>
         <source>Dispositivo conocido: %1</source>
         <translation>Known device: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="158"/>
-        <location filename="../ui/mixins/camera_mixin.py" line="178"/>
-        <location filename="../ui/mixins/camera_mixin.py" line="182"/>
-        <location filename="../ui/mixins/camera_mixin.py" line="237"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="164"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="166"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="186"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="190"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="245"/>
         <source>Sin nombre</source>
         <translation>No name</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="167"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="175"/>
         <source>Nombre de dispositivo</source>
         <translation>Device name</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="168"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="176"/>
         <source>Introduce el nombre del dispositivo para %1:</source>
         <translation>Enter the device name for %1:</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="182"/>
-        <location filename="../ui/mixins/camera_mixin.py" line="237"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="190"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="245"/>
         <source>Dispositivo: %1</source>
         <translation>Device: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="277"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="285"/>
         <source>Sin origen</source>
         <translation>No source</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="277"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="285"/>
         <source>Selecciona o añade una ruta de tarjeta SD primero.</source>
         <translation>Select or add an SD card path first.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="283"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="291"/>
         <source>Marca: %1</source>
         <translation>Brand: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="285"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="293"/>
         <source>Modelo: %1</source>
         <translation>Model: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="287"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="295"/>
         <source>Serie: %1</source>
         <translation>Serial: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="289"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="297"/>
         <source>Capacidad: %1 GB</source>
         <translation>Capacity: %1 GB</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="291"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="299"/>
         <source>Sistema: %1</source>
         <translation>File system: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="294"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="302"/>
         <source>Uso: %1%</source>
         <translation>Usage: %1%</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="296"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="304"/>
         <source>Errores: %1</source>
         <translation>Errors: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="297"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="305"/>
         <source>No se pudo detectar información de la tarjeta.</source>
         <translation>Could not detect card information.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="298"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="306"/>
         <source>Información de Tarjeta SD</source>
         <translation>SD Card Information</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="313"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="321"/>
         <source>No se detectaron unidades extraíbles.</source>
         <translation>No removable drives detected.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="346"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="354"/>
         <source>Auto-detect: %1 unidad(es) añadida(s).</source>
         <translation>Auto-detect: %1 drive(s) added.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/camera_mixin.py" line="349"/>
+        <location filename="../ui/mixins/camera_mixin.py" line="357"/>
         <source>Auto-detect: ninguna unidad nueva.</source>
         <translation>Auto-detect: no new drives.</translation>
     </message>
@@ -1705,17 +1706,17 @@ Errors:
         <translation>Restore split view</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="970"/>
+        <location filename="../ui/main_window.py" line="969"/>
         <source>Seleccione o cree un proyecto primero.</source>
         <translation>Select or create a project first.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="975"/>
+        <location filename="../ui/main_window.py" line="974"/>
         <source>Sin destino</source>
         <translation>No destination</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="975"/>
+        <location filename="../ui/main_window.py" line="974"/>
         <source>Configure un destino de proyecto primero.</source>
         <translation>Configure a project destination first.</translation>
     </message>
@@ -1731,8 +1732,8 @@ Errors:
     </message>
     <message>
         <location filename="../ui/main_window.py" line="836"/>
-        <location filename="../ui/main_window.py" line="935"/>
-        <location filename="../ui/main_window.py" line="970"/>
+        <location filename="../ui/main_window.py" line="934"/>
+        <location filename="../ui/main_window.py" line="969"/>
         <source>Sin proyecto</source>
         <translation>No project</translation>
     </message>
@@ -1742,7 +1743,7 @@ Errors:
         <translation>Select a project first.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="984"/>
+        <location filename="../ui/main_window.py" line="983"/>
         <source>Iniciar Ingesta</source>
         <translation>Start Ingest</translation>
     </message>
@@ -1753,44 +1754,44 @@ Errors:
         <translation>Device</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="936"/>
+        <location filename="../ui/main_window.py" line="935"/>
         <source>Selecciona o crea un proyecto antes de cambiar su destino.</source>
         <translation>Select or create a project before changing its destination.</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="940"/>
+        <location filename="../ui/main_window.py" line="939"/>
         <source>Seleccionar carpeta maestra del proyecto</source>
         <translation>Select project master folder</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="958"/>
+        <location filename="../ui/main_window.py" line="957"/>
         <source>Actualización disponible</source>
         <translation>Update available</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="959"/>
+        <location filename="../ui/main_window.py" line="958"/>
         <source>Hay una nueva versión de CosechaMedia disponible: %1. ¿Quieres ver los detalles?</source>
         <translation>A new version of CosechaMedia is available: %1. Would you like to see the details?</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="987"/>
+        <location filename="../ui/main_window.py" line="986"/>
         <source>Reorganizar</source>
         <translation>Reorganize</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="987"/>
+        <location filename="../ui/main_window.py" line="986"/>
         <source>No se pudo reorganizar:
 %1</source>
         <translation>Could not reorganize:
 %1</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="989"/>
+        <location filename="../ui/main_window.py" line="988"/>
         <source>Hecho</source>
         <translation>Done</translation>
     </message>
     <message>
-        <location filename="../ui/main_window.py" line="989"/>
+        <location filename="../ui/main_window.py" line="988"/>
         <source>Archivos reorganizados.</source>
         <translation>Files reorganized.</translation>
     </message>
@@ -1873,122 +1874,127 @@ Errors:
         <translation>Project &amp;settings…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="89"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="87"/>
+        <source>Opciones de &amp;sonido…</source>
+        <translation>Sound &amp;options…</translation>
+    </message>
+    <message>
+        <location filename="../ui/mixins/menu_mixin.py" line="93"/>
         <source>Personalizar &amp;carpeta de footage…</source>
         <translation>Customize &amp;footage folder…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="93"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="97"/>
         <source>Personalizar &amp;contenedores de archivos…</source>
         <translation>Customize &amp;file containers…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="97"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="101"/>
         <source>&amp;Utilidades</source>
         <translation>&amp;Utilities</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="99"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="103"/>
         <source>Reorganizar &amp;footage…</source>
         <translation>Reorganize &amp;footage…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="103"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="107"/>
         <source>&amp;Vista</source>
         <translation>&amp;View</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="104"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="108"/>
         <source>Tema</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="109"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="113"/>
         <source>Oscuro</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="110"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="114"/>
         <source>Claro</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="120"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="124"/>
         <source>Acento</source>
         <translation>Accent</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="125"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="129"/>
         <source>Neutro</source>
         <translation>Neutral</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="126"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="130"/>
         <source>Verde</source>
         <translation>Green</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="127"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="131"/>
         <source>Azul</source>
         <translation>Blue</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="128"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="132"/>
         <source>Rosa</source>
         <translation>Pink</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="129"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="133"/>
         <source>Morado</source>
         <translation>Purple</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="130"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="134"/>
         <source>Ámbar</source>
         <translation>Amber</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="144"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="148"/>
         <source>Fondo de trigo</source>
         <translation>Wheat background</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="150"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="154"/>
         <source>A&amp;yuda</source>
         <translation>&amp;Help</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="151"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="155"/>
         <source>&amp;Búsqueda de actualizaciones…</source>
         <translation>&amp;Check for updates…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="155"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="159"/>
         <source>&amp;Acerca de…</source>
         <translation>&amp;About…</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="159"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="163"/>
         <source>&amp;Idioma</source>
         <translation>&amp;Language</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="174"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="178"/>
         <source>Caché</source>
         <translation>Cache</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="174"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="178"/>
         <source>Caché de metadatos limpiada.</source>
         <translation>Metadata cache cleared.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="181"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="185"/>
         <source>Idioma</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/menu_mixin.py" line="182"/>
+        <location filename="../ui/mixins/menu_mixin.py" line="186"/>
         <source>Reinicia la aplicación para aplicar el idioma.</source>
         <translation>Restart the app to apply the language.</translation>
     </message>
@@ -2108,9 +2114,9 @@ Errors:
         <location filename="../ui/mixins/project_mixin.py" line="221"/>
         <location filename="../ui/mixins/project_mixin.py" line="278"/>
         <location filename="../ui/mixins/project_mixin.py" line="302"/>
-        <location filename="../ui/mixins/project_mixin.py" line="499"/>
-        <location filename="../ui/mixins/project_mixin.py" line="549"/>
-        <location filename="../ui/mixins/project_mixin.py" line="580"/>
+        <location filename="../ui/mixins/project_mixin.py" line="511"/>
+        <location filename="../ui/mixins/project_mixin.py" line="561"/>
+        <location filename="../ui/mixins/project_mixin.py" line="592"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
@@ -2223,7 +2229,7 @@ Errors:
     </message>
     <message>
         <location filename="../ui/mixins/project_mixin.py" line="309"/>
-        <location filename="../ui/mixins/project_mixin.py" line="568"/>
+        <location filename="../ui/mixins/project_mixin.py" line="580"/>
         <source>Sesión 1</source>
         <translation>Session 1</translation>
     </message>
@@ -2290,74 +2296,74 @@ Esta acción no se puede deshacer.</source>
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="497"/>
+        <location filename="../ui/mixins/project_mixin.py" line="509"/>
         <source>Eliminado</source>
         <translation>Deleted</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="497"/>
+        <location filename="../ui/mixins/project_mixin.py" line="509"/>
         <source>Proyecto eliminado correctamente.</source>
         <translation>Project deleted successfully.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="499"/>
+        <location filename="../ui/mixins/project_mixin.py" line="511"/>
         <source>Error al eliminar el proyecto: %1</source>
         <translation>Error deleting the project: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="509"/>
+        <location filename="../ui/mixins/project_mixin.py" line="521"/>
         <source>Sin proyectos</source>
         <translation>No projects</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="509"/>
+        <location filename="../ui/mixins/project_mixin.py" line="521"/>
         <source>No hay proyectos para eliminar.</source>
         <translation>There are no projects to delete.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="514"/>
+        <location filename="../ui/mixins/project_mixin.py" line="526"/>
         <source>Eliminar todos los proyectos</source>
         <translation>Delete all projects</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="515"/>
+        <location filename="../ui/mixins/project_mixin.py" line="527"/>
         <source>¿Eliminar los %1 proyectos y todos sus datos?
 Esta acción no se puede deshacer.</source>
         <translation>Delete the %1 projects and all their data?
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="547"/>
+        <location filename="../ui/mixins/project_mixin.py" line="559"/>
         <source>Eliminados</source>
         <translation>Deleted</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="547"/>
+        <location filename="../ui/mixins/project_mixin.py" line="559"/>
         <source>Todos los proyectos han sido eliminados.</source>
         <translation>All projects have been deleted.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="549"/>
+        <location filename="../ui/mixins/project_mixin.py" line="561"/>
         <source>Error al eliminar los proyectos: %1</source>
         <translation>Error deleting the projects: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="562"/>
+        <location filename="../ui/mixins/project_mixin.py" line="574"/>
         <source>Proyecto por defecto</source>
         <translation>Default project</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="562"/>
+        <location filename="../ui/mixins/project_mixin.py" line="574"/>
         <source>Proyecto creado automáticamente</source>
         <translation>Project created automatically</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="574"/>
+        <location filename="../ui/mixins/project_mixin.py" line="586"/>
         <source>Proyecto por defecto creado con sesión inicial.</source>
         <translation>Default project created with initial session.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/project_mixin.py" line="580"/>
+        <location filename="../ui/mixins/project_mixin.py" line="592"/>
         <source>No se pudo crear el proyecto por defecto: %1</source>
         <translation>Could not create the default project: %1</translation>
     </message>
@@ -2746,245 +2752,245 @@ This action cannot be undone.</translation>
 <context>
     <name>SelectiveDumpAssistant</name>
     <message>
-        <location filename="../ui/selective_dump.py" line="362"/>
+        <location filename="../ui/selective_dump.py" line="379"/>
         <source>Seleccionar contenido del origen</source>
         <translation>Select source content</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="364"/>
-        <location filename="../ui/selective_dump.py" line="456"/>
+        <location filename="../ui/selective_dump.py" line="381"/>
+        <location filename="../ui/selective_dump.py" line="473"/>
         <source>Volcado selectivo por fecha</source>
         <translation>Selective dump by date</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="461"/>
+        <location filename="../ui/selective_dump.py" line="478"/>
         <source>Para tarjetas que acumulan grabaciones de distintos días (p. ej. smartphones). Escanea el origen, agrupa los archivos por día de grabación y te deja elegir qué días volcar. La copia es verificada por MD5.</source>
         <translation>For cards that accumulate recordings from different days (e.g. smartphones). Scans the source, groups files by recording day and lets you choose which days to dump. The copy is verified with MD5.</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="469"/>
+        <location filename="../ui/selective_dump.py" line="486"/>
         <source>Modo de contenido</source>
         <translation>Content mode</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="472"/>
-        <location filename="../ui/selective_dump.py" line="735"/>
+        <location filename="../ui/selective_dump.py" line="489"/>
+        <location filename="../ui/selective_dump.py" line="752"/>
         <source>Todo el contenido</source>
         <translation>All content</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="476"/>
+        <location filename="../ui/selective_dump.py" line="493"/>
         <source>Intervalo de días</source>
         <translation>Day interval</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="480"/>
+        <location filename="../ui/selective_dump.py" line="497"/>
         <source>X días desde último volcado</source>
         <translation>X days since last dump</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="493"/>
+        <location filename="../ui/selective_dump.py" line="510"/>
         <source>Modo de contenido (bloqueado para WiFi/FTP)</source>
         <translation>Content mode (locked for WiFi/FTP)</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="510"/>
-        <location filename="../ui/selective_dump.py" line="546"/>
-        <location filename="../ui/selective_dump.py" line="649"/>
+        <location filename="../ui/selective_dump.py" line="527"/>
+        <location filename="../ui/selective_dump.py" line="563"/>
+        <location filename="../ui/selective_dump.py" line="666"/>
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="514"/>
+        <location filename="../ui/selective_dump.py" line="531"/>
         <source>Escanear</source>
         <translation>Scan</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="528"/>
+        <location filename="../ui/selective_dump.py" line="545"/>
         <source>Escaneando...</source>
         <translation>Scanning...</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="579"/>
+        <location filename="../ui/selective_dump.py" line="596"/>
         <source>con archivos</source>
         <translation>with files</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="580"/>
+        <location filename="../ui/selective_dump.py" line="597"/>
         <source>seleccionado</source>
         <translation>selected</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="592"/>
+        <location filename="../ui/selective_dump.py" line="609"/>
         <source>Seleccionar todo</source>
         <translation>Select all</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="595"/>
+        <location filename="../ui/selective_dump.py" line="612"/>
         <source>Limpiar</source>
         <translation>Clear</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="601"/>
+        <location filename="../ui/selective_dump.py" line="618"/>
         <source>Clic: seleccionar · Ctrl: añadir/quitar · Shift o arrastre: rango</source>
         <translation>Click: select · Ctrl: add/remove · Shift or drag: range</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="607"/>
+        <location filename="../ui/selective_dump.py" line="624"/>
         <source>Modo: Todo el contenido - se volcarán todos los archivos</source>
         <translation>Mode: All content - all files will be dumped</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="615"/>
+        <location filename="../ui/selective_dump.py" line="632"/>
         <source>Archivos de los días seleccionados:</source>
         <translation>Files from the selected days:</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="620"/>
+        <location filename="../ui/selective_dump.py" line="637"/>
         <source>Archivo</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="620"/>
+        <location filename="../ui/selective_dump.py" line="637"/>
         <source>Fecha</source>
         <translation>Date</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="620"/>
+        <location filename="../ui/selective_dump.py" line="637"/>
         <source>Tamaño</source>
         <translation>Size</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="620"/>
+        <location filename="../ui/selective_dump.py" line="637"/>
         <source>Tipo</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="633"/>
+        <location filename="../ui/selective_dump.py" line="650"/>
         <source>Incluir archivos sin fecha (se volcarán con la fecha de hoy)</source>
         <translation>Include files without date (they will be dumped with today's date)</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="654"/>
+        <location filename="../ui/selective_dump.py" line="671"/>
         <source>Volcar selección</source>
         <translation>Dump selection</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="654"/>
+        <location filename="../ui/selective_dump.py" line="671"/>
         <source>Aplicar selección</source>
         <translation>Apply selection</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="671"/>
+        <location filename="../ui/selective_dump.py" line="688"/>
         <source>Volcando...</source>
         <translation>Dumping...</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="689"/>
+        <location filename="../ui/selective_dump.py" line="706"/>
         <source>Detener</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="701"/>
+        <location filename="../ui/selective_dump.py" line="718"/>
         <source>No hay un origen configurado para el proyecto.</source>
         <translation>No source is configured for the project.</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="705"/>
+        <location filename="../ui/selective_dump.py" line="722"/>
         <source>No hay ruta maestra configurada para el proyecto.</source>
         <translation>No master path is configured for the project.</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="737"/>
+        <location filename="../ui/selective_dump.py" line="754"/>
         <source>Solo los días seleccionados</source>
         <translation>Only the selected days</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="739"/>
+        <location filename="../ui/selective_dump.py" line="756"/>
         <source>Archivos de los últimos N días</source>
         <translation>Files from the last N days</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="1054"/>
-        <location filename="../ui/selective_dump.py" line="1057"/>
+        <location filename="../ui/selective_dump.py" line="1071"/>
+        <location filename="../ui/selective_dump.py" line="1074"/>
         <source>Cancelando…</source>
         <translation>Cancelling…</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="700"/>
+        <location filename="../ui/selective_dump.py" line="717"/>
         <source>Origen inválido</source>
         <translation>Invalid source</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="704"/>
+        <location filename="../ui/selective_dump.py" line="721"/>
         <source>Destino inválido</source>
         <translation>Invalid destination</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="764"/>
-        <location filename="../ui/selective_dump.py" line="989"/>
+        <location filename="../ui/selective_dump.py" line="781"/>
+        <location filename="../ui/selective_dump.py" line="1006"/>
         <source>Error</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="765"/>
+        <location filename="../ui/selective_dump.py" line="782"/>
         <source>No se pudo escanear el origen: %1</source>
         <translation>Could not scan the source: %1</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="794"/>
+        <location filename="../ui/selective_dump.py" line="811"/>
         <source>%1 archivos en %2 día(s) de grabación · %3 sin fecha</source>
         <translation>%1 files on %2 recording day(s) · %3 without date</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="797"/>
+        <location filename="../ui/selective_dump.py" line="814"/>
         <source>%1 archivos en %2 día(s) de grabación</source>
         <translation>%1 files on %2 recording day(s)</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="826"/>
+        <location filename="../ui/selective_dump.py" line="843"/>
         <source>%1 archivos · %2 · %3 día(s) seleccionado(s)</source>
         <translation>%1 files · %2 · %3 selected day(s)</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="915"/>
+        <location filename="../ui/selective_dump.py" line="932"/>
         <source>Sin archivos</source>
         <translation>No files</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="916"/>
+        <location filename="../ui/selective_dump.py" line="933"/>
         <source>No hay archivos seleccionados para volcar.</source>
         <translation>There are no files selected to dump.</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="935"/>
+        <location filename="../ui/selective_dump.py" line="952"/>
         <source>Volcado selectivo %1</source>
         <translation>Selective dump %1</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="990"/>
+        <location filename="../ui/selective_dump.py" line="1007"/>
         <source>El volcado no pudo completarse: %1</source>
         <translation>The dump could not be completed: %1</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="995"/>
+        <location filename="../ui/selective_dump.py" line="1012"/>
         <source>Volcado detenido</source>
         <translation>Dump stopped</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="996"/>
+        <location filename="../ui/selective_dump.py" line="1013"/>
         <source>Volcado detenido por el usuario.
 %1 procesados, %2 errores.</source>
         <translation>Dump stopped by the user.
 %1 processed, %2 errors.</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="1001"/>
+        <location filename="../ui/selective_dump.py" line="1018"/>
         <source>Volcado completado</source>
         <translation>Dump complete</translation>
     </message>
     <message>
-        <location filename="../ui/selective_dump.py" line="1002"/>
+        <location filename="../ui/selective_dump.py" line="1019"/>
         <source>Volcado selectivo finalizado.
 
 %1 archivos volcados correctamente.
@@ -2998,169 +3004,169 @@ This action cannot be undone.</translation>
 <context>
     <name>SessionsMixin</name>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="33"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="34"/>
         <source>(Sin sesiones)</source>
         <translation>(No sessions)</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="68"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="81"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="111"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="351"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="359"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="71"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="84"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="114"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="354"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="362"/>
         <source>Por defecto</source>
         <translation>Default</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="102"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="104"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="105"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="107"/>
         <source>Origen automático: %1</source>
         <translation>Automatic source: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="106"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="109"/>
         <source>Origen: %1</source>
         <translation>Source: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="107"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="110"/>
         <source>Origen: sin origen (no se ejecutará)</source>
         <translation>Source: no source (will not run)</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="120"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="123"/>
         <source>Renombrar sesión</source>
         <translation>Rename session</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="121"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="124"/>
         <source>Nuevo nombre:</source>
         <translation>New name:</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="125"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="128"/>
         <source>Sesión renombrada</source>
         <translation>Session renamed</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="180"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="183"/>
         <source>Últimas %1 semanas</source>
         <translation>Last %1 weeks</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="182"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="185"/>
         <source>Últimos %1 meses</source>
         <translation>Last %1 months</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="183"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="186"/>
         <source>Últimos %1 días</source>
         <translation>Last %1 days</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="200"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="208"/>
-        <location filename="../ui/mixins/sessions_mixin.py" line="230"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="203"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="211"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="233"/>
         <source>Todo el contenido</source>
         <translation>All content</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="209"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="212"/>
         <source>WiFi y FTP siempre vuelcan todo el contenido</source>
         <translation>WiFi and FTP always dump all content</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="215"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="218"/>
         <source>Cambiar el volcado de esta sesión: todo / intervalo de fechas / últimos N días</source>
         <translation>Change this session's dump: all / date interval / last N days</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="216"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="219"/>
         <source>Abrir las opciones del modo de volcado actual</source>
         <translation>Open the current dump mode options</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="220"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="223"/>
         <source>Intervalo: %1</source>
         <translation>Interval: %1</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="222"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="225"/>
         <source>Intervalo de fechas</source>
         <translation>Date interval</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="275"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="278"/>
         <source>Configurar últimos N días/semanas/meses</source>
         <translation>Configure last N days/weeks/months</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="282"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="285"/>
         <source>Cantidad de unidades hacia atrás</source>
         <translation>Number of units back</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="283"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="286"/>
         <source>Valor:</source>
         <translation>Value:</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="286"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="289"/>
         <source>Días</source>
         <translation>Days</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="286"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="289"/>
         <source>Semanas</source>
         <translation>Weeks</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="286"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="289"/>
         <source>Meses</source>
         <translation>Months</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="289"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="292"/>
         <source>Unidad de tiempo para el filtro</source>
         <translation>Time unit for the filter</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="290"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="293"/>
         <source>Unidad:</source>
         <translation>Unit:</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="305"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="308"/>
         <source>Sin proyecto</source>
         <translation>No project</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="305"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="308"/>
         <source>Selecciona un proyecto primero.</source>
         <translation>Select a project first.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="308"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="311"/>
         <source>Nueva Sesión manual</source>
         <translation>New Manual Session</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="309"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="312"/>
         <source>Nombre de la sesión:</source>
         <translation>Session name:</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="322"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="325"/>
         <source>Sesión manual '%1' creada (ID: %2)</source>
         <translation>Manual session '%1' created (ID: %2)</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="329"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="332"/>
         <source>Eliminar sesión</source>
         <translation>Delete session</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="330"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="333"/>
         <source>¿Eliminar la sesión #%1 y sus registros de ingesta?
 Los archivos en disco se conservan.
 Esta acción no se puede deshacer.</source>
@@ -3169,22 +3175,22 @@ The files on disk are kept.
 This action cannot be undone.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="342"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="345"/>
         <source>Sesión #%1 eliminada.</source>
         <translation>Session #%1 deleted.</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="362"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="365"/>
         <source>Seleccionar destino de sesión</source>
         <translation>Select session destination</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="382"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="385"/>
         <source>Seleccionar origen de sesión</source>
         <translation>Select session source</translation>
     </message>
     <message>
-        <location filename="../ui/mixins/sessions_mixin.py" line="439"/>
+        <location filename="../ui/mixins/sessions_mixin.py" line="442"/>
         <source>Contenido del origen %1: %2</source>
         <translation>Content of source %1: %2</translation>
     </message>
@@ -3197,60 +3203,90 @@ This action cannot be undone.</translation>
         <translation>Receive via WiFi (PairDrop)</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="182"/>
+        <location filename="../ui/wifi_panel.py" line="188"/>
         <source>Escanea este código QR desde el móvil para enviar archivos sin instalar nada. El móvil y el ordenador deben estar en la misma red WiFi.</source>
         <translation>Scan this QR code from your phone to send files without installing anything. The phone and the computer must be on the same WiFi network.</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="170"/>
-        <location filename="../ui/wifi_panel.py" line="295"/>
+        <location filename="../ui/wifi_panel.py" line="176"/>
+        <location filename="../ui/wifi_panel.py" line="301"/>
         <source>Copiar</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="171"/>
+        <location filename="../ui/wifi_panel.py" line="177"/>
         <source>Copiar enlace</source>
         <translation>Copy link</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="194"/>
-        <location filename="../ui/wifi_panel.py" line="220"/>
+        <location filename="../ui/wifi_panel.py" line="200"/>
+        <location filename="../ui/wifi_panel.py" line="226"/>
         <source>Detener</source>
         <translation>Stop</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="198"/>
+        <location filename="../ui/wifi_panel.py" line="204"/>
         <source>Cerrar</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="216"/>
+        <location filename="../ui/wifi_panel.py" line="222"/>
         <source>El servidor no está activo.</source>
         <translation>The server is not active.</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="217"/>
+        <location filename="../ui/wifi_panel.py" line="223"/>
         <source>Reanudar</source>
         <translation>Resume</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="223"/>
+        <location filename="../ui/wifi_panel.py" line="229"/>
         <source>Servidor activo. Comparte esta dirección con los móviles: %1</source>
         <translation>Server active. Share this address with the phones: %1</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="290"/>
+        <location filename="../ui/wifi_panel.py" line="296"/>
         <source>Copiado</source>
         <translation>Copied</translation>
     </message>
     <message>
-        <location filename="../ui/wifi_panel.py" line="328"/>
+        <location filename="../ui/wifi_panel.py" line="334"/>
         <source>Recibido de %1: %2 (%3).</source>
         <translation>Received from %1: %2 (%3).</translation>
     </message>
 </context>
 <context>
-    <name>SourcePickerDialog</name>
+    <name>SoundSettingsDialog</name>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="11"/>
+        <source>Opciones de sonido</source>
+        <translation>Sound options</translation>
+    </message>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="20"/>
+        <source>Alertas de ingesta</source>
+        <translation>Ingest alerts</translation>
+    </message>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="23"/>
+        <source>Reproducir sonidos de alerta</source>
+        <translation>Play alert sounds</translation>
+    </message>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="28"/>
+        <source>Volumen</source>
+        <translation>Volume</translation>
+    </message>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="43"/>
+        <source>Aceptar</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <location filename="../ui/sound_settings_dialog.py" line="44"/>
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
+    </message>
 </context>
 <context>
     <name>SourcesMixin</name>
@@ -3463,9 +3499,6 @@ Esta acción no se puede deshacer.</source>
 The files on disk are kept.
 This action cannot be undone.</translation>
     </message>
-</context>
-<context>
-    <name>WifiMethodDialog</name>
 </context>
 <context>
     <name>WifiMixin</name>

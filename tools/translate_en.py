@@ -801,6 +801,11 @@ TRANSLATIONS = {
     "Eliminar unidad USB guardada": "Delete saved USB drive",
     "¿Eliminar esta unidad USB guardada y sus sesiones?\nLos archivos en disco se conservan.\nEsta acción no se puede deshacer.": "Delete this saved USB drive and its sessions?\nThe files on disk are kept.\nThis action cannot be undone.",
     "últimos %1 días": "last %1 days",
+    "Opciones de sonido": "Sound options",
+    "Opciones de &sonido…": "Sound &options…",
+    "Alertas de ingesta": "Ingest alerts",
+    "Reproducir sonidos de alerta": "Play alert sounds",
+    "Volumen": "Volume",
 }
 
 

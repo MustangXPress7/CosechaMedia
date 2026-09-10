@@ -398,14 +398,6 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.btn_new_session.clicked.connect(self._add_manual_session)
         sess_top.addWidget(self.btn_new_session)
 
-        self.btn_rename_session = QPushButton()
-        self.btn_rename_session.setObjectName("IconButton")
-        self.btn_rename_session.setFixedSize(28, 28)
-        self.btn_rename_session.setToolTip(self.tr("Renombrar sesión"))
-        icons.apply(self.btn_rename_session, "pencil", size=18)
-        self.btn_rename_session.clicked.connect(self._rename_current_session)
-        sess_top.addWidget(self.btn_rename_session)
-
         self.btn_delete_session = QPushButton()
         self.btn_delete_session.setObjectName("IconButton")
         self.btn_delete_session.setFixedSize(28, 28)
@@ -414,6 +406,14 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self.btn_delete_session.setEnabled(False)
         self.btn_delete_session.clicked.connect(self._delete_current_session)
         sess_top.addWidget(self.btn_delete_session)
+
+        self.btn_rename_session = QPushButton()
+        self.btn_rename_session.setObjectName("IconButton")
+        self.btn_rename_session.setFixedSize(28, 28)
+        self.btn_rename_session.setToolTip(self.tr("Renombrar sesión"))
+        icons.apply(self.btn_rename_session, "pencil", size=18)
+        self.btn_rename_session.clicked.connect(self._rename_current_session)
+        sess_top.addWidget(self.btn_rename_session)
 
         # Sin stretch final: el combo absorbe el hueco y los botones quedan
         # pegados al borde derecho de la caja.

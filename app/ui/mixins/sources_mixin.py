@@ -355,7 +355,7 @@ class SourcesMixin:
         delicate_btn.setCursor(Qt.PointingHandCursor)
         delicate_btn.setToolTip(self.tr("Cambiar modo: rápido / delicado"))
         is_delicate = bool(db.get_device_delicate(device_key)) if device_key else False
-        icons.apply(delicate_btn, "snail" if is_delicate else "zap", size=14)
+        icons.apply(delicate_btn, "bandaid" if is_delicate else "zap", size=14)
         if session:
             delicate_btn.clicked.connect(
                 lambda _=False, dk=device_key, b=delicate_btn: self._toggle_device_delicate(dk, b))
@@ -377,7 +377,7 @@ class SourcesMixin:
     def _toggle_device_delicate(self, device_key, btn):
         current = bool(db.get_device_delicate(device_key))
         db.set_device_delicate(device_key, not current)
-        icons.apply(btn, "snail" if not current else "zap", size=14)
+        icons.apply(btn, "bandaid" if not current else "zap", size=14)
 
     def _build_remove_file_button(self, row_item):
         btn = QPushButton()

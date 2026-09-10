@@ -84,6 +84,10 @@ class MenuMixin:
         act_cam_detect.triggered.connect(self._show_metadata_dialog)
         m_config.addAction(act_cam_detect)
 
+        act_sound = QAction(self.tr("Opciones de &sonido…"), self)
+        act_sound.triggered.connect(self._show_sound_settings)
+        m_config.addAction(act_sound)
+
         m_config.addSeparator()
 
         act_footage = QAction(self.tr("Personalizar &carpeta de footage…"), self)
@@ -181,3 +185,11 @@ class MenuMixin:
             self, self.tr("Idioma"),
             self.tr("Reinicia la aplicación para aplicar el idioma.")
         )
+
+    def _show_sound_settings(self):
+        from app.ui.sound_settings_dialog import SoundSettingsDialog
+        dlg = SoundSettingsDialog(self)
+        if dlg.exec():
+            # Recargar configuración en el gestor de notificaciones si existe
+            if hasattr(self, "notification_manager"):
+                self.notification_manager.reload_settings()

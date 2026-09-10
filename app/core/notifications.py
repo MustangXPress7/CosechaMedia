@@ -5,6 +5,8 @@ import threading
 import platform
 from typing import Dict, Optional
 from PySide6.QtWidgets import QMessageBox, QApplication, QDialog
+from PySide6.QtCore import QSettings, QUrl
+from PySide6.QtMultimedia import QSoundEffect
 from app.ui import theme
 from app.core.utils import resource_path
 from app.core.translator import tr
@@ -21,13 +23,24 @@ class _SilentMessageBox(QMessageBox):
     def showEvent(self, event):
         QDialog.showEvent(self, event)
 
-def play_sound_file(sound_file: str):
+def play_sound_file(sound_file: str, volume: float = 0.7):
     def _play():
         try:
+            # Intento con QSoundEffect para control de volumen cross-platform
+            try:
+                se = QSoundEffect()
+                se.setSource(QUrl.fromLocalFile(sound_file))
+                se.setVolume(max(0.0, min(1.0, volume)))
+                se.play()
+                return
+            except Exception:
+                # Fallback a métodos nativos si QtMultimedia no está disponible
+                pass
             if platform.system() == "Windows":
                 import winsound
                 winsound.PlaySound(sound_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
             elif platform.system() == "Darwin":
+                # afplay con volumen aproximado
                 os.system(f'afplay "{sound_file}" &')
             else:
                 os.system(f'aplay "{sound_file}" &')
@@ -38,8 +51,13 @@ def play_sound_file(sound_file: str):
 
 class NotificationManager:
     def __init__(self):
-        self.sounds_enabled = True
+        settings = QSettings("Audiovisual Production", "CosechaMedia")
+        self.sounds_enabled = settings.value("soundsEnabled", True, type=bool)
         self.visual_enabled = True
+        # Volumen 0-100 -> 0.0-1.0
+        vol = settings.value("soundVolume", 70, type=int)
+        self._sound_volume = max(0, min(100, vol)) / 100.0
+
         if getattr(sys, "frozen", False):
             self._sound_dir = os.path.join(os.path.dirname(sys.executable), "sounds")
         else:
@@ -48,6 +66,12 @@ class NotificationManager:
             )
         os.makedirs(self._sound_dir, exist_ok=True)
         self._bundled_sound_dir = resource_path(os.path.join("app", "sounds"))
+
+    def reload_settings(self):
+        settings = QSettings("Audiovisual Production", "CosechaMedia")
+        self.sounds_enabled = settings.value("soundsEnabled", True, type=bool)
+        vol = settings.value("soundVolume", 70, type=int)
+        self._sound_volume = max(0, min(100, vol)) / 100.0
     
     def notify_ingest_complete(self, stats: Dict):
         if self.sounds_enabled:
@@ -138,7 +162,7 @@ class NotificationManager:
         if not os.path.exists(sound_file):
             self._create_sound_file(sound_file, frequency, duration)
         if os.path.exists(sound_file):
-            play_sound_file(sound_file)
+            play_sound_file(sound_file, self._sound_volume)
 
     def _create_sound_file(self, path: str, frequency: int, duration: float):
         try:
