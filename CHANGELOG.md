@@ -1,3 +1,23 @@
+# Changelog — CosechaMedia v1.5.9-beta4
+
+**Fecha:** 2026-09-10  
+**Tipo:** Feature/UI + i18n
+
+---
+
+## Resumen
+Control de volumen de alertas de ingesta, diálogo de opciones de sonido accesible desde el menú, y ajustes de UI/traducciones.
+
+## Cambios
+- NotificationManager ahora usa QSoundEffect con volumen configurable desde QSettings
+- Nuevo diálogo SoundSettingsDialog: activar/desactivar sonidos y slider de volumen
+- Menú Configuración → Opciones de sonido… abre el diálogo y recarga el gestor
+- Traducciones EN actualizadas: Opciones de sonido, Alertas de ingesta, etc.
+- Reordenar botones de sesión a `+ - lápiz`
+- Icono modo delicado bandaid.svg convertido al formato estándar stroke #FF00FF
+
+---
+
 # Changelog — CosechaMedia v1.5.1
 
 **Fecha:** 2026-08-30  
