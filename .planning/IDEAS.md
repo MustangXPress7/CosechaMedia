@@ -43,32 +43,121 @@ CONCERNS.md resueltos por quick tasks). Los features del volcado selectivo lista
 
 | ID | Idea | Área | Prioridad | Estado |
 |----|------|------|-----------|--------|
-| I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | **v2.0** — reserva bandera |
+| I-01 | **Acciones rápidas / modo guiado**: el usuario configura el proyecto una vez y las acciones rápidas automatizan todo el proceso — solo hay que conectar el dispositivo y aprobar el plan que propone la app | Ingesta | nuevo feature | **v2.0** — reserva bandera. Renombrado a **plantillas de proyecto** (Fase 1.7.0, plan 01.7.0-04); modo guiado se queda en 2.0 |
 | I-02 | **Destinos de envío del volcado**: un único volcado puede enviarse a infinidad de destinos (ya funciona hoy). A futuro: destinos de **"fallback"/servidor** — copia local + copia en nube, por si el proyecto se reasigna a otra persona | Sesiones/Archivo | nuevo feature | Abierta — base ya resuelta |
 | I-03 | **Detección de cámara ligada a la ID de la tarjeta/dispositivo** — persistir el mapeo para no tener que introducir el nombre ni re-escanear cada vez | Detección | uso | ✅ Implementado — persistencia en `sd_cards` (serial) y `device_settings` (device_id) vía `_persist_camera_mapping` |
 | I-04 | **Contenedores/carpetas por tipo de archivo extraído** — dar cabida a datos giroscópicos, RAW, etc. | Archivo | nuevo feature | Abierta |
-| I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta |
+| I-05 | **Thumbnails / vista previa** en la tabla de ingesta | UI | nuevo feature | Abierta — alimenta I-23 (reportes con miniaturas) |
 | I-06 | **Reporte de contenido de tarjeta (CSV)** — qué hay, fechas, tamaño, antes de volcar | Ingesta | nuevo feature | ✅ Implementado — `generate_card_content_report()` pre-dump + `generate_integrity_report()` post-dump cableado al UI |
-| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | ⚠️ Parcial — solo escritura atómica `.part` sin reanudación (Range) ni MD5 en el móvil; por revisar |
+| I-07 | **WiFi inbox: reanudar subidas interrumpidas + verificación MD5 en el móvil** | WiFi | uso | ⚠️ Parcial — solo escritura atómica `.part` sin reanudación (Range) ni MD5 en el móvil; por revisar (ver I-22) |
 | I-08 | **Reglas configurables de organización del archivo** más allá de `Footage/<Cámara>/<Fecha>` | Archivo | nuevo feature | Abierta |
 | I-09 | **Estética / pulido visual** de la app | UI | nuevo feature | ⚠️ Parcial — B-11 hecho (io6 C9); B-09/B-10 pendientes |
 | I-10 | **Base sólida del core**: resolver bugs conocidos y consolidar | Core | uso | **v1.5** — PRIMERO |
 | I-11 | **Crear proyecto en un solo paso**: nombre + descripción + configuración a la vez, en una ventana suficientemente grande (sin wizard) | Proyectos | nuevo feature | ✅ Implementado — wizard ampliado con detección cámara, proxies, modo delicado |
 | I-12 | **Arreglar "establecer como predeterminado"**: hoy no se aplica a todos los proyectos por crear | Proyectos | uso | ✅ Hecho |
-| I-13 | **Pantalla de "bienvenido" al primer arranque**: seleccionar acciones rápidas sin trastear | Ingesta/UI | nuevo feature | **v2.0** — ligada a I-01 |
+| I-13 | **Pantalla de bienvenida** al primer arranque: proyectos recientes, crear nuevo (con selector de plantilla) y opción "no volver a mostrar" | Ingesta/UI | nuevo feature | **v1.7.0** — reubicada desde 2.0 (plan 01.7.0-05); integrada con plantillas |
 | I-14 | **Forzar nombre de cámara al registrar origen** | Detección/UX | uso | ✅ Implementado — `force_prompt=True` en `_assign_folder_source`; skipped si cámara conocida (I-03) |
 | I-15 | **Interruptor de contenido en volcado selectivo**: switch para controlar si volcar todo el contenido, un intervalo de días, o X días desde el último volcado (ventana nueva). Reemplaza el calendario de selección por modo de filtro predefinido | Ingesta | nuevo feature | ✅ Implementado — quick 260821-f2k: switch cíclico por sesión (Todo → Intervalo → Últimos N días) |
 | I-16 | **Configuración por defecto de orígenes en el proyecto**: apartado en la configuración del proyecto para tocar modo rápido/delicado y tipo de volcado por defecto | Proyectos | nuevo feature | Abierta |
 | I-17 | **Configuración de orígenes en proyecto nuevo**: al crear un nuevo proyecto, aparecer también la configuración de orígenes entrantes predefinidos | Proyectos | nuevo feature | Abierta |
 | I-18 | **Filtrado de volcado por sesión**: decidir si el parámetro de volcado (modo todo/intervalo/ventana) lo controla la sesión o el origen, una vez que la sesión decide ese parámetro. Mover a sesiones y no ponerlo en orígenes. **Nota**: Para los modos WiFi y FTP, el modo de volcado queda bloqueado por la compatibilidad de su sistema y sería "todo" por defecto, ya que no admiten selección parcial de contenido. | Sesiones | nuevo feature | ✅ Implementado — quick 260821-f2k: control solo en Sesiones, WiFi/FTP bloqueados a "Todo", columna Contenido → Opciones |
 | I-19 | **Revisar aplicación de temas claro/oscuro en ventanas**: verificar que la transición y aplicación de temas oscuros y claros funcione correctamente en todas las ventanas y diálogos, especialmente después de cambios de configuración y en modo congelado (PyInstaller). Detectar posibles desajustes visuales, QSS no aplicados o fallback a valores por defecto. | UI | uso | ✅ Revisado — QSS template completo (600+ líneas), 64 inline styles usan theme.color(), refresh correcto en theme switch |
+| I-20 | **Motor de copia más rápido**: el argumento estrella de OffShoot es la velocidad. Hoy la ingesta va con `shutil` + MD5 streaming. Explorar buffers grandes, copia nativa del SO (buffered async / `CopyFileEx` en Windows, `sendfile`/`fclone` en POSIX), y paralelismo multi-destino real. Benchmark público tarjeta→lector para poder comparar y vender el dato | Core | nuevo feature | **Fase 1.9.0** — plan 01.9.0-01 |
+| I-21 | **Menú contextual "Copiar a CosechaMedia…"** (Explorer/Finder): clic derecho sobre una carpeta/tarjeta → motor de copia verificado sin abrir la app. Integración de registro/entorno tipo la de OffShoot | Ingesta/UX | nuevo feature | Abierta — ver sección OffShoot |
+| I-22 | **Stop & Resume + detección de duplicados robusta**: mejora del resume actual (`.sdimport_session_<id>.json`) para que reanude en cualquier punto aunque haya nombres idénticos, con duplicado por tamaño/hash, no solo por ruta | Core | uso | **Fase 1.9.0** — plan 01.9.0-02; complementa I-07 |
+| I-23 | **Reportes presentables con marca**: evolución de los CSV actuales a informe HTML/PDF con logo, título, notas y miniatura por clip (I-05), listo para entregar al DIT/cliente al cierre de jornada | Ingesta | nuevo feature | **Fase 1.9.0** — plan 01.9.0-03 |
+| I-24 | **Scripts/webhooks post-ingesta**: disparar un script o webhook (Slack/Discord/Telegram local) al terminar cada ingesta, además del notificador SMTP/Telegram de 1.7.0. Es el "Connect" de OffShoot pero sin nube | Ingesta | nuevo feature | **Fase 1.9.0** — candidata (SC 4) |
+| I-25 | **Health check del soporte**: al detectar una SD (y antes de formatear), validar salud/estado (lectura, SMART de tarjetas si aplica, aviso de tarjeta degradada). OffShoot valida OWC/ProGrade; `SDReader` ya lee marca/serial — dar el paso a verificación de integridad del propio soporte | Detección | uso | Abierta — ver sección OffShoot |
+
+## Plantillas de proyecto (Fase 1.7.0 — plan 01.7.0-04)
+
+Las plantillas pre-configuran un proyecto completo (organización, proxies, sesión por defecto, acciones post-ingesta) para que el operador solo tenga que darle nombre y empezar. Sustituyen la terminología "acciones rápidas" (I-01) y se integran con la ventana de bienvenida (I-13) y el wizard de creación.
+
+### Configuración que almacena cada plantilla
+
+```json
+{
+  "name": "Plantilla",
+  "organization_type": 0,
+  "date_mode": 0,
+  "proxy_enabled": true,
+  "proxy_quality": "1080p",
+  "session_dump_mode": "window",
+  "session_window_days": 7,
+  "session_window_unit": "days",
+  "post_actions": {"csv_card": true, "csv_integrity": true, "proxies": false, "format": false, "shutdown": false},
+  "allowed_sources": ["sd", "wifi", "ftp", "mtp"],
+  "camera_detection": "auto"
+}
+```
+
+`organization_type`: 0=Cámara/Fecha, 1=Fecha/Cámara, 2=Solo cámara, 3=Sin subcarpetas
+`date_mode`: 0=Automática (ffprobe), 1=Manual
+`session_dump_mode`: "all" (volcar todo), "interval" (intervalo de fechas), "window" (últimos N días/semanas/meses)
+
+### Plantillas predefinidas
+
+| # | Plantilla | Org | Proxies | Sesión por defecto | Post-ingesta | Orígenes típicos | Uso |
+|---|-----------|-----|---------|--------------------|--------------|------------------|-----|
+| 1 | **Documentary / Reportaje** | Fecha/Cámara (1) | 1080p | ventana 7 días | CSV card + integridad | SD + WiFi (entrevistas móvil) | Rodajes largos, varias jornadas, material de archivo |
+| 2 | **Fiction / Ficción** | Cámara/Fecha (0) | 720p | ventana 1 día | integridad | SD (ARRI, Sony, RED) | Cine, serie, telefilm — múltiples cámaras por jornada |
+| 3 | **Commercial / Publicidad** | Cámara/Fecha (0) | 1080p | todo | CSV card | SD | Spot, contenido corto, rápido turnaround |
+| 4 | **Wedding / Evento** | Fecha/Cámara (1) | 1080p | todo | CSV card + integridad | SD + WiFi (invitados) | Boda, gala, evento de un día |
+| 5 | **Corporate / Conferencia** | Fecha/Cámara (1) | 1080p | todo | CSV card | SD + WiFi | Presentación, conferencia, formación |
+| 6 | **Fast / Urgente** | Sin subcarpetas (3) | desactivado | todo | nada | SD | Noticias, breaking news, volcado rápido sin organización |
+| 7 | **Custom / Personalizado** | libre | libre | libre | libre | libre | El usuario configura todo desde el wizard (estado actual) |
+
+### Notas de diseño
+
+- La plantilla **Custom** es el comportamiento actual del wizard: todo configurable, sin preselección.
+- Las plantillas **no tocan `app/core/`** — solo pre-rellenan los campos del `ProjectWizard` existente.
+- Si el operador modifica algo al crear el proyecto, se sobreescribe (la plantilla es un punto de partida, no una restricción).
+- La plantilla se guarda como archivo `.json` en `data/templates/` (junto a la DB).
+- Se pueden crear plantillas nuevas duplicando una predefinida y editándola (NamesManagerDialog reutilizable).
+- La ventana de bienvenida (I-13, plan 01.7.0-05) muestra: proyecto reciente / crear nuevo (con selector de plantilla) / "no volver a mostrar".
+
+### Alternativas consideradas
+
+- **Plantillas por dispositivo (no por proyecto):** crear una plantilla para "Sony A7IV" que siempre usa las mismas opciones. Rechazado: la organización depende del tipo de rodaje, no del hardware.
+- **Plantillas que restringen opciones:** impedir que el operador cambie la organización. Rechazado: la plantilla es un punto de partida; el operador siempre es libre.
+
+## Análisis de competencia: OffShoot (Hedge)
+
+Análisis 2026-09-10 de [OffShoot](https://hedge.co/products/offshoot) (ex-Hedge), DIT tool de referencia de Hedge: $169/$249, macOS/Windows, 10 días de prueba.
+
+### Dónde CosechaMedia gana
+
+| Ventaja | Detalle |
+|---------|---------|
+| **Ingesta desde móviles/cámaras** | OffShoot solo copia discos/tarjetas ya montados. CosechaMedia ingiere por USB (MTP), WiFi QR (PairDrop, sin instalar nada) y FTP — únicos en el nicho |
+| **Modelo proyecto/sesión** | OffShoot es un motor de transferencia sin estado; CosechaMedia gestiona proyectos con sesiones, volcado selectivo por jornada, organización `Footage/<Cámara>/<Fecha>` y reorganizador de material descolocado |
+| **Libre/open source + Linux** | GPL-3.0, multiplataforma (incluye Linux) frente a pago y solo macOS/Windows |
+| **Proxies y detección integrados** | Generación de proxies 720/1080p y detección de cámara vía ffprobe dentro del mismo flujo; OffShoot deriva a EditReady y FoolCat (pago aparte) |
+| **Sin nube, privacidad** | CosechaMedia es local-only; OffShoot empuja S3/iconik/Connect. En rodaje local es una ventaja |
+
+### Carencias de CosechaMedia donde OffShoot gana (→ features propuestos)
+
+| Carencia | OffShoot | Feature propuesto |
+|----------|----------|-------------------|
+| Velocidad de copia | Motor de copia "blazing speed", el argumento estrella | **I-20** — buffers grandes, copia nativa SO (`CopyFileEx`/`sendfile`), paralelismo multi-destino, benchmark público |
+| Acceso sin abrir la app | Clic derecho → motor de copia (Finder/Explorer) | **I-21** — menú contextual "Copiar a CosechaMedia…" |
+| Resume a prueba de duplicados | Stop & Resume + Duplicate Detection por tamaño/hash | **I-22** — resume robusto con duplicados por hash, no solo ruta |
+| Reportes para entregar | Reports con logo, notas, miniaturas | **I-23** + I-05 — informe HTML/PDF con marca |
+| Verificación diferida | Media Hash Lists + re-verificación posterior | **R-05 / fase 1.8.0** — XXH64 + ASC MHL (ya planificado) |
+| Automatización | Connect (push, webhooks), presets, API y scripting | **I-24** + 1.7.0 notificadores — scripts/webhooks post-ingesta sin nube |
+| Salud del soporte | Health check OWC/ProGrade antes de volcar | **I-25** — validación de estado de la SD (SDReader ya lee marca/serial) |
+| Presets compartibles y avisos varios | Presets online, presets Builder, Helper de menú | Plantillas de proyecto (1.7.0) + import/export JSON (ya en DeviceRegistry) |
+
+### Posicionamiento recomendado
+
+No competir en su terreno (velocidad + ecosistema DIT maduro), sino en el propio: **un operador que llega con una SD, un móvil o una cámara y necesita archivar un rodaje completo sin darse de alta en nada**. Ahí se gana por producto y por precio. De vuelta a casa, priorizar **I-20 (velocidad)**, **I-22 (resume/duplicados)** y **I-23 (reportes presentables)** como los tres saltos que más cierran la brecha percibida.
 
 ## Rutas futuras (candidatas a fase)
 
 | Ruta | Prioridad | Origen | Notas |
 |------|-----------|--------|-------|
 | R-01 | **Estabilización del core** (bugs conocidos + consistencia) | uso | I-10 — prerrequisito del resto. Alcance apuntado abajo. **Fase 1.5.0** |
-| R-02 | **Acciones rápidas / modo guiado** | nuevo feature | I-01 + I-13 (pantalla de bienvenida = conclusión de la integración). **Fase 2.0** |
+| R-02 | **Modo guiado** | nuevo feature | I-01 (modo guiado) — las plantillas de proyecto y la ventana de bienvenida ya se implementan en **Fase 1.7.0**; el modo guiado se queda en **Fase 2.0** como integración final |
 | R-03 | **Destinos "fallback"/servidor para el volcado** (copia local + nube, p. ej. si el proyecto se reasigna) | nuevo feature | I-02 — la base (enviar un volcado a múltiples destinos) ya funciona hoy |
 | R-04 | Mejoras al volcado selectivo (MTP/caché, multi-origen) | — | **Fase 1.6.0** (ID-01/ID-02/ID-04; antigua Fase 2) |
 | R-05 | **Verificación avanzada: XXH64 + ASC MHL** | nuevo feature | Diseño D1-D5 en `.planning/notes/diseno-xxh64-asc-mhl.md`. **Fase 1.6.0** |

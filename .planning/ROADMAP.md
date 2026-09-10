@@ -3,19 +3,22 @@
 ## Overview
 
 Evolución de CosechaMedia organizada por **versión publicable**: cada fase del roadmap
-corresponde a una release (1.5.0, 1.6.0, 2.0). La fase 1 (histórica) fue la iniciativa de
+corresponde a una release (1.5.0, 1.6.0, 1.7.0, 2.0). La fase 1 (histórica) fue la iniciativa de
 auditoría de la UI, ya completada. A partir de la fase 1.5.0 el plan se ordena por release:
 **1.5.0** consolida bugs y fricciones del flujo de volcado (fase ligera por quick tasks),
-**1.6.0** añade custodia verificable (verificación avanzada XXH64 + ASC MHL), el
-reordenamiento de footage volcado a mano y los features de volcado selectivo multi-origen
-(ID-01/ID-02) migrados desde 1.5.0, y **2.0** incorpora el modo guiado y la pantalla de
-bienvenida (reservados desde v1.5).
+**1.6.0** añade el diálogo unificado de orígenes, el reorganizador de footage, el DeviceRegistry y
+bugs de COM/FTP/UI, **1.7.0** añade notificadores, pulido visual UI, configuración de proyecto
+(plantillas, bienvenida, orígenes en el wizard) y reorganizador con filtros ffprobe, y **2.0**
+incorpora el modo guiado que se apoya en las plantillas creadas en 1.7.0. **1.9.0** cierra la
+brecha percibida con OffShoot: velocidad de copia, resume robusto y reportes presentables.
 
 ## Milestones
 
 - ✅ **v1.5.0 Consolidación y bugs del flujo** — Phases 1, 1.5.0 (shipped 2026-08-29)
 - 🚧 **v1.6.0 Verificación avanzada + Reorganizador de footage** — Phases 1.6.0 (in progress)
-- 📋 **v2.0 Modo guiado + Pantalla de bienvenida** — Phases 2.0 (planned)
+- 📋 **v1.7.0 Notificadores + Pulido visual + Configuración de proyecto + Reorganizador avanzado** — Phases 1.7.0 (planned)
+- 📋 **v2.0 Modo guiado con plantillas** — Phases 2.0 (planned)
+- 📋 **v1.9.0 Velocidad de copia + Resume robusto + Reportes presentables** — Phases 1.9.0 (planned)
 
 ## Phases
 
@@ -35,9 +38,23 @@ bienvenida (reservados desde v1.5).
 </details>
 
 <details>
-<summary>📋 v2.0 Modo guiado + Pantalla de bienvenida (Phase 2.0) — PLANNED</summary>
+<summary>📋 v1.7.0 Notificadores + Pulido visual + Configuración de proyecto + Reorganizador avanzado (Phase 1.7.0) — PLANNED</summary>
 
-- [ ] **Phase 2.0: Modo guiado + Pantalla de bienvenida** (0/0 plans) — planned
+- [ ] **Phase 1.7.0** (0/6 plans) — planned
+
+</details>
+
+<details>
+<summary>📋 v2.0 Modo guiado con plantillas (Phase 2.0) — PLANNED</summary>
+
+- [ ] **Phase 2.0: Modo guiado con plantillas** (0/0 plans) — planned
+
+</details>
+
+<details>
+<summary>📋 v1.9.0 Velocidad de copia + Resume robusto + Reportes presentables (Phase 1.9.0) — PLANNED</summary>
+
+- [ ] **Phase 1.9.0: Velocidad de copia + Resume robusto + Reportes presentables** (0/3 plans) — planned
 
 </details>
 
@@ -153,22 +170,34 @@ Plans:
 
 - [x] 01.6.0-07-PLAN.md — DeviceRegistry Write Path: upsert on MTP/FTP detection + camera rename + legacy migration + remove Detect button
 
-### Phase 1.7.0: Notificadores SMTP/Telegram + Volcado por orden de dispositivo
+### Phase 1.7.0: Notificadores SMTP/Telegram + Volcado por orden + Pulido visual UI + Configuración de proyecto + Reorganizador avanzado
 
-**Goal:** Notificadores configurables por proyecto para avisar al acabar la ingesta, y volcado de tarjetas por orden de dispositivo (reubicado desde 1.6.0) para rotar tarjetas con un solo lector.
+**Goal:** Notificadores configurables por proyecto para avisar al acabar la ingesta, volcado de tarjetas por orden de dispositivo (reubicado desde 1.6.0) para rotar tarjetas con un solo lector, pulido visual de la UI con QSS moderno en `app/ui/` sin tocar core, integración mínima HTML para el fondo de trigo interactivo, configuración de proyecto de un vistazo (plantillas, bienvenida, orígenes en el wizard) y reorganización filtrable por metadatos.
 **Mode:** standard
 **Depends on:** Phase 1.6.0
-**Requirements**: REQ-07 (notificadores); volcado por orden de dispositivo (todo 2026-09-02)
+**Requirements**: REQ-07 (notificadores); volcado por orden de dispositivo (todo 2026-09-02); mejora visual UI fase 1 — QSS, componentes Card/Chip, iconografía y animaciones Qt en `app/ui/`; fondo trigo interactivo con HTML/CSS hover en `app/ui/web/` mediante QWebEngineView mínimo; plantillas de proyecto (sustituye "acciones rápidas"); ventana de bienvenida I-13 (reubicada desde 2.0); pre-adición de orígenes en ProjectWizard; reorganizador con filtros por resolución y otros parámetros (ffprobe)
 **Success Criteria** (what must be TRUE):
 
   1. Notificadores configurables por proyecto (SMTP + Telegram)
   2. Aviso al finalizar ingesta (éxito/error)
   3. Volcado por orden de dispositivo: con un solo lector, el operador rota tarjetas y la ingesta las procesa en orden
+  4. Pulido visual UI Fase 1 aplicado en `app/ui/`: QSS modernizado con radios, spacing y sombras coherentes, componentes Card/Chip reutilizables, iconografía SVG consistente y micro-animaciones Qt, manteniendo tema oscuro/claro + acentos y sin cambios en `app/core/`
+  5. Fondo de trigo interactivo mínimo: vista HTML/CSS incrustada con QWebEngineView que muestra patrón de espigas y animación hover `transform` sobre las vainas, color sincronizado con tema, sin modificar `app/core/`
+  6. El reorganizador filtra y/o agrupa por resolución y otros metadatos extraídos por ffprobe (códec, fps, duración) antes de mover archivos
+  7. La terminología "acciones rápidas" queda sustituida por "plantillas de proyectos"; existen plantillas reutilizables aplicables al crear un proyecto
+  8. Ventana de bienvenida al primer arranque: proyectos recientes o crear proyecto nuevo, con opción "no volver a mostrar"
+  9. El asistente de creación de proyecto permite añadir orígenes de antemano (USB/MTP, WiFi/QR, FTP)
 
 **Plans:** 0 plans
 
 Plans:
 
+- [ ] 01.7.0-01-PLAN.md — Pulido visual UI Fase 1: QSS moderno, componentes Card/Chip, iconografía y animaciones en `app/ui/` (sin tocar core)
+- [ ] 01.7.0-02-PLAN.md — Fondo trigo interactivo mínimo: QWebEngineView HTML/CSS con hover en vainas, integración en `app/ui/` y sincronización de color de tema
+- [ ] 01.7.0-03-PLAN.md — Reorganizador avanzado: filtrado/agrupación por resolución, códec, fps y duración (ffprobe) en ReorganizeDialog
+- [ ] 01.7.0-04-PLAN.md — Plantillas de proyectos: sustituye "acciones rápidas", plantillas reutilizables aplicables al crear proyecto
+- [ ] 01.7.0-05-PLAN.md — Ventana de bienvenida (I-13, reubicada desde 2.0): proyectos recientes + crear nuevo + "no volver a mostrar"
+- [ ] 01.7.0-06-PLAN.md — ProjectWizard: pre-adición de orígenes al crear el proyecto
 - [ ] TBD (run /gsd-plan-phase 1.7.0 to break down)
 
 ### Phase 1.8.0: WiFi SSID + verificación XXH64+ASC MHL
@@ -189,22 +218,17 @@ Plans:
 
 - [ ] TBD (run /gsd-plan-phase 1.8.0 to break down)
 
-### Phase 2.0: Modo guiado + Pantalla de bienvenida
+### Phase 2.0: Modo guiado con plantillas
 
-**Goal:** El operador configura el proyecto una vez y las **acciones rápidas / modo guiado**
-(I-01) automatizan el flujo completo — conectar el dispositivo y aprobar el plan que propone la
-app — apoyándose en la **pantalla de bienvenida** (I-13) al primer arranque para elegir acciones
-rápidas sin trastear. Candidatas a incluir: REQ-07 (notificadores inteligentes al acabar la
-ingesta) y REQ-08 (WiFi por SSID+contraseña para cámaras; bloqueada por spike de viabilidad).
+**Goal:** El operador configura el proyecto una vez y el **modo guiado** (I-01) automatiza el flujo completo — conectar el dispositivo y aprobar el plan que propone la app — apoyándose en las **plantillas de proyectos** (reubicadas desde 1.7.0). Candidatas a incluir: REQ-08 (WiFi por SSID+contraseña para cámaras; bloqueada por spike de viabilidad). La ventana de bienvenida (I-13) ya está implementada en 1.7.0.
 **Mode:** standard
-**Depends on:** Phase 1.6.0
-**Requirements**: I-01, I-13 (reservadas desde v1.5); REQ-07/08 como candidatas
+**Depends on:** Phase 1.7.0
+**Requirements**: I-01 (modo guiado, reubicado aquí); REQ-08 como candidata
 **Success Criteria** (what must be TRUE):
 
   1. Existe un modo guiado (I-01): el proyecto se configura una vez y al conectar un dispositivo la app propone un plan de volcado que el operador solo aprueba
-  2. La pantalla de bienvenida (I-13) aparece en el primer arranque y guía la selección de acciones rápidas, sin pasos sueltos
-  3. UI-04/UI-05 (implementación de reubicaciones acordadas en Phase 1) se incorporan a este alcance si el plan de reubicación lo exige
-  4. REQ-07 (notificadores) y REQ-08 (WiFi cámaras) se incorporan o quedan fuera con decisión documentada; REQ-08 sin incorporar mientras no pase el spike de viabilidad
+  2. UI-04/UI-05 (implementación de reubicaciones acordadas en Phase 1) se incorporan a este alcance si el plan de reubicación lo exige
+  3. REQ-08 (WiFi cámaras) se incorpora o queda fuera con decisión documentada; sin incorporar mientras no pase el spike de viabilidad
 
 **Plans:** 0 plans
 
@@ -212,19 +236,42 @@ Plans:
 
 - [ ] TBD (run /gsd-plan-phase 2.0 to break down)
 
+### Phase 1.9.0: Velocidad de copia + Resume robusto + Reportes presentables
+
+**Goal:** Cerrar la brecha percibida con OffShoot (análisis 2026-09-10 en IDEAS.md): motor de copia más rápido (copia nativa SO, buffers grandes), resume a prueba de duplicados por hash y reportes de ingesta presentables con marca. Candidata: scripts/webhooks post-ingesta sin nube.
+**Mode:** standard
+**Depends on:** Phase 1.8.0
+**Requirements**: I-20 (velocidad de copia), I-22 (resume + duplicados), I-23 (reportes con marca, con I-05) — del análisis de competencia OffShoot; I-24 (scripts/webhooks) como candidata
+**Success Criteria** (what must be TRUE):
+
+  1. La copia verificada (MD5 stream-through) alcanza el máximo que permite el hardware sin degradar la verificación: buffers grandes / copia nativa (`CopyFileEx` en Windows, `sendfile` en POSIX) y un benchmark reproducible tarjeta→lector para comparar y publicar
+  2. El resume reanuda en cualquier punto aunque existan nombres de archivo idénticos: duplicación por tamaño/hash, no solo por ruta; complementa I-07 (resume WiFi)
+  3. Existe un informe de ingesta presentable (HTML/PDF) con logo, título, notas y miniatura por clip (I-05), complementario a los CSV que ya genera
+  4. (Candidata) Al terminar una ingesta se puede ejecutar un script o webhook local (I-24), sumándose a los notificadores de 1.7.0
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] 01.9.0-01-PLAN.md — Motor de copia rápido (I-20): buffers grandes, copia nativa SO y benchmark público
+- [ ] 01.9.0-02-PLAN.md — Resume robusto + detección de duplicados por hash (I-22)
+- [ ] 01.9.0-03-PLAN.md — Reportes de ingesta con marca (I-23 + I-05): HTML/PDF con logo, notas y miniaturas
+- [ ] TBD (run /gsd-plan-phase 1.9.0 to break down)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 2.0
+Phases execute in numeric order: 1 (completa), 1.5.0, 1.6.0, 1.7.0, 1.8.0, 1.9.0, 2.0
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Auditoría UI y Plan de Reubicación | 4/5 | In Progress|  |
 | 1.5.0. Consolidación y bugs del flujo | 4/4 | Complete | 2026-08-29 |
 | 1.6.0. Añadir origen + Reorganizador + Bugs + DeviceRegistry | 6/6 | Complete | 2026-09-05 |
-| 1.7.0. Notificadores SMTP/Telegram | 0/0 | Planned |  |
+| 1.7.0. Notificadores + Pulido visual + Configuración de proyecto + Reorganizador avanzado | 0/6 | Planned |  |
 | 1.8.0. WiFi SSID + verificación | 0/0 | Planned |  |
-| 2.0. Modo guiado + Pantalla de bienvenida | 0/0 | Planned |  |
+| 1.9.0. Velocidad de copia + Resume robusto + Reportes presentables | 0/3 | Planned |  |
+| 2.0. Modo guiado con plantillas | 0/0 | Planned |  |
 
 ### Phase 2: remove-camera-auto-detection Eliminar modo de detección automática de cámara (solo manual)
 
