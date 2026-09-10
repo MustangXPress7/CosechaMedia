@@ -16,17 +16,20 @@ SD card ingestion tool for audiovisual production. Verified copies (MD5), organi
 
 - **Verified ingest**: SD card copies with MD5 checks and removal of corrupted destinations.
 - **Automatic organization**: `Footage/<Camera>/<Date>` with several modes (camera first, date first, camera only, no subfolders).
-- **Device detection**: automatic source scanning with persistent device names (set when registering the source).
-- **Selective dump per session**: dump all content, a date interval, or only the days since the last dump (configurable window, 1 day by default), session by session — with an assistant that scans the card, groups files by shooting day, and copies verified.
+- **Device detection**: automatic source scanning with persistent device names (set when registering the source) and a global device registry with import/export (JSON).
+- **Unified source dialog**: a flat, tab-free table with three sections (USB/MTP, WiFi/QR, FTP) that detects devices off-thread and pre-fills known camera names.
+- **Selective dump per session**: dump all content, a date interval, or only the days/weeks/months since the last dump (configurable window and unit, 1 day by default), session by session — with an assistant that scans the card, groups files by shooting day, and copies verified.
+- **Footage reorganiser**: scan a project folder, detect files misplaced as *SinClasificar*, and re-organise them by camera/date with MD5 re-verification and DB re-registration.
 - **Flexible shoot dates**: taken automatically from video metadata or set manually per project, with per-device overrides for cards without reliable metadata.
 - **One-step projects**: the creation wizard collects every project setting up front (advanced options collapsed by default).
 - **Multiple dump destinations**: automatic distribution across drives (when one fills up, it moves to the next).
 - **Proxies**: 720p/1080p proxy generation for video clips.
+- **Sound settings**: enable/disable ingest alerts and adjust volume from *Settings → Sound options…*.
 - **Post-ingest**: CSV reports (card contents before dumping, integrity after ingest), source formatting (Windows), and scheduled shutdown.
 - **Themes and accents**: dark/light theme with color accents, tintable SVG icons that follow the accent, and animated wheat background.
 - **Internationalization**: Spanish and English (switchable from the *Language* menu).
 - **Automatic updates**: checks via GitHub Releases with SHA-256 verification.
-- **Ingest from phones and cameras**: import over USB (MTP), over WiFi with QR-code reception (PairDrop, nothing to install on the phone), or via an FTP server on the device, with incremental sync and automatic rescanning.
+- **Ingest from phones and cameras**: import over USB (MTP), over WiFi with QR-code reception (PairDrop, nothing to install on the phone), or via an FTP server on the device, with incremental sync and automatic rescanning. FTP auto-detects on the local network and flips between passive/active mode when needed.
 
 ![UI de CosechaMedia](https://i.imgur.com/WzW2kka.png)
 
@@ -118,7 +121,8 @@ git push origin v1.0.0
 ```
 app/
   core/          Business logic (ingest, metadata, watcher, updater, DB...)
-  ui/            Interface (main window, wizard, "About" dialog, themes)
+  ui/            Interface (main window, dialogs, mixins, themes)
+  ui/mixins/     Modular UI components (camera, devices, ingest, menu, project, sessions, sources, wifi)
   i18n/          Translation catalogs (.ts / .qm)
   sounds/        Notification sounds
 tools/           Internationalization scripts
@@ -149,17 +153,20 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 
 - **Ingesta verificada**: copia de tarjetas SD con comprobación MD5 y eliminación de destinos corruptos.
 - **Organización automática**: `Footage/<Cámara>/<Fecha>` con varios modos (cámara primero, fecha primero, solo cámara, sin subcarpetas).
-- **Detección de dispositivos**: escaneo automático de orígenes con nombres de dispositivo persistentes (se fijan al registrar el origen).
-- **Volcado selectivo por sesión**: vuelca todo el contenido, un intervalo de días o solo los días transcurridos desde el último volcado (ventana configurable, 1 día por defecto), sesión a sesión, con un asistente que escanea la tarjeta, agrupa por día de rodaje y copia verificado.
+- **Detección de dispositivos**: escaneo automático de orígenes con nombres de dispositivo persistentes (se fijan al registrar el origen) y registro global de dispositivos con importación/exportación (JSON).
+- **Diálogo unificado de orígenes**: tabla plana sin pestañas con tres secciones (USB/MTP, WiFi/QR, FTP) que detecta dispositivos en segundo plano y precarga nombres de cámara conocidos.
+- **Volcado selectivo por sesión**: vuelca todo el contenido, un intervalo de días o solo los días/semanas/meses transcurridos desde el último volcado (ventana y unidad configurables, 1 día por defecto), sesión a sesión, con un asistente que escanea la tarjeta, agrupa por día de rodaje y copia verificado.
+- **Reorganizador de footage**: escanea una carpeta de proyecto, detecta archivos descolocados como *SinClasificar* y los reorganiza por cámara/fecha con re-verificación MD5 y re-registro en la DB.
 - **Fechas de rodaje flexibles**: tomadas automáticamente de los metadatos de vídeo o fijadas a mano por proyecto, con excepciones por dispositivo para tarjetas sin metadatos fiables.
 - **Proyectos en un solo paso**: el asistente de creación recoge todos los ajustes del proyecto desde el principio (opciones avanzadas plegadas por defecto).
 - **Destinos de volcado múltiples**: reparto automático entre discos (cuando uno se llena, pasa al siguiente).
 - **Proxies**: generación de proxies 720p/1080p de los clips de vídeo.
+- **Opciones de sonido**: activar/desactivar alertas de ingesta y ajustar el volumen desde *Configuración → Opciones de sonido…*.
 - **Post-ingesta**: informes CSV (contenido de la tarjeta antes de volcar, integridad tras la ingesta), formateo de orígenes (Windows) y apagado programado.
 - **Temas y acentos**: tema oscuro/claro con acentos de color, iconos SVG tintables que siguen al acento y fondo de trigo animado.
 - **Internacionalización**: español e inglés (se cambia en el menú *Idioma*).
 - **Actualizaciones automáticas**: comprobación vía GitHub Releases con verificación SHA-256.
-- **Ingesta desde móviles y cámaras**: importa por USB (MTP), por WiFi con recepción por código QR (PairDrop, sin instalar nada en el móvil) o por servidor FTP en el dispositivo, con sincronización incremental y reescaneo automático.
+- **Ingesta desde móviles y cámaras**: importa por USB (MTP), por WiFi con recepción por código QR (PairDrop, sin instalar nada en el móvil) o por servidor FTP en el dispositivo, con sincronización incremental y reescaneo automático. El FTP se auto-detecta en la red local y alterna entre modo pasivo/activo cuando es necesario.
 
 ![UI de CosechaMedia](https://i.imgur.com/WzW2kka.png)
 
@@ -251,7 +258,8 @@ git push origin v1.0.0
 ```
 app/
   core/          Lógica de negocio (ingesta, metadatos, watcher, updater, DB...)
-  ui/            Interfaz (ventana principal, asistente, diálogo "Acerca de", temas)
+  ui/            Interfaz (ventana principal, diálogos, mixins, temas)
+  ui/mixins/     Componentes modulares de UI (cámara, dispositivos, ingesta, menú, proyecto, sesiones, orígenes, wifi)
   i18n/          Catálogos de traducción (.ts / .qm)
   sounds/        Sonidos de notificación
 tools/           Scripts de internacionalización

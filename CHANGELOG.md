@@ -1,3 +1,132 @@
+# Changelog — CosechaMedia v1.6.0
+
+**Fecha:** 2026-09-10  
+**Tipo:** Feature release (UI overhaul + device registry + footage reorganiser)
+
+---
+
+## Resumen
+
+Reestructuración integral de la interfaz: diálogo unificado de orígenes, registro global de dispositivos con nombres persistentes, reorganizador de footage, opciones de sonido, filtro de ventana por días/semanas/meses, y descomposición de MainWindow en mixins.
+
+---
+
+## Nuevas funcionalidades
+
+| Función | Descripción |
+|---------|-------------|
+| **AddSourceDialog** | Sustituye a SourcePickerDialog. Tabla plana sin pestañas con 3 secciones (USB/MTP, WiFi/QR, FTP) y 5 columnas. Detección off-thread, precarga de nombres conocidos, errores WPD no-bloqueantes. |
+| **DeviceRegistry** | Tabla `known_devices` en SQLite. Nombres de cámara persistentes entre proyectos con popup de confirmación y checkbox "No volver a preguntar". Importación/exportación JSON. |
+| **ReorganizeDialog** | Escaneo de carpetas de proyecto para detectar archivos *SinClasificar*, re-verificación MD5 y re-registro en DB. Accesible desde el menú Herramientas. |
+| **SoundSettingsDialog** | Activar/desactivar alertas de ingesta y slider de volumen. Menú Configuración → Opciones de sonido… |
+| **Filtro ventana sesión** | Selector de unidad (días/semanas/meses) en el filtro "Últimos N…" de la configuración de sesión. |
+| **NamesManagerDialog** | Diálogo reutilizable para gestionar nombres de carpetas de footage / contenedores (añadir, renombrar, eliminar, duplicar). |
+
+---
+
+## Mejoras
+
+- **COM threading**: `CoInitialize`/`CoUninitialize` balanceados en hilo de staging; espera de hilo al resetear proyecto.
+- **FTP multi-subred**: escaneo en todas las subredes locales, auto-detección passive→active flip, panel de estado y configuración.
+- **WiFi local_ip()**: detección de IP local sin dependencia de Internet; no anuncia loopback en la URL del QR.
+- **Identidad USB unificada**: normalización `usb:<LETRA>:/ usb:<LETRA>:\ → usb:<LETRA>:\\` y eliminación de claves fantasma.
+- **SinClasificar**: sustituye a `Unknown_Camera` como nombre por defecto para archivos sin metadatos de cámara.
+- **Botón FTP**: renombrado y reconfigurado para abrir panel de estado/configuración.
+- **Tabla de orígenes**: etiqueta FTP visible, ocultación de caché WiFi/FTP al añadir origen.
+- **Pre-fill de cámara**: filas USB en Añadir origen muestran el nombre conocido del dispositivo.
+- **Reorganización menú**: renombrar menús Herramientas, reestructuración de la barra de menú.
+- **Icono modo delicado**: bandaid.svg convertido al formato estándar stroke #FF00FF.
+- **Botones de sesión**: reordenados a `+ - lápiz`.
+- **Stretch superior**: 5:1 para bajar controles inferiores en la columna izquierda.
+- **Actualizador**: comparación correcta de sufijos pre-release (beta1 < beta2).
+
+---
+
+## Bugs corregidos
+
+| Bug | Fix |
+|-----|-----|
+| Sesiones fantasma USB al pulsar Detectar | Filtrado de usbstor fantasma + reparación device_id de tarjetas |
+| Borrado de origen con device_id deseleccionaba mal | Deseleccionar deshabilita origen y limpia fantasma USB |
+| FTP etiqueta y picker incorrectos | Botón FTP abre panel de estado/config, sesiones FTP registran como FTP |
+| Cache WiFi/FTP visible en Añadir origen | Ocultada correctamente |
+| Crash al pulsar Detectar con COM cerrado | No reutilizar PortableDeviceManager de apartamentos COM cerrados |
+| Error FTP solo mostraba "timed out" | Contexto host:puerto en mensaje de error |
+| `local_ip()` dependía de Internet | Funciona sin conexión, no anuncia loopback |
+| Carpetas locales persistidas como dispositivos | No persistir carpetas tipo `folder` y purgar las existentes |
+| Añadir origen sin proyecto seleccionado | Aviso al usuario |
+| Nombre fijo (sin desplegable) en filas WiFi/FTP | Corregido en Añadir origen |
+| Opción "Vacío" predeterminada en selector de cámara | Corregido para modos manual y automático |
+| `on_file_finished` crashea con `camera_model` 'Unknown' | Corregido con metadatos verificados |
+| `_browse_session_src` rompe al desempaquetar orígenes | Corregido |
+| Ghost USB E/F solo aparecen en Detectar | Filtrado de dispositivos fantasma |
+| Actualizador cuelga en Windows (desde v1.5.1) | Script helper con timeout + taskkill, `prepare_for_update()` antes de spawn |
+| Sesión restante no se refresca al borrar otra | Refresco correcto |
+| Re-volcar si destino borrado de carpeta maestra | Disco como fuente de verdad |
+| DB path dependiente de CWD | Independiente del directorio de trabajo |
+| Actualizador: comparación pre-release incorrecta | Sufijos beta comparados correctamente |
+
+---
+
+## Descomposición de MainWindow
+
+MainWindow se ha descompuesto en 8 mixins para mejorar la mantenibilidad:
+
+| Mixin | Responsabilidad |
+|-------|----------------|
+| `MenuMixin` | Menú y cambio de idioma |
+| `DevicesMixin` | Registro de dispositivos y staging MTP/FTP |
+| `SourcesMixin` | Tabla de fuentes y menús |
+| `SessionsMixin` | Gestión de sesiones |
+| `CameraMixin` | Detección/nombrado de cámara y lectura SD |
+| `IngestMixin` | Pipeline de ingesta y acciones post-ingesta |
+| `ProjectMixin` | Ciclo de proyecto |
+| `Workers` | Helpers de hilos de trabajo |
+
+---
+
+## Archivos modificados (resumen)
+
+### Core (`app/core/`)
+- `db.py` — tabla `known_devices`, migración legacy, `upsert_known_device`, `get_known_devices`, `get_known_device`
+- `mtp.py` — CoInit/CoUninit balanceado, retry en `0x80070081`, `list_devices` con caché 2s
+- `ftp.py` — multi-subred, passive→active flip, timeouts y keepalive
+- `ingestor.py` — `should_skip`, `copy_verified` stream-through
+- `metadata_engine.py` — retry degradado, `metadata_verified`, `SinClasificar`
+- `notifications.py` — QSoundEffect con volumen configurable
+- `utils.py` — `local_ip()` sin Internet, detección USB montado
+
+### UI (`app/ui/`)
+- `add_source_dialog.py` — **nuevo** — AddSourceDialog (sustituye SourcePickerDialog)
+- `reorganize_dialog.py` — **nuevo** — ReorganizeDialog
+- `sound_settings_dialog.py` — **nuevo** — SoundSettingsDialog
+- `names_manager_dialog.py` — **nuevo** — NamesManagerDialog
+- `mixins/` — **nuevo** — 8 mixins (camera, devices, ingest, menu, project, sessions, sources, wifi, workers)
+- `main_window.py` — reestructurado, delega a mixins
+- `selective_dump.py` — botones de sesión reordenados
+- `wifi_panel.py` — QR con IP local sin Internet
+- `ftp_status.py` — panel de estado/ config FTP
+
+### Tests
+- `tests/test_add_source_dialog.py` — **nuevo** (8 tests E2E)
+- `tests/test_ingestor.py` — tests de `should_skip` y hash stream-through
+- `tests/test_db.py` — tests `known_devices`, `watcher_seen`, CWD-independence
+- `tests/test_metadata_engine.py` — tests retry y `SinClasificar`
+- `tests/test_mtp.py` — tests CoInit balanceado
+
+---
+
+## Verificación
+
+```
+$ QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
+Ran 313+ tests — OK
+```
+
+> **Nota Windows**: El intérprete puede salir con código `0xC0000409` tras imprimir `OK` (teardown PySide6/Qt conocido). La suite en sí pasa en verde.
+
+---
+
 # Changelog — CosechaMedia v1.5.9-beta4
 
 **Fecha:** 2026-09-10  
