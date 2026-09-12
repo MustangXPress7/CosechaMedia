@@ -169,6 +169,7 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         self._connectivity_ts = 0.0  # cache de la última verificación
 
         self.notification_manager = NotificationManager()
+        self._tray = self._create_tray()
 
         self._wifi_server = None
         self._wifi_panel = None
@@ -700,6 +701,30 @@ class MainWindow(QMainWindow, WifiMixin, CameraMixin, MenuMixin, DevicesMixin, S
         settings = QSettings("Audiovisual Production", "CosechaMedia")
         if settings.value("autoDetectDrives", False, type=bool):
             QTimer.singleShot(200, self._auto_detect_removable_drives)
+
+    def _create_tray(self):
+        """Icono de bandeja del sistema para notificaciones (visible aunque la
+        ventana esté minimizada o detrás de otras apps). Si no hay bandeja
+        disponible se devuelve None y las notificaciones se omiten en silencio.
+        """
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return None
+        try:
+            tray = QSystemTrayIcon(self)
+            tray.setIcon(self.windowIcon())
+            tray.setToolTip("CosechaMedia")
+            tray.activated.connect(self._on_tray_activated)
+            tray.show()
+            return tray
+        except Exception as e:
+            print(f"Error creating system tray icon: {e}")
+            return None
+
+    def _on_tray_activated(self, reason):
+        # Clic en el icono de bandeja: devolver la ventana al frente.
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _auto_sync_check(self):
         """Auto-sync MTP/FTP: detecta dispositivos en hilo de fondo para

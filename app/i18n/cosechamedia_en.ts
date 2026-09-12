@@ -1435,6 +1435,16 @@ Errors:
 <context>
     <name>MainWindow</name>
     <message>
+        <location filename="../ui/mixins/wifi_mixin.py" line="484"/>
+        <source>Archivo recibido por WiFi</source>
+        <translation>File received via WiFi</translation>
+    </message>
+    <message>
+        <location filename="../ui/mixins/wifi_mixin.py" line="485"/>
+        <source>Recibido de %1: %2 (%3).</source>
+        <translation>Received from %1: %2 (%3).</translation>
+    </message>
+    <message>
         <location filename="../ui/main_window.py" line="456"/>
         <source>Volcado:</source>
         <translation>Dump:</translation>

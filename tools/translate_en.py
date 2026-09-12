@@ -806,6 +806,7 @@ TRANSLATIONS = {
     "Alertas de ingesta": "Ingest alerts",
     "Reproducir sonidos de alerta": "Play alert sounds",
     "Volumen": "Volume",
+    "Archivo recibido por WiFi": "File received via WiFi",
 }
 
 

@@ -1,6 +1,6 @@
 import os
 import json
-from PySide6.QtWidgets import QMessageBox, QDialog
+from PySide6.QtWidgets import QMessageBox, QDialog, QSystemTrayIcon
 from app.core.db import db, WIFI_DEVICE_ID
 from app.core.ingestor import Ingestor, DumpTarget
 from app.core.metadata_engine import _is_system_entry
@@ -456,6 +456,9 @@ class WifiMixin:
                 pass
 
     def _on_wifi_file_received(self, alias, path, size):
+        # Aviso inmediato (sonido + bandeja) aunque el proyecto no esté
+        # seleccionado: el archivo ya está en la caché del remitente.
+        self._notify_wifi_file_received(alias, path, size)
         if self.current_project_id is None:
             return
         for s in db.list_wifi_sessions(self.current_project_id):
@@ -466,6 +469,33 @@ class WifiMixin:
             ing = self._wifi_ingestors.get(s["id"])
             if ing is not None:
                 ing.handle_new_file(path)
+
+    def _notify_wifi_file_received(self, alias, path, size):
+        """Alerta al llegar un archivo por WiFi: sonido (si está habilitado) y
+        globo en la bandeja del sistema para que el operador lo note aunque la
+        ventana principal esté detrás de otras apps."""
+        try:
+            filename = os.path.basename(path)
+            size_txt = self._format_size(size)
+            self.notification_manager.notify_wifi_file_received()
+            tray = getattr(self, "_tray", None)
+            if tray is not None:
+                tray.showMessage(
+                    self.tr("Archivo recibido por WiFi"),
+                    self.tr("Recibido de %1: %2 (%3).")
+                    .arg(alias).arg(filename).arg(size_txt),
+                    QSystemTrayIcon.Information, 4000)
+        except Exception as e:
+            print(f"Error notificando archivo WiFi recibido: {e}")
+
+    @staticmethod
+    def _format_size(size):
+        size = float(size)
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if size < 1024 or unit == "TB":
+                return f"{size:.0f} {unit}" if unit == "B" else f"{size:.1f} {unit}"
+            size /= 1024
+        return f"{size:.0f} B"
 
     def _stop_wifi_reception(self):
         for ing in self._wifi_ingestors.values():
