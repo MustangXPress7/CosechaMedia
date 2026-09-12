@@ -24,7 +24,7 @@ SD card ingestion tool for audiovisual production. Verified copies (MD5), organi
 - **One-step projects**: the creation wizard collects every project setting up front (advanced options collapsed by default).
 - **Multiple dump destinations**: automatic distribution across drives (when one fills up, it moves to the next).
 - **Proxies**: 720p/1080p proxy generation for video clips.
-- **Sound settings**: enable/disable ingest alerts and adjust volume from *Settings → Sound options…*.
+- **Sound settings**: enable/disable ingest alerts and adjust volume from *Settings → Sound options…*, plus a system-tray notification when a file arrives over WiFi.
 - **Post-ingest**: CSV reports (card contents before dumping, integrity after ingest), source formatting (Windows), and scheduled shutdown.
 - **Themes and accents**: dark/light theme with color accents, tintable SVG icons that follow the accent, and animated wheat background.
 - **Internationalization**: Spanish and English (switchable from the *Language* menu).
@@ -161,7 +161,7 @@ Herramienta de ingesta de tarjetas SD para producción audiovisual. Copia verifi
 - **Proyectos en un solo paso**: el asistente de creación recoge todos los ajustes del proyecto desde el principio (opciones avanzadas plegadas por defecto).
 - **Destinos de volcado múltiples**: reparto automático entre discos (cuando uno se llena, pasa al siguiente).
 - **Proxies**: generación de proxies 720p/1080p de los clips de vídeo.
-- **Opciones de sonido**: activar/desactivar alertas de ingesta y ajustar el volumen desde *Configuración → Opciones de sonido…*.
+- **Opciones de sonido**: activar/desactivar alertas de ingesta y ajustar el volumen desde *Configuración → Opciones de sonido…*, además de un aviso en la bandeja del sistema al recibir un archivo por WiFi.
 - **Post-ingesta**: informes CSV (contenido de la tarjeta antes de volcar, integridad tras la ingesta), formateo de orígenes (Windows) y apagado programado.
 - **Temas y acentos**: tema oscuro/claro con acentos de color, iconos SVG tintables que siguen al acento y fondo de trigo animado.
 - **Internacionalización**: español e inglés (se cambia en el menú *Idioma*).

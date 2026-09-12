@@ -1,3 +1,44 @@
+# Changelog — CosechaMedia v1.6.1
+
+**Fecha:** 2026-09-12  
+**Tipo:** Patch release (fix sonido + alertas WiFi)
+
+---
+
+## Resumen
+
+Corrección del silenciado del control de volumen (todo sonido quedaba mudo desde v1.6.0) y nueva alerta al recibir archivos por WiFi: mismo sonido que la ingesta completada + aviso en la bandeja del sistema.
+
+---
+
+## Cambios
+
+- **Fix volumen**: `QSoundEffect` ahora se crea una vez en el hilo principal y se reutiliza; el slider de volumen vuelve a funcionar. Antes el efecto se creaba dentro de un thread sin event loop de Qt y el objeto se recolectaba al instante, silenciando todas las alertas (con `winsound`/`afplay`/`aplay` de respaldo que nunca llegaban a ejecutarse).
+- **Feat WiFi**: al llegar un archivo por WiFi suena la alerta de "ingesta completada" (respectando `soundsEnabled` y el volumen) y salta un globo en la bandeja del sistema con remitente, nombre y tamaño, visible aunque la ventana esté detrás de otras apps — incluso sin proyecto seleccionado.
+- **Bandeja**: icono en el tray del sistema (si está disponible); un clic devuelve la ventana al frente.
+- **i18n**: nuevas cadenas ES→EN "Archivo recibido por WiFi" y "Recibido de %1: %2 (%3).".
+
+---
+
+## Archivos modificados (resumen)
+
+- `app/core/notifications.py` — `play_sound_file` con efecto persistente en hilo principal, `notify_wifi_file_received`
+- `app/ui/main_window.py` — `_create_tray` / `_on_tray_activated`
+- `app/ui/mixins/wifi_mixin.py` — `_notify_wifi_file_received` / `_format_size`
+- `app/i18n/cosechamedia_en.ts` / `.qm` — cadenas nuevas
+- `tools/translate_en.py` — traducción nueva
+
+---
+
+## Verificación
+
+```
+$ QT_QPA_PLATFORM=offscreen python -m unittest tests.test_main_window tests.test_wifi_source
+Ran 114 tests — OK
+```
+
+---
+
 # Changelog — CosechaMedia v1.6.0
 
 **Fecha:** 2026-09-10  
