@@ -1,7 +1,6 @@
 import os
 import sys
 import shutil
-import threading
 import platform
 from typing import Dict, Optional
 from PySide6.QtWidgets import QMessageBox, QApplication, QDialog
@@ -23,31 +22,32 @@ class _SilentMessageBox(QMessageBox):
     def showEvent(self, event):
         QDialog.showEvent(self, event)
 
-def play_sound_file(sound_file: str, volume: float = 0.7):
-    def _play():
-        try:
-            # Intento con QSoundEffect para control de volumen cross-platform
-            try:
-                se = QSoundEffect()
-                se.setSource(QUrl.fromLocalFile(sound_file))
-                se.setVolume(max(0.0, min(1.0, volume)))
-                se.play()
-                return
-            except Exception:
-                # Fallback a métodos nativos si QtMultimedia no está disponible
-                pass
-            if platform.system() == "Windows":
-                import winsound
-                winsound.PlaySound(sound_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
-            elif platform.system() == "Darwin":
-                # afplay con volumen aproximado
-                os.system(f'afplay "{sound_file}" &')
-            else:
-                os.system(f'aplay "{sound_file}" &')
-        except Exception as e:
-            print(f"Error playing sound: {e}")
-    t = threading.Thread(target=_play, name="sound-player", daemon=True)
-    t.start()
+def play_sound_file(sound_file: str, volume: float = 0.7, effect: QSoundEffect = None):
+    """Reproduce un wav con control de volumen en el hilo principal.
+
+    QSoundEffect no puede reproducirse desde un thread sin event loop de Qt, y
+    detiene el sonido si el objeto se recolecta: por eso el efecto debe
+    crearse una vez en el hilo principal (NotificationManager.__init__) y
+    reutilizarse aquí. Los fallbacks nativos (winsound/afplay/aplay) son
+    asíncronos, así que nada de esto bloquea la UI.
+    """
+    try:
+        se = effect if effect is not None else QSoundEffect()
+        se.setSource(QUrl.fromLocalFile(sound_file))
+        se.setVolume(max(0.0, min(1.0, volume)))
+        se.play()
+        return
+    except Exception:
+        # Fallback a métodos nativos si QtMultimedia falla en runtime.
+        pass
+    if platform.system() == "Windows":
+        import winsound
+        winsound.PlaySound(sound_file, winsound.SND_FILENAME | winsound.SND_ASYNC)
+    elif platform.system() == "Darwin":
+        # afplay con volumen aproximado
+        os.system(f'afplay "{sound_file}" &')
+    else:
+        os.system(f'aplay "{sound_file}" &')
 
 class NotificationManager:
     def __init__(self):
@@ -66,6 +66,9 @@ class NotificationManager:
             )
         os.makedirs(self._sound_dir, exist_ok=True)
         self._bundled_sound_dir = resource_path(os.path.join("app", "sounds"))
+        # Efecto persistente creado en el hilo principal: QSoundEffect deja de
+        # sonar si el objeto se recolecta o si se crea en un thread sin event loop.
+        self._effect = QSoundEffect()
 
     def reload_settings(self):
         settings = QSettings("Audiovisual Production", "CosechaMedia")
@@ -90,6 +93,12 @@ class NotificationManager:
 
         if self.visual_enabled:
             self._show_failed_dialog(stats or {})
+
+    def notify_wifi_file_received(self):
+        """Aviso sonoro al recibir un archivo por WiFi (mismo sonido que la
+        ingesta completada, «complete.wav»)."""
+        if self.sounds_enabled:
+            self._ensure_and_play("complete.wav", 800, 0.5)
     
     def _show_complete_dialog(self, stats: Dict):
         app = QApplication.instance()
@@ -162,7 +171,7 @@ class NotificationManager:
         if not os.path.exists(sound_file):
             self._create_sound_file(sound_file, frequency, duration)
         if os.path.exists(sound_file):
-            play_sound_file(sound_file, self._sound_volume)
+            play_sound_file(sound_file, self._sound_volume, self._effect)
 
     def _create_sound_file(self, path: str, frequency: int, duration: float):
         try:
